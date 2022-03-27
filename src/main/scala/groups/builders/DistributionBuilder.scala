@@ -3,12 +3,10 @@ package groups.builders
 import app.AppParameters
 import app.AppParameters.NodeWallet
 import boxes.MetadataInputBox
-import contracts.PK
-import contracts.command.{CommandContract, PKContract}
-import groups.Subpool
+import contracts.command.CommandContract
 import groups.entities.{Pool, Subpool}
 import groups.models.GroupBuilder
-import org.ergoplatform.appkit.{BlockchainContext, InputBox, OutBox, Parameters}
+import org.ergoplatform.appkit.{BlockchainContext, InputBox, OutBox}
 
 class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox],
                           commandContract: CommandContract) extends GroupBuilder{
@@ -48,8 +46,8 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
     val totalOutputs = pool.subPools.size * AppParameters.commandValue
 
     // TODO: Possibly use subpool id if reference issues arise
-    var outputMap    = Map.empty[Subpool, (OutBox, Short)]
-    var outputIndex: Short = 0
+    var outputMap    = Map.empty[Subpool, (OutBox, Int)]
+    var outputIndex: Int = 0
     for(subPool <- pool.subPools){
 
       val outB = ctx.newTxBuilder().outBoxBuilder()
@@ -60,7 +58,7 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
         .build()
 
       outputMap = outputMap + (subPool -> (outBox -> outputIndex))
-      outputIndex += 1
+      outputIndex = outputIndex + 1
     }
 
     val inputBoxes = ctx.getWallet.getUnspentBoxes(totalFees + totalOutputs)
@@ -76,7 +74,7 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
     val signedTx = wallet.prover.sign(unsignedTx)
     val txId = ctx.sendTransaction(signedTx)
 
-    val inputMap: Map[Subpool, InputBox] = outputMap.map(om => om._1 -> om._2._1.convertToInputWith(txId, om._2._2))
+    val inputMap: Map[Subpool, InputBox] = outputMap.map(om => om._1 -> om._2._1.convertToInputWith(txId, om._2._2.shortValue()))
     pool.subPools.foreach{
       p =>
         p.rootBox = inputMap(p)

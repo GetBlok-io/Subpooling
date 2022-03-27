@@ -1,7 +1,6 @@
 package groups.models
 
 import app.AppParameters.NodeWallet
-import groups.Subpool
 import groups.entities.{Pool, Subpool}
 import org.ergoplatform.appkit.{BlockchainContext, SignedTransaction}
 

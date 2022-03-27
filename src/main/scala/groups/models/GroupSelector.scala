@@ -1,6 +1,5 @@
 package groups.models
 
-import groups.Pool
 import groups.entities.{Member, Pool}
 
 abstract class GroupSelector(members: Array[Member]) {
