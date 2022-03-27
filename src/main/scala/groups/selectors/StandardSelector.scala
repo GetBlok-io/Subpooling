@@ -1,7 +1,8 @@
 package groups.selectors
 
 import groups.models.GroupSelector
-import groups.{Member, Pool}
+import groups.Pool
+import groups.entities.{Member, Pool}
 import org.ergoplatform.appkit.Parameters
 import registers.{MemberInfo, PropBytes, ShareDistribution}
 

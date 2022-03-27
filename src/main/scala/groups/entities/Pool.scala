@@ -1,4 +1,4 @@
-package groups
+package groups.entities
 
 import org.ergoplatform.appkit.ErgoId
 

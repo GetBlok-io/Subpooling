@@ -1,11 +1,18 @@
 package groups.builders
 
+import app.AppParameters
+import app.AppParameters.NodeWallet
 import boxes.MetadataInputBox
-import groups.Pool
+import contracts.PK
+import contracts.command.{CommandContract, PKContract}
+import groups.Subpool
+import groups.entities.{Pool, Subpool}
 import groups.models.GroupBuilder
-import org.ergoplatform.appkit.{BlockchainContext, InputBox}
+import org.ergoplatform.appkit.{BlockchainContext, InputBox, OutBox, Parameters}
 
-class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox]) extends GroupBuilder{
+class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox],
+                          commandContract: CommandContract) extends GroupBuilder{
+
   /**
    * Collect information that already exists about this Transaction Group and assign it to each subPool
    */
@@ -31,15 +38,57 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
   }
 
   /**
-   * Initiate the root transactions necessary for each subPool within the Group
+   * Execute the root transaction necessary to begin the Group's Tx Chains
    *
-   * @param ctx Blockchain Context to initiate transactions in
+   * @param ctx Blockchain Context to execute root transaction in
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
-  override def initiateRootTransactions(ctx: BlockchainContext): GroupBuilder = ???
+  override def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder = {
+    val totalFees    = pool.subPools.size * AppParameters.groupFee
+    val totalOutputs = pool.subPools.size * AppParameters.commandValue
+
+    // TODO: Possibly use subpool id if reference issues arise
+    var outputMap    = Map.empty[Subpool, (OutBox, Short)]
+    var outputIndex: Short = 0
+    for(subPool <- pool.subPools){
+
+      val outB = ctx.newTxBuilder().outBoxBuilder()
+
+      val outBox = outB
+        .contract(wallet.contract)
+        .value(AppParameters.commandValue)
+        .build()
+
+      outputMap = outputMap + (subPool -> (outBox -> outputIndex))
+      outputIndex += 1
+    }
+
+    val inputBoxes = ctx.getWallet.getUnspentBoxes(totalFees + totalOutputs)
+    val txB = ctx.newTxBuilder()
+
+    val unsignedTx = txB
+      .boxesToSpend(inputBoxes.get())
+      .fee(totalFees)
+      .outputs(outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1):_*)
+      .sendChangeTo(wallet.p2pk.getErgoAddress)
+      .build()
+
+    val signedTx = wallet.prover.sign(unsignedTx)
+    val txId = ctx.sendTransaction(signedTx)
+
+    val inputMap: Map[Subpool, InputBox] = outputMap.map(om => om._1 -> om._2._1.convertToInputWith(txId, om._2._2))
+    pool.subPools.foreach{
+      p =>
+        p.rootBox = inputMap(p)
+    }
+
+    this
+  }
 
   /**
    * Finalize building of the Transaction Group
    */
-  override def buildGroup: Pool = ???
+  override def buildGroup: Pool = {
+    pool
+  }
 }

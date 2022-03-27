@@ -1,6 +1,7 @@
 package groups.models
 
-import groups.{Member, Pool}
+import groups.Pool
+import groups.entities.{Member, Pool}
 
 abstract class GroupSelector(members: Array[Member]) {
   var pool: Pool = _

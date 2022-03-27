@@ -1,9 +1,11 @@
 package groups.models
 
-import groups.{Pool, Subpool}
+import app.AppParameters.NodeWallet
+import groups.Subpool
+import groups.entities.{Pool, Subpool}
 import org.ergoplatform.appkit.{BlockchainContext, SignedTransaction}
 
-abstract class TransactionGroup(pool: Pool, ctx: BlockchainContext) {
+abstract class TransactionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet) {
   var completedGroups: Map[Subpool, SignedTransaction]
   var failedGroups:    Map[Subpool, Throwable]
 
@@ -22,7 +24,7 @@ abstract class TransactionGroup(pool: Pool, ctx: BlockchainContext) {
       .setPool(pool)
       .collectGroupInfo
       .applyModifications
-      .initiateRootTransactions(ctx)
+      .executeRootTx(ctx, wallet)
       .buildGroup
 
     this

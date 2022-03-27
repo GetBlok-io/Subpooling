@@ -1,8 +1,9 @@
-package groups
+package groups.entities
 
 import boxes.{CommandInputBox, MetadataInputBox}
+import groups.entities
 import org.ergoplatform.appkit.{ErgoId, InputBox}
-import registers.{MetadataRegisters, PoolFees, PoolInfo, PoolOperators, ShareDistribution}
+import registers._
 
 class Subpool(metadataInputBox: MetadataInputBox){
   val box: MetadataInputBox = metadataInputBox
@@ -11,7 +12,7 @@ class Subpool(metadataInputBox: MetadataInputBox){
   val epoch: Long = metadataInputBox.epoch
   val token: ErgoId = metadataInputBox.subpoolToken
   val tag: Long = metadataInputBox.poolInfo.getTag
-  val members: Array[Member] = metadataInputBox.shareDistribution.dist.map(d => Member(d._1.address, d._2)).toArray
+  val members: Array[Member] = metadataInputBox.shareDistribution.dist.map(d => entities.Member(d._1.address, d._2)).toArray
   val lastTotalScore: Long = members.map(m => m.shareScore).sum
 
 
@@ -27,7 +28,7 @@ class Subpool(metadataInputBox: MetadataInputBox){
   var commandBox: CommandInputBox = _
   var nextBox: MetadataInputBox = _
 
-  def nextMembers: Array[Member] = nextDist.dist.map(d => Member(d._1.address, d._2)).toArray
+  def nextMembers: Array[Member] = nextDist.dist.map(d => entities.Member(d._1.address, d._2)).toArray
   def nextTotalScore: Long = nextMembers.map(m => m.shareScore).sum
 
 

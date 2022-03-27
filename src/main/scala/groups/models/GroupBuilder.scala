@@ -1,6 +1,7 @@
 package groups.models
 
-import groups.Pool
+import app.AppParameters.NodeWallet
+import groups.entities.Pool
 import org.ergoplatform.appkit.BlockchainContext
 
 abstract class GroupBuilder {
@@ -21,11 +22,12 @@ abstract class GroupBuilder {
   def applyModifications: GroupBuilder
 
   /**
-   * Initiate the root transactions necessary for each subPool within the Group
-   * @param ctx Blockchain Context to initiate transactions in
+   * Collect input boxes to be used for each chain's root tx.
+   * @param ctx Blockchain Context to execute root transaction in
+   * @param wallet Node wallet to use for transaction
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
-  def initiateRootTransactions(ctx: BlockchainContext): GroupBuilder
+  def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder
 
   /**
    * Finalize building of the Transaction Group
