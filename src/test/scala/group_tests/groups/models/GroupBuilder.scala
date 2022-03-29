@@ -1,14 +1,13 @@
-package groups.models
+package group_tests.groups.models
 
 import app.AppParameters.NodeWallet
-import groups.entities.Pool
-import groups.stages.StageManager
-import org.ergoplatform.appkit.BlockchainContext
+import group_tests.groups.{entities, stages}
+import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
 abstract class GroupBuilder {
-  var pool: Pool                  = _
-  val stageManager: StageManager  = new StageManager
-  def setPool(groupPool: Pool): GroupBuilder = {
+  var pool: entities.Pool                  = _
+  val stageManager: stages.StageManager  = new stages.StageManager
+  def setPool(groupPool: entities.Pool): GroupBuilder = {
     pool = groupPool
     this
   }
@@ -28,10 +27,10 @@ abstract class GroupBuilder {
    * @param wallet Node wallet to use for transaction
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
-  def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder
+  def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet, inputBoxes: Array[InputBox]): GroupBuilder
 
   /**
    * Finalize building of the Transaction Group
    */
-  def buildGroup: Pool
+  def buildGroup: entities.Pool
 }

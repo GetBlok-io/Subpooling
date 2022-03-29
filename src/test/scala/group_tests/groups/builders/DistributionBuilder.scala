@@ -1,20 +1,16 @@
-package groups.builders
+package group_tests.groups.builders
 
-import app.AppParameters
 import app.AppParameters.NodeWallet
 import boxes.MetadataInputBox
-import contracts.command.CommandContract
-import groups.entities.{Pool, Subpool}
-import groups.models.GroupBuilder
-import groups.stages.{DistributionRoot, StageManager}
-import org.ergoplatform.appkit.{BlockchainContext, InputBox, OutBox}
+import group_tests.groups.{entities, models, stages}
+import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
-class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox]) extends GroupBuilder{
+class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox]) extends models.GroupBuilder{
 
   /**
    * Collect information that already exists about this Transaction Group and assign it to each subPool
    */
-  override def collectGroupInfo: GroupBuilder = {
+  override def collectGroupInfo: models.GroupBuilder = {
     for(subPool <- pool.subPools){
       subPool.holdingBox = holdingMap.find(b => b._1.getId == subPool.box.getId).get._2
       subPool.storedBox = storageMap.find(b => b._1.getId == subPool.box.getId).map(o => o._2)
@@ -25,7 +21,7 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
   /**
    * Apply special modifications to the entire Transaction Group
    */
-  override def applyModifications: GroupBuilder = {
+  override def applyModifications: models.GroupBuilder = {
     pool.subPools.foreach{
       s =>
         s.nextFees = s.box.poolFees
@@ -41,8 +37,8 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
    * @param ctx Blockchain Context to execute root transaction in
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
-  override def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder = {
-    val stageResult = stageManager.execute[InputBox](new DistributionRoot(pool, ctx, wallet))
+  override def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet, inputBoxes: Array[InputBox]): models.GroupBuilder = {
+    val stageResult = stageManager.execute[InputBox](new stages.DistributionRoot(pool, ctx, wallet, inputBoxes))
     pool.subPools.foreach{
       p =>
         p.rootBox = stageResult._1(p)
@@ -54,7 +50,7 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
   /**
    * Finalize building of the Transaction Group
    */
-  override def buildGroup: Pool = {
+  override def buildGroup: entities.Pool = {
     pool
   }
 }

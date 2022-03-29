@@ -1,7 +1,7 @@
-package groups.entities
+package group_tests.groups.entities
 
 import boxes.{CommandInputBox, MetadataInputBox}
-import groups.entities
+import group_tests.groups.entities
 import org.ergoplatform.appkit.{ErgoId, InputBox}
 import registers._
 
@@ -21,6 +21,7 @@ class Subpool(metadataInputBox: MetadataInputBox){
   var nextInfo: PoolInfo = _
   var nextOps:  PoolOperators = _
   var paymentMap: Map[PropBytes, InputBox] = Map.empty[PropBytes, InputBox]
+
 
   var rootBox: InputBox = _
   var holdingBox: InputBox = _

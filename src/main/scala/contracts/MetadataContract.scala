@@ -27,6 +27,15 @@ object MetadataContract {
   }
 
   /**
+   * Generate test script without one epoch per height limitation
+   */
+  def generateTestContract(ctx: BlockchainContext): ErgoContract = {
+    val testScript = Scripts.METADATA_TEST_SCRIPT
+    val contract: ErgoContract = ctx.compileContract(constants, testScript)
+    contract
+  }
+
+  /**
    * Builds genesis box for SmartPool
    *
    * @param mOB    OutBox builder supplied by context
@@ -40,7 +49,7 @@ object MetadataContract {
     val poolOpBytes = PropBytes.ofAddress(poolOp)(AppParameters.networkType)
     val memberInfo = new MemberInfo(Array(1L, (1 * Parameters.OneErg)/10 , 0L, 0L, 0L))
     val initialConsensus: ShareDistribution = new ShareDistribution(Map((poolOpBytes, memberInfo)))
-    val initialPoolFee: PoolFees = new PoolFees(Map((poolOpBytes, 100000)))
+    val initialPoolFee: PoolFees = new PoolFees(Map((poolOpBytes, 1000)))
     val initialPoolOp: PoolOperators = new PoolOperators(Array(poolOpBytes))
     // The following info is stored: epoch 0, currentEpochHeight, creationEpochHeight,
     // and a filler value for the box id, since that info can only be obtained after the first spending tx.

@@ -2,7 +2,7 @@ package contracts.holding
 
 import app.AppParameters
 import boxes.BoxHelpers
-import boxes.builders.{CommandOutputBuilder, HoldingBuilder, HoldingOutputBuilder}
+import boxes.builders.{CommandOutputBuilder, HoldingSetBuilder, HoldingOutputBuilder}
 import contracts.Models.Scripts
 import logging.LoggingHandler
 import org.ergoplatform.appkit._
@@ -23,6 +23,8 @@ import transactions.{CreateCommandTx, DistributionTx}
 class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContract(holdingContract) {
   val logger: Logger = LoggerFactory.getLogger(LoggingHandler.loggers.LOG_HOLD_CONTRACT)
   final val MIN_PAYMENT_THRESHOLD = Parameters.OneErg / 10L // TODO: Make this an AppParameter
+
+
   override def applyToCommand(commandTx: CreateCommandTx): CommandOutputBuilder = {
     val metadataBox = commandTx.metadataInputBox
     val storedPayouts = metadataBox.shareDistribution.dist.map(d => d._2.getStored).sum
@@ -45,7 +47,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
 
     val totalRewards = holdingBoxValues - totalOwedPayouts
     val feeList = currentPoolFees.fees.map{
-      // Pool fee is defined as x/100 of total inputs value.
+      // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
         val feeAmount: Long = (poolFee._2.toLong * totalRewards)/PoolFees.POOL_FEE_CONST.toLong
         val feeNoDust: Long = BoxHelpers.removeDust(feeAmount)
@@ -89,6 +91,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
               valueFromShares
             }
           }
+        logger.info(s"Owed Payment: $owedPayment")
         val newConsensusInfo = consVal._2.withStored(owedPayment)
         (consVal._1, newConsensusInfo)
     }
@@ -105,10 +108,10 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
    */
   override def generateInitialOutputs(ctx: BlockchainContext, distributionTx: DistributionTx, holdingBoxes: List[InputBox]): HoldingOutputBuilder = {
     implicit val networkType: NetworkType = AppParameters.networkType
-
+    logger.info("Now generating initial holding outputs for SimpleHoldingContract")
     val metadataBox = distributionTx.metadataInputBox
     val commandBox = distributionTx.commandInputBox
-    val holdingAddress = this.getAddress
+    val holdingAddress = distributionTx.holdingContract.getAddress
     val initBoxes: List[InputBox] = List(metadataBox.asInput, commandBox.asInput)
     val inputList = initBoxes++holdingBoxes
     val inputBoxes: Array[InputBox] = inputList.toArray
@@ -124,7 +127,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
         }else
           accum
     }
-    println("Total Value Held: " + TOTAL_HOLDED_VALUE)
+    logger.info("Total Value Held: " + TOTAL_HOLDED_VALUE)
 
     val lastConsensus = metadataBox.shareDistribution
     val currentConsensus = commandBox.shareDistribution
@@ -147,7 +150,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     val totalValAfterFees = (feeList.toArray.foldLeft(totalRewards){
       (accum: Long, poolFeeVal: (PropBytes, Long)) => accum - poolFeeVal._2
     })- currentTxFee
-
+    logger.info(s"Total Value After Fees: $totalValAfterFees")
     val totalShares = currentConsensus.dist.map(c => c._2.getScore).sum
 
     // Returns some value that is a percentage of the total rewards after the fees.
@@ -169,6 +172,9 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
         val shareNum = consVal._2.getScore
         val currentMinPayout = consVal._2.getMinPay
         val valueFromShares = getValueFromShare(shareNum)
+        logger.info("Current member in boxValueMap")
+        logger.info(consVal._1.address.toString + s": ${consVal._2}")
+        logger.info(s"Value From Shares: $valueFromShares")
         //println("Value From Shares: " + valueFromShares)
         if(lastConsensus.dist.exists(sc => consVal._1 == sc._1)){
           val lastConsValues = lastConsensus.filter(sc => consVal._1 == sc._1).head._2
@@ -195,7 +201,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     val changeValue =
       currentConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
 
-    var holdingBuilders = Array.empty[HoldingBuilder]
+    var holdingBuilders = Array.empty[HoldingSetBuilder]
 
     boxValueMap.foreach{
       c =>
@@ -205,14 +211,14 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
         logger.info(s" Value from shares for address ${addr}: ${c._2}")
         if(c._2 > 0) {
           val outB = distributionTx.asUnsignedTxB.outBoxBuilder()
-          val holdingBuilder = new HoldingBuilder(outB)
+          val holdingBuilder = new HoldingSetBuilder(outB)
           val setBuilder = holdingBuilder.value(c._2).contract(new ErgoTreeContract(addr.getErgoAddress.script, addr.getNetworkType)).forMiner(true)
           holdingBuilders = holdingBuilders++Array(setBuilder)
         }
     }
     feeAddresses.foreach{
       (addr: Address) =>
-        val outB = new HoldingBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
+        val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
         val addrBytes = PropBytes.ofAddress(addr)
         val boxValue = feeList.filter(f => f._1 == addrBytes).head
         if(boxValue._2 > 0) {
@@ -223,7 +229,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     }
 
     if(changeValue > 0) {
-      val outB = new HoldingBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
+      val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
       val holdingBuilder = outB.value(changeValue).contract(new ErgoTreeContract(holdingAddress.getErgoAddress.script, holdingAddress.getNetworkType))
       holdingBuilders = holdingBuilders++Array(holdingBuilder)
     }
@@ -244,7 +250,7 @@ object SimpleHoldingContract {
    * @param metadataAddress address of metadata
    * @return Compiled ErgoContract of Holding Smart Contract
    */
-  def generateHoldingContract(ctx: BlockchainContext, metadataAddress: Address, subpoolToken: ErgoId): ErgoContract = {
+  def generateHoldingContract(ctx: BlockchainContext, metadataAddress: Address, subpoolToken: ErgoId): HoldingContract = {
     val metadataPropBytes: PropBytes = PropBytes.ofAddress(metadataAddress)(ctx.getNetworkType)
     val subpoolTokenBytes = Colls.fromArray(subpoolToken.getBytes)
     val constantsBuilder = ConstantsBuilder.create()
@@ -253,20 +259,20 @@ object SimpleHoldingContract {
       .item("const_metadataPropBytes", metadataPropBytes.coll)
       .item("const_smartPoolNFT", subpoolTokenBytes)
       .build(), script)
-    compiledContract
+    new SimpleHoldingContract(compiledContract)
   }
 //
 //
 //
 //
-//  def getBoxValue(shareNum: Long, totalShares: Long, totalValueAfterFees: Long): Long = {
-//    if(totalShares != 0) {
-//      val boxValue = ((totalValueAfterFees * shareNum)/totalShares)
-//      val dustRemoved = BoxHelpers.removeDust(boxValue)
-//      dustRemoved
-//    } else
-//      0L
-//  }
+  def getBoxValue(shareNum: Long, totalShares: Long, totalValueAfterFees: Long): Long = {
+    if(totalShares != 0) {
+      val boxValue = ((totalValueAfterFees * shareNum)/totalShares)
+      val dustRemoved = BoxHelpers.removeDust(boxValue)
+      dustRemoved
+    } else
+      0L
+  }
 
 
 

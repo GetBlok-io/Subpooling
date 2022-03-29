@@ -1,16 +1,14 @@
-package groups
+package group_tests.groups
 
-import groups.entities.Subpool
-import groups.models.{GroupBuilder, GroupSelector, ManagerBase, TransactionGroup}
 import org.ergoplatform.appkit.SignedTransaction
 
 import scala.util.Try
 
-class GroupManager(group: TransactionGroup, builder: GroupBuilder, selector: GroupSelector) extends ManagerBase{
+class GroupManager(group: models.TransactionGroup, builder: models.GroupBuilder, selector: models.GroupSelector) extends models.ManagerBase{
   override protected val managerName: String = "GroupManager"
 
-  var completedGroups: Map[Subpool, SignedTransaction] = Map.empty[Subpool, SignedTransaction]
-  var failedGroups:    Map[Subpool, Throwable]         = Map.empty[Subpool, Throwable]
+  var completedGroups: Map[entities.Subpool, SignedTransaction] = Map.empty[entities.Subpool, SignedTransaction]
+  var failedGroups:    Map[entities.Subpool, Throwable]         = Map.empty[entities.Subpool, Throwable]
   var isSuccess:       Boolean                         = false
 
   def initiate(): Unit = {

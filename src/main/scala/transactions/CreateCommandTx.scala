@@ -1,5 +1,6 @@
 package transactions
 
+import app.AppParameters
 import boxes.builders.{CommandOutputBuilder, HoldingOutputBuilder}
 import boxes.{CommandInputBox, CommandOutBox, MetadataInputBox, MetadataOutBox}
 import contracts.MetadataContract
@@ -15,7 +16,7 @@ import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqA
 
 class CreateCommandTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends CommandTxTemplate(unsignedTxBuilder) {
   val logger: Logger = LoggerFactory.getLogger(LoggingHandler.loggers.LOG_COMMAND_TX)
-  val txFee: Long = Parameters.MinFee * 5
+  val txFee: Long = AppParameters.groupFee
 
   protected[this] var _mainHoldingContract: HoldingContract = _
   protected[this] var _holdingInputs: List[InputBox] = List[InputBox]()
@@ -122,6 +123,7 @@ class CreateCommandTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Com
     }
     this.commandOutput(commandOutBox)
     logger.info("Now building as unsigned Tx")
+    logger.info(s"CommandOutBox Registers: ${commandOutBox.metadataRegisters}")
     this.asUnsignedTxB
       .boxesToSpend(this._inputBoxes.asJava)
       .outputs(commandOutBox.asOutBox)
