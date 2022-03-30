@@ -15,7 +15,7 @@ class StandardSelector(members: Array[Member]) extends GroupSelector(members){
 
   var membersAdded: ArrayBuffer[Member] = ArrayBuffer.empty[Member]
   var membersRemoved: ArrayBuffer[Member] = ArrayBuffer.empty[Member]
-
+  // TODO: Add maps for unused and removed pools
   override def placeCurrentMiners: GroupSelector = {
     val currentPools = pool.subPools.filter(p => p.epoch > 0)
     for(subPool <- currentPools){
