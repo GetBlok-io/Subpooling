@@ -1,6 +1,6 @@
 package group_tests.groups.entities
 
-import org.ergoplatform.appkit.ErgoId
+import org.ergoplatform.appkit.{ErgoId, SignedTransaction}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -9,4 +9,5 @@ class Pool(pools: ArrayBuffer[Subpool]){
   val globalEpoch: Long = subPools.head.epoch
   val token: ErgoId = subPools.head.token
 
+  var rootTx: SignedTransaction = _
 }

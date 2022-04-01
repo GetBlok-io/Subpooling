@@ -2,7 +2,7 @@ package groups.entities
 
 import boxes.{CommandInputBox, MetadataInputBox}
 import groups.entities
-import org.ergoplatform.appkit.{ErgoId, InputBox}
+import org.ergoplatform.appkit.{ErgoId, InputBox, SignedTransaction}
 import registers._
 
 class Subpool(metadataInputBox: MetadataInputBox){
@@ -15,12 +15,17 @@ class Subpool(metadataInputBox: MetadataInputBox){
   val members: Array[Member] = metadataInputBox.shareDistribution.dist.map(d => entities.Member(d._1.address, d._2)).toArray
   val lastTotalScore: Long = members.map(m => m.shareScore).sum
 
-
+  // Used during selection
   var nextDist: ShareDistribution = _
+
+  // Used during distribution
   var nextFees: PoolFees = _
   var nextInfo: PoolInfo = _
   var nextOps:  PoolOperators = _
   var paymentMap: Map[PropBytes, InputBox] = Map.empty[PropBytes, InputBox]
+
+  // Used during placement
+  var nextHoldingValue: Long = _
 
   var rootBox: InputBox = _
   var holdingBox: InputBox = _

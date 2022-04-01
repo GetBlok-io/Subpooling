@@ -7,6 +7,7 @@ import contracts.command.{CommandContract, PKContract}
 import contracts.holding.{HoldingContract, SimpleHoldingContract}
 import group_tests.groups.entities.{Member, Pool}
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, InputBox, NetworkType, Parameters, RestApiErgoClient}
+import persistence.models.Models.PoolPlacement
 import registers.MemberInfo
 
 
@@ -25,7 +26,7 @@ object MockData {
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
   val dummyWallet: NodeWallet = NodeWallet(PK(creatorAddress), dummyProver)
-
+  val dummyTokenId: ErgoId = ErgoId.create(dummyToken)
 
   val commandContract: CommandContract = new PKContract(dummyWallet.p2pk)
   val holdingContract: HoldingContract = {
@@ -38,12 +39,48 @@ object MockData {
     }
   }
 
-  object SinglePoolData {
+  object SingleDistributionData {
     // Init Mock data
     val holdingValue: Long = Parameters.OneErg * 66
     val singlePool: Pool = initSinglePool
     val initSingleMembers: Array[Member] = mockAddresses.map(a => Member(a, new MemberInfo(Array(randomShareScore, randomMinPay, 0, 0, 0))))
+    val initPartialPlacements: Array[PoolPlacement] = {
+
+      mockAddresses.map(a => PoolPlacement(dummyToken, 0L, 0L, "", 0L,
+        a.toString, randomShareScore, randomMinPay, 1L, 0L))
+    }
     val initSingleHoldingMap: Map[MetadataInputBox, InputBox] = Map(singlePool.subPools.head.box -> buildHoldingBox(holdingValue))
     val initValueAfterFees: Long = holdingValue - (holdingValue / 100) - (initSingleMembers.length * Parameters.MinFee)
   }
+
+  object HoldingData {
+    // Init Mock data
+    val holdingValue: Long = Parameters.OneErg * 66
+    val singlePool: Pool = initSinglePool
+    val initSingleMembers: Array[Member] = mockAddresses.map(a => Member(a, new MemberInfo(Array(randomShareScore, randomMinPay, 0, 0, 0))))
+    val initPartialPlacements: Array[PoolPlacement] = {
+
+      mockAddresses.map(a => PoolPlacement(dummyToken, 0L, 0L, "", 0L,
+        a.toString, randomShareScore, randomMinPay, 1L, 0L))
+    }
+    val initSingleHoldingMap: Map[MetadataInputBox, InputBox] = Map(singlePool.subPools.head.box -> buildHoldingBox(holdingValue))
+    val initValueAfterFees: Long = holdingValue - (holdingValue / 100) - (initSingleMembers.length * Parameters.MinFee)
+  }
+
+
+  object LoadedPoolData {
+    // Init Mock data
+    val holdingValue: Long = Parameters.OneErg * 66
+    val singlePool: Pool = initSinglePool
+    val initPartialPlacements: Array[PoolPlacement] = {
+
+      mockAddresses.map(a => PoolPlacement(dummyToken, 0L, 0L, "", 0L,
+        a.toString, randomShareScore, randomMinPay, 1L, 0L))
+    }
+    val initSingleHoldingMap: Map[MetadataInputBox, InputBox] = Map(singlePool.subPools.head.box -> buildHoldingBox(holdingValue))
+    val initValueAfterFees: Long = holdingValue - (holdingValue / 100) - (initPartialPlacements.length * Parameters.MinFee)
+  }
+
+
+
 }

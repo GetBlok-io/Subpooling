@@ -6,7 +6,7 @@ object Models {
   object Scripts {
     private val metadataSrc     = Source.fromFile("src/main/resources/scripts/Metadata.ergo")
     private val metadataTestSrc = Source.fromFile("src/main/resources/scripts/MetadataTest.ergo")
-    private val holdingSrc      = Source.fromFile("src/main/resources/scripts/SimpleHolding.ergo")
+    private val holdingSrc      = Source.fromFile("src/main/resources/scripts/SubpoolHolding.ergo")
 
     val METADATA_SCRIPT:        String = metadataSrc.mkString
     val METADATA_TEST_SCRIPT:   String = metadataTestSrc.mkString

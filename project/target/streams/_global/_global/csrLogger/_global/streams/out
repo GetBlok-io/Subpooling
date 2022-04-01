@@ -1,7 +1,2 @@
-[debug] downloaded https://repo1.maven.org/maven2/org/jetbrains/sbt-ide-settings_2.12_1.0/1.1.0/sbt-ide-settings-1.1.0.pom
-[debug] downloaded https://repo1.maven.org/maven2/org/jetbrains/sbt-ide-settings_2.12_1.0/1.1.0/sbt-ide-settings-1.1.0.pom.sha1
-[debug] downloaded https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.jetbrains/sbt-ide-settings/scala_2.12/sbt_1.0/1.1.0/ivys/ivy.xml
-[debug] downloaded https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.jetbrains/sbt-ide-settings/scala_2.12/sbt_1.0/1.1.0/jars/sbt-ide-settings.jar
-[debug] downloaded https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.jetbrains/sbt-ide-settings/scala_2.12/sbt_1.0/1.1.0/srcs/sbt-ide-settings-sources.jar
-[debug] downloaded https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.jetbrains/sbt-ide-settings/scala_2.12/sbt_1.0/1.1.0/docs/sbt-ide-settings-javadoc.jar
-[debug] downloaded https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.jetbrains/sbt-ide-settings/scala_2.12/sbt_1.0/1.1.0/docs/sbt-ide-settings-javadoc.jar.sha1
+[debug] downloaded https://repo1.maven.org/maven2/org/jetbrains/scala/sbt-structure-extractor_2.12_1.0/2021.3.0/sbt-structure-extractor-2021.3.0.pom
+[debug] downloaded https://repo1.maven.org/maven2/org/jetbrains/scala/sbt-structure-extractor_2.12_1.0/2021.3.0/sbt-structure-extractor-2021.3.0.jar

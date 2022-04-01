@@ -59,7 +59,7 @@ package object group_tests {
     }
   }
 
-  def getInputBoxes: Array[InputBox] = Array(buildUserBox(Parameters.OneErg * 66))
+  def getInputBoxes: Array[InputBox] = Array(buildUserBox(Parameters.OneErg * 122))
 
   def dummyProver: ErgoProver = {
     ergoClient.execute{
@@ -85,7 +85,7 @@ package object group_tests {
   }
 
   def randomMinPay: Long = {
-    Random.nextInt(10000) * Parameters.MinFee + (Parameters.MinFee * 10)
+    Random.nextInt(10000) * Parameters.MinFee + (Parameters.MinFee * 10) + Parameters.OneErg * 15
   }
 
   def printMembers(members: Array[Member]): Unit = {

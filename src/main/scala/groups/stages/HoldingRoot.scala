@@ -2,23 +2,24 @@ package groups.stages
 
 import app.AppParameters
 import app.AppParameters.NodeWallet
+import contracts.holding.HoldingContract
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
 import org.ergoplatform.appkit.{BlockchainContext, InputBox, OutBox}
 
 import scala.util.Try
 
-class DistributionRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet)
+class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdingContract: HoldingContract)
   extends TransactionStage[InputBox](pool, ctx, wallet){
-  override val stageName: String = "DistributionRoot"
+  override val stageName: String = "HoldingRoot"
   override def executeStage: TransactionStage[InputBox] = {
 
     result = {
       Try{
         val totalFees    = pool.subPools.size * AppParameters.groupFee
-        val totalOutputs = pool.subPools.size * (AppParameters.commandValue + AppParameters.groupFee)
+        val totalOutputs = pool.subPools.size * pool.subPools.map(p => p.nextHoldingValue).sum
 
-        // TODO: Possibly use subpool id if reference issues arise
+
         var outputMap    = Map.empty[Subpool, (OutBox, Int)]
         var outputIndex: Int = 0
         for(subPool <- pool.subPools){
@@ -26,8 +27,8 @@ class DistributionRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet)
           val outB = ctx.newTxBuilder().outBoxBuilder()
 
           val outBox = outB
-            .contract(wallet.contract)
-            .value(AppParameters.commandValue + AppParameters.groupFee)
+            .contract(holdingContract.asErgoContract)
+            .value(subPool.nextHoldingValue)
             .build()
 
           outputMap = outputMap + (subPool -> (outBox -> outputIndex))

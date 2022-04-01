@@ -40,7 +40,7 @@
 
   val newMetadataExists = OUTPUTS(0).propositionBytes == SELF.propositionBytes
   val newMetadataValid =
-    if(newMetadataExists){
+    if(newMetadataExists && commandValid){
       allOf(Coll(
         OUTPUTS(0).R4[Coll[(Coll[Byte], Coll[Long])]].isDefined,
         OUTPUTS(0).R5[Coll[(Coll[Byte], Int)]].isDefined,

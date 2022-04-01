@@ -21,6 +21,7 @@ class DistributionGroup(pool: entities.Pool, ctx: BlockchainContext, wallet: Nod
     pool.subPools.foreach{
       p =>
         p.commandBox = result._1(p)
+        p.nextDist   = result._1(p).shareDistribution
     }
 
     val resultSet = chainManager.execute[MetadataInputBox](new chains.DistributionChain(pool, ctx, wallet, holdingContract))

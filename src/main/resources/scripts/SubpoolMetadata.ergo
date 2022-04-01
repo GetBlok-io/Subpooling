@@ -6,37 +6,14 @@
   //
   val selfValid = allOf(Coll(
         SELF.R4[Coll[(Coll[Byte], Coll[Long])]].isDefined,         // Last consensus
-        SELF.R5[Coll[(Coll[Byte], Int)]].isDefined,               // Pool fees
+        SELF.R5[Coll[(Coll[Byte], Int)]].isDefined,                // Pool fees
         SELF.R6[Coll[Long]].isDefined,                             // Pool Information
         SELF.R7[Coll[Coll[Byte]]].isDefined,                       // Pool operators
         INPUTS(0) == SELF
       ))
+  val commandType = SELF.R7[Coll[Coll[Byte]]].get.indexOf(INPUTS(1).propositionBytes)
 
-  val commandExists =
-    if(selfValid){
-      val POOL_OPERATORS = SELF.R7[Coll[Coll[Byte]]].get
-      val COMMAND_BYTES = INPUTS(1).propositionBytes
-      // Verifies that the command boxes proposition bytes exists in the pool operators
-      val commandOwnedByOperators = POOL_OPERATORS.exists{
-        (op: Coll[Byte]) =>
-          op == COMMAND_BYTES
-      }
-      commandOwnedByOperators
-    }else{
-      false
-    }
-
-  val commandValid =
-    if(commandExists){
-      allOf(Coll(
-        INPUTS(1).R4[Coll[(Coll[Byte], Coll[Long])]].isDefined,        // New consensus
-        INPUTS(1).R5[Coll[(Coll[Byte], Int)]].isDefined,              // New Pool fees
-        INPUTS(1).R6[Coll[Long]].isDefined,                            // New Pool Information
-        INPUTS(1).R7[Coll[Coll[Byte]]].isDefined         // New Pool operators
-      ))
-    }else{
-      false
-    }
+  val commandValid = commandType != -1 || INPUTS(1).propositionBytes == PK("")
 
   val newMetadataExists = OUTPUTS(0).propositionBytes == SELF.propositionBytes
   val newMetadataValid =
@@ -81,12 +58,25 @@
   // Verify that the registers in the command box are stored in the new metadata box
   val newMetadataFromCommand =
     if(metadataIsPreserved){
-      allOf(Coll(
-        OUTPUTS(0).R4[Coll[(Coll[Byte], Coll[Long])]].get == INPUTS(1).R4[Coll[(Coll[Byte], Coll[Long])]].get,
-        OUTPUTS(0).R5[Coll[(Coll[Byte], Int)]].get        == INPUTS(1).R5[Coll[(Coll[Byte], Int)]].get,
-        OUTPUTS(0).R6[Coll[Long]].get                     == INPUTS(1).R6[Coll[Long]].get,
-        OUTPUTS(0).R7[Coll[Coll[Byte]]].get               == INPUTS(1).R7[Coll[Coll[Byte]]].get
-      ))
+      if(commandType == 0){
+        // When commandType == 0 (shareOperator), operator may not change fees or operators
+        allOf(Coll(
+          OUTPUTS(0).R4[Coll[(Coll[Byte], Coll[Long])]].get == INPUTS(1).R4[Coll[(Coll[Byte], Coll[Long])]].get,
+          OUTPUTS(0).R5[Coll[(Coll[Byte], Int)]].get        == SELF.R5[Coll[(Coll[Byte], Int)]].get,
+          OUTPUTS(0).R6[Coll[Long]].get                     == INPUTS(1).R6[Coll[Long]].get,
+          OUTPUTS(0).R7[Coll[Coll[Byte]]].get               == SELF.R7[Coll[Coll[Byte]]].get
+        ))
+      }else{
+        if(commandType > 0){
+          allOf(Coll(
+            OUTPUTS(0).R4[Coll[(Coll[Byte], Coll[Long])]].get == SELF.R4[Coll[(Coll[Byte], Coll[Long])]].get,
+            OUTPUTS(0).R5[Coll[(Coll[Byte], Int)]].get        == INPUTS(1).R5[Coll[(Coll[Byte], Int)]].get,
+            OUTPUTS(0).R6[Coll[Long]].get                     == SELF.R6[Coll[Long]].get,
+            OUTPUTS(0).R7[Coll[Coll[Byte]]].get               == INPUTS(1).R7[Coll[Coll[Byte]]].get
+            OUTPUTS(0).R7[Coll[Coll[Byte]]].get(0)            == SELF.R7[Coll[Coll[Byte]]].get(0)
+          ))
+        }
+      }
     }else{
       false
     }

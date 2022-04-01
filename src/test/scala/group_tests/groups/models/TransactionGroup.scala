@@ -15,9 +15,6 @@ abstract class TransactionGroup(pool: entities.Pool, ctx: BlockchainContext, wal
   def selectForGroup(selector: GroupSelector): TransactionGroup = {
     selector
       .setPool(pool)
-      .placeCurrentMiners
-      .evaluateLostMiners
-      .placeNewMiners
       .getSelection
     this
   }

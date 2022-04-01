@@ -35,7 +35,7 @@ class PlacementTable(dbConn: DbConn, part: String) extends DataTable[PoolPlaceme
 
   def insertPlacement(poolPlacement: PoolPlacement): Long = {
     implicit val ps: PreparedStatement = state(insert, into, s"$table ",
-      allFields("subpool", "subpool_id", "block", "holding_id", "holding_val", "miner", "score",
+      allFields("subpool", "subpool_id", "block", "holding_id", "holding_val", "miner", "score", "minpay",
       "epochs_mined", "amount"), values)
     setStr(1,  poolPlacement.subpool)
     setLong(2, poolPlacement.subpool_id)
@@ -44,8 +44,9 @@ class PlacementTable(dbConn: DbConn, part: String) extends DataTable[PoolPlaceme
     setLong(5, poolPlacement.holding_val)
     setStr(6, poolPlacement.miner)
     setLong(7, poolPlacement.score)
-    setLong(8, poolPlacement.epochs_mined)
-    setLong(9, poolPlacement.amount)
+    setLong(8, poolPlacement.minpay)
+    setLong(9, poolPlacement.epochs_mined)
+    setLong(10, poolPlacement.amount)
     execUpdate
   }
 

@@ -1,5 +1,7 @@
 package persistence.models
 
+import org.ergoplatform.appkit.Parameters
+
 import java.sql.{Connection, PreparedStatement, ResultSet}
 import java.time.LocalDateTime
 import java.util.Date
@@ -70,13 +72,49 @@ object Models {
   }
 
   case class PoolPlacement(subpool: String, subpool_id: Long, block: Long, holding_id: String, holding_val: Long,
-                           miner: String, score: Long, epochs_mined: Long, amount: Long)
+                           miner: String, score: Long, minpay: Long, epochs_mined: Long, amount: Long)
 
   object PoolPlacement extends DatabaseConversion[PoolPlacement] {
     override def fromResultSet(rs: ResultSet): PoolPlacement = {
       implicit val resultSet: ResultSet = rs
       PoolPlacement(str(1), long(2), long(3), str(4), long(5), str(6), long(7),
-        long(8), long(9))
+        long(8), long(9), long(10))
+    }
+  }
+
+  case class Block(id: Long, blockheight: Long, status: String, confirmationprogress: Double, miner: String, reward: Double,
+                   created: LocalDateTime){
+    def getErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
+  }
+
+  object Block extends DatabaseConversion[Block] {
+    override def fromResultSet(rs: ResultSet): Block = {
+      implicit val resultSet: ResultSet = rs
+      Block(long(1), long(3), str(5), dec(7), str(10), dec(11), date(14))
+    }
+
+    val PENDING   = "pending"
+    val CONFIRMED = "confirmed"
+    val INITIATED = "initiated"
+    val PAID      = "paid"
+  }
+
+  case class Share(blockheight: Long, miner: String, worker: String, difficulty: Double, networkdifficulty: Double,
+                   created: LocalDateTime)
+
+  object Share extends DatabaseConversion[Share] {
+    override def fromResultSet(rs: ResultSet): Share = {
+      implicit val resultSet: ResultSet = rs
+      Share(long(2), str(3), str(4), dec(6), dec(7), date(10))
+    }
+  }
+
+  case class MinerSettings(address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
+                           subpool: String)
+  object MinerSettings extends DatabaseConversion[MinerSettings] {
+    override def fromResultSet(rs: ResultSet): MinerSettings = {
+      implicit val resultSet: ResultSet = rs
+      MinerSettings(str(2), dec(3), date(4), date(5), str(6))
     }
   }
 

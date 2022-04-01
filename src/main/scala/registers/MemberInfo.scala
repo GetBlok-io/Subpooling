@@ -14,7 +14,7 @@ class MemberInfo(val arr: Array[Long]) extends RegisterCollection[Long](arr){
   final val MINER_TAG_IDX     = 4
   final val ADDITIONAL_START  = 5
 
-  require(arr.length > 4, "There must be at least 5 elements within a MemberInfo instance!")
+  require(arr.length >= 4, "There must be at least 5 elements within a MemberInfo instance!")
 
   def ergoType: ErgoType[Long]          = ErgoType.longType()
   def coll:     Coll[Long]              = Colls.fromArray(arr)

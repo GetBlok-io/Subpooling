@@ -1,23 +1,22 @@
 package group_tests
 
 import app.AppParameters
-import contracts.command.PKContract
 import contracts.holding.SimpleHoldingContract
+import group_tests.MockData.LoadedPoolData._
 import group_tests.MockData._
-import group_tests.MockData.SingleDistributionData._
 import group_tests.groups.builders.DistributionBuilder
 import group_tests.groups.entities.Subpool
 import group_tests.groups.models.GroupBuilder
-import group_tests.groups.selectors.StandardSelector
+import group_tests.groups.selectors.{LoadingSelector, StandardSelector}
 import group_tests.groups.{DistributionGroup, GroupManager}
 import org.scalatest.funsuite.AnyFunSuite
 import registers.PropBytes
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-class SingleDistributionSuite extends AnyFunSuite {
+class PartiallyLoadedDistributionSuite extends AnyFunSuite {
   var group: DistributionGroup = _
-  var selector: StandardSelector = _
+  var selector: LoadingSelector = _
   var builder: GroupBuilder = _
   var manager: GroupManager = _
   val subPool: Subpool = singlePool.subPools.head
@@ -31,9 +30,9 @@ class SingleDistributionSuite extends AnyFunSuite {
     }
   }
 
-  test("Make StandardSelector") {
-    printMembers(initSingleMembers)
-    selector = new StandardSelector(initSingleMembers)
+  test("Make LoadedSelector") {
+    initPartialPlacements.foreach(p => logger.info(p.toString))
+    selector = new LoadingSelector(initPartialPlacements)
   }
 
   test("Make DistributionBuilder") {
@@ -68,10 +67,10 @@ class SingleDistributionSuite extends AnyFunSuite {
     logger.info(subPool.nextDist.toString)
     subPool.nextDist.dist.foreach {
       d =>
-        val asMember = initSingleMembers.find(m => m.toDistributionValue._1 == d._1)
-        assert(asMember.isDefined, "Member not defined")
-        assert(asMember.get.shareScore == d._2.getScore, "Share scores not equal")
-        assert(asMember.get.minPay == d._2.getMinPay, "Min Pays changed")
+        val asPlacement = initPartialPlacements.find(m => m.miner == d._1.address.toString)
+        assert(asPlacement.isDefined, "Member not defined")
+        assert(asPlacement.get.score == d._2.getScore, "Share scores not equal")
+        assert(asPlacement.get.minpay == d._2.getMinPay, "Min Pays changed")
         assert(d._2.getEpochsMined == 1, "Epoch mined not increased")
         val memberBoxValue = SimpleHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees)
         if (memberBoxValue < d._2.getMinPay)

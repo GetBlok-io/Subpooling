@@ -73,7 +73,6 @@ object LoggingHandler {
     javaLogger.addHandler(consoleHandler)
 
 
-
     logger
   }
 
@@ -91,7 +90,6 @@ object LoggingHandler {
     }
 
   }
-
 
 
 }

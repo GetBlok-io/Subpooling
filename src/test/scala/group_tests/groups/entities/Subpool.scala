@@ -16,12 +16,17 @@ class Subpool(metadataInputBox: MetadataInputBox){
   val lastTotalScore: Long = members.map(m => m.shareScore).sum
 
 
+  // Used during selection
   var nextDist: ShareDistribution = _
+
+  // Used during distribution
   var nextFees: PoolFees = _
   var nextInfo: PoolInfo = _
   var nextOps:  PoolOperators = _
   var paymentMap: Map[PropBytes, InputBox] = Map.empty[PropBytes, InputBox]
 
+  // Used during placement
+  var nextHoldingValue: Long = _
 
   var rootBox: InputBox = _
   var holdingBox: InputBox = _

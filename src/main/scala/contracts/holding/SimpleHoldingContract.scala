@@ -265,6 +265,27 @@ object SimpleHoldingContract {
 //
 //
 //
+  def getTxFee(dist: ShareDistribution): Long = {
+    Parameters.MinFee * dist.size
+  }
+
+  def getValAfterFees(totalRewards: Long, txFee: Long, poolFees: PoolFees): Long = {
+    val feeList = poolFees.fees.map{
+      // Pool fee is defined as x/100000 of total inputs value.
+      poolFee =>
+        val feeAmount: Long = (poolFee._2.toLong * totalRewards)/PoolFees.POOL_FEE_CONST.toLong
+        val feeNoDust: Long = BoxHelpers.removeDust(feeAmount)
+        (poolFee._1 , feeNoDust)
+    }
+    // Total amount in holding after pool fees and tx fees.
+    // This is the total amount of ERG to be distributed to pool members
+    val totalValAfterFees = (feeList.toArray.foldLeft(totalRewards){
+      (accum, poolFeeVal) => accum - poolFeeVal._2
+    })- txFee
+    totalValAfterFees
+  }
+
+
   def getBoxValue(shareNum: Long, totalShares: Long, totalValueAfterFees: Long): Long = {
     if(totalShares != 0) {
       val boxValue = ((totalValueAfterFees * shareNum)/totalShares)

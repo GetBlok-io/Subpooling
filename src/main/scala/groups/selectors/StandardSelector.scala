@@ -7,7 +7,7 @@ import registers.{MemberInfo, PropBytes, ShareDistribution}
 
 import scala.collection.mutable.ArrayBuffer
 
-class StandardSelector(members: Array[Member]) extends GroupSelector(members){
+class StandardSelector(members: Array[Member]) extends GroupSelector{
 
   final val MEMBER_LIMIT = 10
   final val EPOCH_MINED_LIMIT = -5
@@ -16,7 +16,7 @@ class StandardSelector(members: Array[Member]) extends GroupSelector(members){
   var membersAdded: ArrayBuffer[Member] = ArrayBuffer.empty[Member]
   var membersRemoved: ArrayBuffer[Member] = ArrayBuffer.empty[Member]
   // TODO: Add maps for unused and removed pools
-  override def placeCurrentMiners: GroupSelector = {
+  def placeCurrentMiners: GroupSelector = {
     val currentPools = pool.subPools.filter(p => p.epoch > 0)
     for(subPool <- currentPools){
       var distMap = Map.empty[PropBytes, MemberInfo]
@@ -42,7 +42,7 @@ class StandardSelector(members: Array[Member]) extends GroupSelector(members){
     this
   }
 
-  override def evaluateLostMiners: GroupSelector = {
+  def evaluateLostMiners: GroupSelector = {
     val currentPools = pool.subPools.filter(p => p.epoch > 0)
     for(subPool <- currentPools){
       var distMap = subPool.nextDist.dist
@@ -80,7 +80,7 @@ class StandardSelector(members: Array[Member]) extends GroupSelector(members){
     this
   }
 
-  override def placeNewMiners: GroupSelector = {
+  def placeNewMiners: GroupSelector = {
     val currentFreePools = pool.subPools.filter(p => p.epoch > 0 && p.nextDist.size < EPOCH_MINED_LIMIT)
     var freeMembers = members.diff(membersAdded).diff(membersRemoved)
     // First select from currently used pools
@@ -129,6 +129,9 @@ class StandardSelector(members: Array[Member]) extends GroupSelector(members){
   }
 
   override def getSelection: Pool = {
+    placeCurrentMiners
+    evaluateLostMiners
+    placeNewMiners
     pool.subPools --= pool.subPools.filter(p => p.nextDist == null)
     pool.subPools --= pool.subPools.filter(p => p.nextDist.size == 0)
     pool

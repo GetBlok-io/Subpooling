@@ -13,6 +13,7 @@ abstract class DataTable[T](dbConn: DbConn) {
   val select:          String = "SELECT "
   val all:             String = "* "
   val fromTable:       String = s"FROM $table "
+  val thisTable:       String = s"$table "
   val where:           String = "WHERE "
   val update:          String = "UPDATE "
   val set:             String = "SET "
@@ -29,7 +30,12 @@ abstract class DataTable[T](dbConn: DbConn) {
   val order:           String = "ORDER "
   val by:              String = "BY "
   val limit:           String = "LIMIT "
-  val desc:      String = "DESC "
+  val offset:          String = "OFFSET "
+  val desc:            String = "DESC "
+  val gT:              String = "> "
+  val lT:              String = "< "
+  val gTeq:            String = "<= "
+  val lTeq:            String = ">= "
 
   def values:      String = {
     val prefix = "VALUES(?"
