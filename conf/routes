@@ -1,0 +1,3 @@
+
+
+GET   /generatePool      io.getblok.subpooling.controllers.GenController.createPool
