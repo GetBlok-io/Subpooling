@@ -9,6 +9,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/project" />
+            <option value="$PROJECT_DIR$/subpooling_core" />
           </set>
         </option>
         <option name="sbtVersion" value="1.6.2" />

@@ -1,3 +1,24 @@
 
 
-GET   /generatePool      io.getblok.subpooling.controllers.GenController.createPool
+GET   /pools/createPool        controllers.PoolController.createPool(num: Int, name: String, creator: String)
+GET   /pools/:tag              controllers.PoolController.getPool(tag: String)
+GET   /pools/:tag/addMiner     controllers.PoolController.addMiner(tag: String, miner: String)
+GET   /pools                   controllers.PoolController.getAllPools
+GET   /pools/:tag/:id          controllers.PoolController.getSubpool(tag: String, id: Long)
+GET   /pools/:tag/placements   controllers.PoolController.getPoolPlacements(tag: String)
+GET   /pools/:tag/placements   controllers.PoolController.getPoolPlacementsByMiner(tag: String, miner: String)
+GET   /pools/:tag/placements   controllers.PoolController.getPoolPlacementsByBlock(tag: String, block: Long)
+GET   /pools/:tag/:id/placements   controllers.PoolController.getSubPoolPlacements(tag: String, id: Long)
+GET   /pools/:tag/:id/members      controllers.PoolController.getSubPoolMembers(tag: String, id: Long, epoch: Long)
+GET   /pools/:tag/:id/members      controllers.PoolController.getSubPoolMembersAtGEpoch(tag: String, id: Long, gEpoch: Long)
+GET   /pools/:tag/:id/members      controllers.PoolController.getSubPoolMembersAtBlock(tag: String, id: Long, block: Long)
+GET   /pools/:tag/members          controllers.PoolController.getPoolMembersAtGEpoch(tag: String, gEpoch: Long)
+GET   /pools/:tag/members          controllers.PoolController.getPoolMembersAtBlock(tag: String, block: Long)
+GET   /pools/:tag/assigned         controllers.PoolController.getAssignedMembers(tag: String)
+
+GET   /blocks/:blockHeight               controllers.BlocksController.getBlock(blockHeight: Long)
+GET   /blocks/byId/:id                   controllers.BlocksController.getBlockById(id: Long)
+GET   /blocks/byStatus/:status           controllers.BlocksController.getBlocksByStatus(blockHeight: Long)
+GET   /blocks/:blockHeight/distribute    controllers.BlocksController.distributeBlock(blockHeight: Long)
+
+GET   /swagger.json            controllers.Assets.at(path="/public", file="swagger.json")
