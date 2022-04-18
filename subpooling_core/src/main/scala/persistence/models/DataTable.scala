@@ -95,8 +95,8 @@ abstract class DataTable[T](dbConn: DbConn) {
     statements.reduce((s1, s2) => s1 + s2)
   }
   protected def state(statements: String*): PreparedStatement = {
-    val log: Logger = LoggerFactory.getLogger("DataTable")
-    log.error("Executing statement: \"" + concat(statements) + "\"")
+//    val log: Logger = LoggerFactory.getLogger("DataTable")
+//    log.error("Executing statement: \"" + concat(statements) + "\"")
     dbConn.state(concat(statements))
   }
   protected def setStr(idx: Int, str: String)(implicit ps: PreparedStatement): Unit = {
@@ -113,6 +113,9 @@ abstract class DataTable[T](dbConn: DbConn) {
   }
   protected def setDate(idx: Int, dte: LocalDateTime)(implicit ps: PreparedStatement): Unit = {
     ps.setObject(idx, dte)
+  }
+  protected def setBool(idx: Int, boolean: Boolean)(implicit ps: PreparedStatement): Unit = {
+    ps.setBoolean(idx, boolean)
   }
   protected def execUpdate(implicit ps: PreparedStatement): Long = {
     val rows = ps.executeUpdate()

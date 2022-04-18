@@ -15,11 +15,12 @@ class ChainManager extends ManagerBase {
     val failures = resultSet.filter(p => p._2.isFailure).map(p => p._1 -> p._2.failed.get)
     val success = resultSet.filter(p => p._2.isSuccess).map(p => p._1 -> p._2.get)
 
-    if (success.isEmpty)
+    if (success.isEmpty) {
+      logger.error("Total failure occurred for all pools, showing exception for pool 0", failures.values.head)
       throw new ChainManagerException
-    else {
+    } else {
       for (failed <- failures) {
-        logger.error(s"Error for subPool #${failed._1.id} during execution of chain ${chain.chainName}")
+        logger.error(s"Error for subPool #${failed._1.id} during execution of chain ${chain.chainName}", failed._2)
         logStacktrace(failed._2)
       }
     }

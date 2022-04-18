@@ -5,12 +5,14 @@ import boxes.MetadataInputBox
 import contracts.MetadataContract
 import transactions.{CreateSubpoolTokenTx, GenerateMultipleTx}
 
-import org.ergoplatform.appkit.{Parameters, SignedTransaction}
+import org.ergoplatform.appkit.{Address, Parameters, SignedTransaction}
 import org.scalatest.funsuite.AnyFunSuite
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 class GenerateMetadataSuite extends AnyFunSuite{
+
 
 
   test("Token Output Box has correct value") {

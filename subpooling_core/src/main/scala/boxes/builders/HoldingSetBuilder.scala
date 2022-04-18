@@ -41,6 +41,8 @@ class HoldingSetBuilder(outputBuilder: OutBoxBuilder){
     outputBuilder.value(boxValue);
     // outputBuilder.registers(registerList: _*)
     // outputBuilder.creationHeight(boxCreationHeight)
+    if(tokenList.nonEmpty)
+      outputBuilder.tokens(tokenList:_*)
     outputBuilder.contract(boxContract)
     new HoldingOutBox(outputBuilder.build())
   }

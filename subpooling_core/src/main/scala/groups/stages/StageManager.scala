@@ -26,8 +26,8 @@ class StageManager extends ManagerBase {
         logger.error(s"StageManager failed to execute stage ${stage.stageName}")
         logStacktrace(e)
         throw new StageManagerException
-      case _ =>
-        logger.error("Unknown error thrown during StageExecution")
+//      case _ =>
+//        logger.error("Unknown error thrown during StageExecution")
     }
 
     result -> transaction

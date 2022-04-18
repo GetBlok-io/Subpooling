@@ -10,6 +10,13 @@ class MembersTable(dbConn: DbConn, part: String) extends DataTable[PoolMember](d
   override def table: String = "subpool_members"
   override val numFields: Int = 20
 
+
+  def queryAllPoolMembers: Seq[PoolMember] = {
+    implicit val ps: PreparedStatement = state(select, all, fromTablePart(part))
+    val rs = execQuery
+    buildSeq(rs, PoolMember.fromResultSet)
+  }
+
   def queryPoolMembersAtGEpoch(gepoch: Long): Seq[PoolMember] = {
     implicit val ps: PreparedStatement = state(select, all, fromTablePart(part),  where, "g_epoch ", eq, param)
     setLong(1, gepoch)

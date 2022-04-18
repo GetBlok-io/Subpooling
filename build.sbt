@@ -9,7 +9,6 @@ libraryDependencies ++= Seq(
   "org.ergoplatform" %% "ergo-appkit" % "develop-d90135c5-SNAPSHOT",
   "org.postgresql" % "postgresql" % "42.3.3",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test",
-  "org.fusesource.jansi" % "jansi" % "2.4.0",
   "io.swagger" % "swagger-annotations" % "1.6.5",
    guice
 

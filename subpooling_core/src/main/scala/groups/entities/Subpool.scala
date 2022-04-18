@@ -46,5 +46,7 @@ class Subpool(metadataInputBox: MetadataInputBox) {
 
   def nextTotalScore: Long = nextDist.dist.map(d => d._2.getScore).sum
 
-
+  override def toString: String = {
+    s"Subpool[$id]<$token>"
+  }
 }

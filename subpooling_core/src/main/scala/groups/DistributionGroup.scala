@@ -21,13 +21,13 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.collection.mutable.ArrayBuffer
 
 class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
-                        commandContract: CommandContract, holdingContract: HoldingContract) extends TransactionGroup(pool, ctx, wallet) {
+                        commandContract: CommandContract, holdingContract: HoldingContract, sendTxs: Boolean = true) extends TransactionGroup(pool, ctx, wallet) {
   override var completedGroups: Map[Subpool, SignedTransaction] = Map.empty[Subpool, SignedTransaction]
   override var failedGroups: Map[Subpool, Throwable] = Map.empty[Subpool, Throwable]
   override val groupName: String = "DistributionGroup"
 
   override def executeGroup: TransactionGroup = {
-    val result = stageManager.execute[CommandInputBox](new CommandStage(pool, ctx, wallet, commandContract, holdingContract))
+    val result = stageManager.execute[CommandInputBox](new CommandStage(pool, ctx, wallet, commandContract, holdingContract, sendTxs))
     implicit val networkType: NetworkType = ctx.getNetworkType
     pool.subPools.foreach {
       p =>
@@ -35,7 +35,7 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
         p.nextDist = result._1(p).shareDistribution
     }
 
-    val resultSet = chainManager.execute[MetadataInputBox](new DistributionChain(pool, ctx, wallet, holdingContract))
+    val resultSet = chainManager.execute[MetadataInputBox](new DistributionChain(pool, ctx, wallet, holdingContract, sendTxs))
 
     pool.subPools --= resultSet._2.keys
 

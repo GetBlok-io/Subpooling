@@ -18,13 +18,13 @@ import play.api.{Configuration, Logger}
 
 import javax.inject.Inject
 import scala.collection.mutable.ArrayBuffer
-
+@deprecated
 class DbConnectionManager @Inject()(config: Configuration) extends Actor{
 
   private val dbConfig: DbConfig = new DbConfig(config)
 
   private val logger:     Logger     = Logger("DbConnectionManager")
-
+  logger.info("Initiating DbConnectionManager")
   override def receive: Receive = {
     case NewConnectionRequest =>
       logger.info(s"Received new connection request from ${sender().path.name}")

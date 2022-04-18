@@ -13,7 +13,7 @@ import scala.util.Try
 
 
 class DistributionChain(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
-                        holdingContract: HoldingContract) extends TransactionChain[MetadataInputBox](pool, ctx, wallet) {
+                        holdingContract: HoldingContract, sendTxs: Boolean = true) extends TransactionChain[MetadataInputBox](pool, ctx, wallet) {
 
   override val chainName: String = "DistributionChain"
 
@@ -34,7 +34,11 @@ class DistributionChain(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
           .buildMetadataTx()
 
         val signedTx = wallet.prover.sign(unsignedTx)
-        val txId = ctx.sendTransaction(signedTx).replace("\"", "")
+        val txId = if(sendTxs) {
+          ctx.sendTransaction(signedTx).replace("\"", "")
+        }else{
+          signedTx.getId.replace("\"", "")
+        }
         subPool.nextBox = new MetadataInputBox(distTx.metadataOutBox.convertToInputWith(txId, 0), subPool.token)
         signedTx -> subPool.nextBox
       }

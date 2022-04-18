@@ -129,6 +129,10 @@ class ExplorerHandler(networkType: NetworkType) {
     AddressBalance.fromOption(asOption[Balance](apiService.getApiV1AddressesP1BalanceConfirmed(address.toString, minConfirmations).execute()))
   }
 
+  def getBlockById(blockId: ErgoId): Option[BlockContainer] = {
+    BlockContainer.fromOption(asOption[BlockSummary](apiService.getApiV1BlocksP1(blockId.toString).execute()))
+  }
+
 
 
 

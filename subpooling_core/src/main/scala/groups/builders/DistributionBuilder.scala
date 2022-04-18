@@ -9,8 +9,14 @@ import groups.stages.DistributionRoot
 import io.getblok.subpooling_core.groups.entities.Pool
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
-class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox]) extends GroupBuilder {
-
+class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox],
+                          var inputBoxes: Option[Seq[InputBox]] = None, sendTxs: Boolean = true) extends GroupBuilder {
+  var _rootStage: DistributionRoot = _
+  def getRoot(ctx: BlockchainContext, wallet: NodeWallet): DistributionRoot = {
+    if(_rootStage == null)
+      _rootStage = new DistributionRoot(pool, ctx, wallet, inputBoxes, sendTxs)
+    _rootStage
+  }
   /**
    * Collect information that already exists about this Transaction Group and assign it to each subPool
    */
@@ -42,7 +48,7 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
   override def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder = {
-    val stageResult = stageManager.execute[InputBox](new DistributionRoot(pool, ctx, wallet))
+    val stageResult = stageManager.execute[InputBox](getRoot(ctx, wallet))
     pool.subPools.foreach {
       p =>
         p.rootBox = stageResult._1(p)

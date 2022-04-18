@@ -1,0 +1,63 @@
+{
+  // Simple Token Pool Emissions Contract - Kirat Singh
+  // This contract may be spendable on two conditions:
+  // Share operator may spend up to the defined block reward set in R4, and only if the output
+  // boxes have proposition bytes whose hash is equivalent to the const_holdingBytesHashed.
+  // Otherwise, owner of the emissions box / pool operator may spend the box to change the block reward or add
+  // additional tokens to the box.
+  val blockReward = SELF.R4[Long].get
+  val shareOperator: SigmaProp  = const_shareOpPK
+  val poolOperator:  SigmaProp  = const_poolOpPK
+
+
+  val holdingBytes: Coll[Byte]  = const_holdingBytesHashed
+  val minHoldingBoxVal: Long    = 1000L * 1000L * 10 // Up to 10 members in each subpool, so make sure enough ERG is in holding
+
+  val nextEmissionsBox: Box     = OUTPUTS(0)
+  val nextBlockReward:  Long    = nextEmissionsBox.R4[Long].get
+
+  val nextBoxExists = {
+      SELF.propositionBytes == nextEmissionsBox.propositionBytes && SELF.tokens(0)._1 == nextEmissionsBox.tokens(0)._1
+  }
+
+  if(nextBoxExists){
+      val tokenToDistribute = SELF.tokens(1)
+      val nextHeldTokens    = nextEmissionsBox.tokens(1)
+
+      // Only share operator may spend tokens
+      if(tokenToDistribute._2 > nextHeldTokens._2){
+        val spentTokens = tokenToDistribute._2 - nextHeldTokens._2
+
+        val tokensSame       = tokenToDistribute._1 == nextHeldTokens._1
+        val blockRewardSpent = spentTokens == blockReward
+
+        val holdingBoxes = OUTPUTS.filter{ (box: Box) => blake2b256(box.propositionBytes) == holdingBytes}
+        val tokensInHolding = holdingBoxes.fold(0L, {
+          (lastSum: Long, box: Box) =>
+            if(box.tokens(0)._1 == tokenToDistribute._1){
+              lastSum + box.tokens(0)._2
+            }else{
+              lastSum
+            }
+        })
+
+        val holdingBoxesFunded = holdingBoxes.forall{(box: Box) => box.value == minHoldingBoxVal}
+
+        val tokensAreHeld = tokensInHolding == blockReward
+        val blockRewardUnchanged = blockReward == nextBlockReward
+        val spentByShareOperator = allOf(
+          Coll(
+            tokensSame,
+            blockRewardSpent,
+            tokensAreHeld,
+            holdingBoxesFunded
+          )
+        )
+        sigmaProp(spentByShareOperator) && shareOperator
+      }
+  }else{
+    sigmaProp(false)
+  }
+
+
+}

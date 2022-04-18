@@ -9,7 +9,7 @@ libraryDependencies ++= Seq(
   "org.ergoplatform" %% "ergo-appkit" % "develop-d90135c5-SNAPSHOT",
   "org.postgresql" % "postgresql" % "42.3.3",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test"
-
+//  "org.slf4j" % "slf4j-simple" % "1.7.36"
 )
 
 resolvers ++= Seq(

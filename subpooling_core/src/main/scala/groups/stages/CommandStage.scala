@@ -17,7 +17,7 @@ import scala.util.Try
 
 
 class CommandStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, commandContract: CommandContract,
-                   holdingContract: HoldingContract) extends TransactionStage[CommandInputBox](pool, ctx, wallet) {
+                   holdingContract: HoldingContract, sendTxs: Boolean = true) extends TransactionStage[CommandInputBox](pool, ctx, wallet) {
   override val stageName = "CommandStage"
 
   override def executeStage: TransactionStage[CommandInputBox] = {
@@ -60,7 +60,11 @@ class CommandStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, comma
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))
-        val txId = ctx.sendTransaction(transaction.get).replace("\"", "")
+        val txId = if(sendTxs) {
+          ctx.sendTransaction(transaction.get).replace("\"", "")
+        }else{
+          transaction.get.getId.replace("\"", "")
+        }
 
         val inputMap = outputMap.map(p => p._1 -> new CommandInputBox(p._2._1.convertToInputWith(txId, p._2._2.shortValue()), commandContract))
 

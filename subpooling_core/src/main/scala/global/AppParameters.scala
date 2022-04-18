@@ -29,7 +29,8 @@ object AppParameters {
   var mcPoolId: String = "ergo1"
   var defaultMinPay: Long = Parameters.MinFee * 10
   var scoreAdjustmentCoeff: Long = 10000000L
-
+  var defaultMiningPK = "" // default miner pk to use in case query request does not work
+  var numMinConfirmations = 20
   val baseFeePerc = Map(Address.create("3WwF1KHM9LJyF6T7RVeXgwvbCEsxpho7EMsmtKYBb3KrFs1vRowN") -> 1.0)
 
   def getBaseFees(blockReward: Long): Map[Address, Long] = baseFeePerc.map(f => f._1 -> BoxHelpers.removeDust((BigDecimal(blockReward) * (f._2 / 100)).longValue()))

@@ -4,6 +4,7 @@ import actors.GroupRequestHandler.DistributionResponse
 import io.getblok.subpooling_core.global.Helpers
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.registers.PoolFees
 object ResponseModels {
   case class PoolGenerated(poolName: String, poolTag: String, numSubpools: Int,
                            txId: String, creator: String, height: Long, timestamp: String)
@@ -110,6 +111,30 @@ object ResponseModels {
       Json.obj( fields =
         "newMembers" -> members,
         "newStates" -> states
+      )
+    }
+  }
+
+  implicit val poolInformationWrites: Writes[PoolInformation] = new Writes[PoolInformation] {
+    override def writes(o: PoolInformation): JsValue = {
+      Json.obj( fields =
+        "poolTag" -> o.poolTag,
+        "title" -> o.title,
+        "globalEpoch" -> o.g_epoch,
+        "numSubPools" -> o.subpools,
+        "lastBlock" -> o.last_block,
+        "totalMembers" -> o.total_members,
+        "maxMembers" -> o.max_members,
+        "valueLocked" -> Helpers.nanoErgToErg(o.value_locked),
+        "totalPaid" -> Helpers.nanoErgToErg(o.total_paid),
+        "poolFees" -> (BigDecimal(o.fees) / PoolFees.POOL_FEE_CONST).toDouble,
+        "currency" -> o.currency,
+        "paymentType" -> o.payment_type,
+        "epochsUntilKick" -> o.epoch_kick,
+        "official" -> o.official,
+        "creator" -> o.creator,
+        "updated" -> o.updated.toString,
+        "created" -> o.created.toString
       )
     }
   }

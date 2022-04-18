@@ -4,6 +4,7 @@ package configs
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import org.ergoplatform.appkit.{ErgoClient, ErgoProver, NetworkType, RestApiErgoClient, SecretStorage}
+import org.ergoplatform.restapi.client.ApiClient
 import play.api.Configuration
 
 class NodeConfig(config: Configuration) {
@@ -22,7 +23,7 @@ class NodeConfig(config: Configuration) {
   secretStorage.unlock(password)
   private val explorerURL: String = RestApiErgoClient.getDefaultExplorerUrl(networkType)
   private val ergoClient: ErgoClient = RestApiErgoClient.create(nodeURL, networkType, nodeKey, getExplorerURL)
-
+  val apiClient = new ApiClient(nodeURL, "ApiKeyAuth", nodeKey)
   private val prover: ErgoProver = ergoClient.execute{
     ctx =>
       ctx.newProverBuilder().withSecretStorage(secretStorage).withEip3Secret(0).build()

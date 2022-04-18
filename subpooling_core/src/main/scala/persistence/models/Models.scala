@@ -31,6 +31,9 @@ object Models {
     protected def int(idx: Int)(implicit rs: ResultSet): Int = {
       rs.getInt(idx)
     }
+    protected def bool(idx: Int)(implicit rs: ResultSet): Boolean = {
+      rs.getBoolean(idx)
+    }
 
   }
 
@@ -73,6 +76,33 @@ object Models {
 
   }
 
+  case class PoolInformation(poolTag: String, g_epoch: Long, subpools: Long, last_block: Long,
+                             total_members: Long, value_locked: Long, total_paid: Long, currency: String, payment_type: String,
+                             fees: Long, official: Boolean, epoch_kick: Long, max_members: Long, title: String, creator: String,
+                             updated: LocalDateTime, created: LocalDateTime)
+
+  object PoolInformation extends DatabaseConversion[PoolInformation] {
+    override def fromResultSet(rs: ResultSet): PoolInformation = {
+      implicit val resultSet: ResultSet = rs
+      PoolInformation(str(1), long(2), long(3), long(4), long(5), long(6), long(7),
+         str(8), str(9), long(10), bool(11), long(12), long(13), str(14), str(15),
+        date(16), date(17))
+    }
+
+    val CURR_ERG = "ERG"
+    val CURR_NETA = "NETA"
+    val CURR_COMET = "COMET"
+    val CURR_NUGS  = "Nuggies"
+    val CURR_TEST_TOKENS = "tToken"
+    val TEST_ID = "2adb1b96acbcc10a8c6138a7f968c657f1130f70559d8f49abb391ac72800f0f"
+
+    val PAY_PPLNS = "PPLNS"
+    val PAY_PPS   = "PPS"
+    val PAY_EQ    = "EQUAL"
+  }
+
+
+
   case class PoolPlacement(subpool: String, subpool_id: Long, block: Long, holding_id: String, holding_val: Long,
                            miner: String, score: Long, minpay: Long, epochs_mined: Long, amount: Long,
                            epoch: Long, g_epoch: Long){
@@ -93,21 +123,24 @@ object Models {
     }
   }
 
-  case class Block(id: Long, blockheight: Long, status: String, confirmationprogress: Double, miner: String, reward: Double,
-                   netDiff: Double, created: LocalDateTime){
+  case class Block(id: Long, blockheight: Long, netDiff: Double, status: String, confirmationprogress: Double, miner: String, reward: Double,
+                   hash: String, created: LocalDateTime){
     def getErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
   }
 
   object Block extends DatabaseConversion[Block] {
     override def fromResultSet(rs: ResultSet): Block = {
       implicit val resultSet: ResultSet = rs
-      Block(long(1), long(3), str(5), dec(7), str(10), dec(11), dec(4), date(14))
+      Block(long(1), long(3), dec(4), str(5), dec(7), str(10), dec(11),
+        str(13), date(14))
     }
 
-    val PENDING   = "pending"
-    val CONFIRMED = "confirmed"
-    val INITIATED = "initiated"
-    val PAID      = "paid"
+    val PENDING     = "pending"
+    val INITIATED   = "initiated"
+    val CONFIRMED   = "confirmed"
+    val PROCESSING  = "processing"
+    val PAID        = "paid"
+    val ORPHANED    = "orphaned"
   }
 
   case class Share(blockheight: Long, miner: String, worker: String, difficulty: Double, networkdifficulty: Double,

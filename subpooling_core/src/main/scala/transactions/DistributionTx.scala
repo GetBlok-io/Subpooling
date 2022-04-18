@@ -3,11 +3,12 @@ package transactions
 
 import boxes.builders.HoldingOutputBuilder
 import contracts.command.CommandContract
-import contracts.holding.HoldingContract
+import contracts.holding.{HoldingContract, TokenHoldingContract}
 
 import io.getblok.subpooling_core.boxes.{BoxHelpers, CommandInputBox, MetadataInputBox, MetadataOutBox}
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.logging.LoggingHandler
+import io.getblok.subpooling_core.registers.PropBytes
 import io.getblok.subpooling_core.transactions.models.MetadataTxTemplate
 import org.ergoplatform.appkit._
 import org.slf4j.{Logger, LoggerFactory}
@@ -106,32 +107,43 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       .generateInitialOutputs(ctx, this, holdingBoxes)
 
     hOB = commandContract.applyToHolding(this)
+
+    if(holdingContract.isInstanceOf[TokenHoldingContract])
+      _tokenToDistribute = new ErgoToken(holdingBoxes.head.getTokens.get(0).getId, holdingBoxes.map(hb => hb.getTokens.get(0).getValue.toLong).sum)
+    else
+      _tokenToDistribute = null
+
     var tokensDistributed = 0L
     if(_tokenToDistribute != null) {
       for (outBB <- hOB.getBuilders) {
         logger.info(s"tokensDistributed: $tokensDistributed")
         if (outBB.forMiner) {
-          logger.info(s"Adding amount ${outBB.boxValue} to tokens distributed")
-          tokensDistributed = tokensDistributed + outBB.boxValue
+          logger.info(s"Adding amount ${outBB.tokenList.head.getValue} to tokens distributed")
+          tokensDistributed = tokensDistributed + outBB.tokenList.head.getValue
         }
       }
     }
     //otherCommandContracts.foreach(c => hOB.applyCommandContract(this, c))
 
     val holdingOutputs = hOB.build()
+    var totalTokens = 0L
     for(hb <- holdingOutputs){
       logger.info("Output Box Val: " + hb.asOutBox.getValue)
       if(_tokenToDistribute != null) {
+
         if (hb.asOutBox.getTokens.asScala.exists(t => t.getId == _tokenToDistribute.getId)) {
+          logger.info("Address: " + PropBytes.ofErgoTree(hb.getErgoTree)(ctx.getNetworkType).address.toString)
           logger.info("Holding Box Token: " + hb.asOutBox.getTokens.asScala.find(t => t.getId == _tokenToDistribute.getId).get)
           logger.info("Holding Box Token Amnt: " + hb.getTokens.asScala.find(t => t.getId == _tokenToDistribute.getId).get)
+          totalTokens = totalTokens + hb.asOutBox.getTokens.asScala.find(t => t.getId == _tokenToDistribute.getId).get.getValue.toLong
         }
       }
     }
+    logger.info(s"Total distributed tokens in tx: $totalTokens")
     var txFee = (commandInputBox.getValue + commandInputBox.shareDistribution.size * Parameters.MinFee)
     if(_tokenToDistribute != null){
       // Ensure there is enough ERG for change box when a token is being distributed
-      txFee = txFee - Parameters.MinFee
+      txFee = commandInputBox.getValue
     }
 
     val outputBoxes = List(metadataOutBox.asOutBox)++(holdingOutputs.map(h => h.asOutBox))
@@ -146,12 +158,12 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       .outputs(outputBoxes:_*)
       .fee(txFee)
       .sendChangeTo(operatorAddress.getErgoAddress)
-    // Unused tokens are burnt to prevent abuse.
-    if(_tokenToDistribute != null){
-      val tokensAmntToBurn = commandInputBox.getTokens.get(0).getValue - tokensDistributed
-      val tokensToBurn = new ErgoToken(commandInputBox.getTokens.get(0).getId, tokensAmntToBurn)
-      this.asUnsignedTxB.tokensToBurn(tokensToBurn)
-    }
+//    // Unused tokens are burnt to prevent abuse.
+//    if(_tokenToDistribute != null){
+//      val tokensAmntToBurn = commandInputBox.getTokens.get(0).getValue - tokensDistributed
+//      val tokensToBurn = new ErgoToken(commandInputBox.getTokens.get(0).getId, tokensAmntToBurn)
+//      this.asUnsignedTxB.tokensToBurn(tokensToBurn)
+//    }
     this.asUnsignedTxB.build()
 
   }

@@ -89,7 +89,17 @@ object Models {
   case class AddressBalance(nanoErg: Long, assets: Seq[TokenData])
   case class FullBalance(confirmedBal: AddressBalance, unconfirmedBal: AddressBalance)
 
+  case class BlockTransaction(id: ErgoId, headerId: ErgoId, heightIncluded: Int, time: Long, index: Int,
+                              confirmationCount: Int, inputs: Seq[Input], dataInputs: Seq[DataInput],
+                              outputs: Seq[Output])
+  case class HeaderData(id: ErgoId, parentId: ErgoId, version: Int, height: Int, epoch: Int, difficulty: String,
+                        adProofsRoot: String, stateRoot: String, transactionsRoot: String, time: Long, nBits: Long,
+                        size: Int, extensnsionHash: String, powSolution: PowSolutionInfo, votes: Seq[Int])
+  case class PoWSolutionData(pk: String, w: String, n: String, d: String)
+  case class BlockExtension(headerId: ErgoId, digest: String, fields: Fields)
+  case class BlockData(headerInfo: HeaderData, blockTxs: Seq[TransactionInfo1], blockExtensionInfo: BlockExtensionInfo, adProofs: String)
 
+  case class BlockContainer(blockData: BlockData, blockReferenceData: BlockReferencesInfo)
 
   object RegisterData extends ExplorerConversion[AdditionalRegister, RegisterData]{
     def fromExplorer(reg: AdditionalRegister): RegisterData = {
@@ -103,6 +113,22 @@ object Models {
                   RegisterData.fromOption(regMap.get("R6")), RegisterData.fromOption(regMap.get("R7")),
                   RegisterData.fromOption(regMap.get("R8")), RegisterData.fromOption(regMap.get("R9"))  )
     }
+  }
+  object HeaderData extends ExplorerConversion[HeaderInfo, HeaderData]{
+    override def fromExplorer(exp: HeaderInfo): HeaderData =
+      HeaderData(Helpers.toId(exp.getId), Helpers.toId(exp.getParentId), exp.getVersion, exp.getHeight,
+        exp.getEpoch, exp.getDifficulty, exp.getAdProofsRoot, exp.getStateRoot, exp.getTransactionsRoot,
+        exp.getTimestamp, exp.getNBits, exp.getSize, exp.getExtensionHash, exp.getPowSolutions, exp.getVotes.asScala.toSeq.map(_.toInt))
+  }
+
+  object BlockData extends ExplorerConversion[FullBlockInfo, BlockData]{
+    override def fromExplorer(exp: FullBlockInfo): BlockData =
+      BlockData(HeaderData.fromExplorer(exp.getHeader), exp.getBlockTransactions.asScala.toSeq,
+        exp.getExtension, exp.getAdProofs)
+  }
+  object BlockContainer extends ExplorerConversion[BlockSummary, BlockContainer]{
+    override def fromExplorer(exp: BlockSummary): BlockContainer =
+      BlockContainer(BlockData.fromExplorer(exp.getBlock), exp.getReferences)
   }
 
   object Output extends ExplorerConversion[OutputInfo, Output]{

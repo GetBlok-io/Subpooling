@@ -4,6 +4,9 @@ package persistence
 import persistence.models.DataTable
 import persistence.models.Models._
 
+import io.getblok.subpooling_core.node.NodeHandler
+import io.getblok.subpooling_core.node.NodeHandler.PartialBlockInfo
+
 import java.sql.PreparedStatement
 class BlocksTable(dbConn: DbConn) extends DataTable[Block](dbConn) {
   override def table: String = "blocks"
@@ -47,6 +50,47 @@ class BlocksTable(dbConn: DbConn) extends DataTable[Block](dbConn) {
     setStr(1, status)
     setLong(2, height)
     execUpdate
+  }
+  def updateBlockStatusAndConfirmation(status: String, confirmation: Double, height: Long): Long = {
+    implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "confirmationprogress"), where,
+      fieldOf("blockheight"), eq, param)
+    setStr(1, status)
+    setDec(2, confirmation)
+    setLong(3, height)
+    execUpdate
+  }
+  def updateBlockValidation(height: Long, partialBlockInfo: PartialBlockInfo): Long = {
+    partialBlockInfo match {
+      case NodeHandler.ValidBlock(reward, txConf, hash) =>
+        implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "reward",
+          "transactionconfirmationdata", "hash"), where, fieldOf("blockheight"), eq, param)
+        setStr(1, Block.INITIATED)
+        setDec(2, reward)
+        setStr(3, txConf)
+        setStr(4, hash)
+        setLong(5, height)
+        execUpdate
+      case NodeHandler.ConfirmedBlock(reward, txConf, hash) =>
+        implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "confirmationprogress", "reward",
+          "transactionconfirmationdata", "hash"), where, fieldOf("blockheight"), eq, param)
+        setStr(1, Block.CONFIRMED)
+        setDec(2, 1.0)
+        setDec(3, reward)
+        setStr(4, txConf)
+        setStr(5, hash)
+        setLong(6, height)
+        execUpdate
+      case NodeHandler.OrphanBlock(reward, txConf, hash) =>
+        implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "reward",
+          "transactionconfirmationdata", "hash"), where, fieldOf("blockheight"), eq, param)
+        setStr(1, Block.ORPHANED)
+        setDec(2, reward)
+        setStr(3, txConf)
+        setStr(4, hash)
+        setLong(5, height)
+        execUpdate
+    }
+
   }
 
   def queryByStatus(status: String): Seq[Block] = {

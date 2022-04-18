@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 
-class StandardSelector(members: Array[Member]) extends GroupSelector {
+class StandardSelector(val members: Array[Member]) extends GroupSelector {
 
   final val MEMBER_LIMIT = 10
   final val EPOCH_MINED_LIMIT = -5
@@ -85,7 +85,7 @@ class StandardSelector(members: Array[Member]) extends GroupSelector {
   }
 
   def placeNewMiners: GroupSelector = {
-    val currentFreePools = pool.subPools.filter(p => p.epoch > 0 && p.nextDist.size < EPOCH_MINED_LIMIT)
+    val currentFreePools = pool.subPools.filter(p => p.epoch > 0 && p.nextDist.size < MEMBER_LIMIT)
     var freeMembers = members.diff(membersAdded).diff(membersRemoved)
     // First select from currently used pools
     for (subPool <- currentFreePools) {

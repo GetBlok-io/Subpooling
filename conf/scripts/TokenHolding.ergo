@@ -1,0 +1,179 @@
+{
+      // Token Holding Contract
+      // Kirat Singh
+      // Contract used for holding & distribution of tokens
+      val holdingBoxes = INPUTS.filter{(box: Box) => box.propositionBytes == SELF.propositionBytes}
+      // Security assumption, INPUTS(0) is a metadata box
+      // No matter what, INPUT 0 must have smartPoolNFT
+      val metadataExists = INPUTS(0).tokens(0)._1 == const_smartPoolNFT
+
+      val MIN_BOX_VAL: Long = 1000L * 1000L
+      val TOKEN_RANGE: Long = 1000L
+
+
+      // Check if distribution is valid. This is verified by performing distribution on-chain, that means
+      // the amount of erg each box gets is proportional to the amount of shares assigned to them by
+      // the pool.
+      val distributionValid = {
+          if(metadataExists){
+
+
+            def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+              val expected = valuesPair._1
+              val actual   = valuesPair._2
+              val amountTop = (expected - actual) * 100L // multiply by 100 to prevent integer division
+              val percentage = amountTop / actual
+              (percentage < 3L) && (percentage > -3L) // 3% margin of error during calculations
+            }
+
+            val totalTokenValue: Long = holdingBoxes.fold(0L, {(accum: Long, box:Box) =>
+              accum + box.tokens(0)._2
+            })
+
+            val tokenToDistribute: Coll[Byte] = SELF.tokens(0)._1
+
+            // Verify all holding boxes have same token at element 0
+            val tokensAreSame = holdingBoxes.forall{
+              (b: Box) => b.tokens(0)._1 == tokenToDistribute
+            }
+
+            val lastDistribution    =  INPUTS(0).R4[Coll[(Coll[Byte], Coll[Long])]].get // old distribution grabbed from metadata
+            val currentDistribution =  INPUTS(1).R4[Coll[(Coll[Byte], Coll[Long])]].get // New distribution grabbed from current command
+            val currentPoolFees     =  INPUTS(0).R5[Coll[(Coll[Byte], Int)]].get        // Pool fees grabbed from current metadata
+            // val currentTxFee     =  MIN_TXFEE * currentDistribution.size
+
+            // Get each miners owed payouts from the last distribution
+            val totalUnpaidPayouts = lastDistribution
+              .filter{(consVal:(Coll[Byte], Coll[Long])) => consVal._2(2) < consVal._2(1)}
+              .fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(2)})
+            // Subtract unpaid payments from holded value, gives us the value to calculate fees and rewards from
+            val totalRewards = totalTokenValue - totalUnpaidPayouts
+
+            val feeList: Coll[(Coll[Byte], Long)] = currentPoolFees.map{
+              // Pool fee is defined as x/1000 of total inputs value.
+              (poolFee: (Coll[Byte], Int)) =>
+                val feeAmount: Long = (poolFee._2.toLong * totalRewards)/100000L
+                (poolFee._1 , feeAmount)
+            }
+
+            // Total amount in holding after pool fees and tx fees.
+            // This is the total amount of tokens to be distributed to pool members
+            val totalValAfterFees = ((feeList.fold(totalRewards, {
+              (accum: Long, poolFeeVal: (Coll[Byte], Long)) => accum - poolFeeVal._2
+            })))
+
+            val totalShares = currentDistribution.fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(0)})
+
+            // Returns some value that is a percentage of the total rewards after the fees.
+            // The percentage used is the proportion of the share number passed in over the total number of shares.
+            def getValueFromShare(shareNum: Long) = {
+              val newBoxValue = (((totalValAfterFees) * (shareNum)) / (totalShares)).toLong
+              newBoxValue
+            }
+
+
+            val lastDistributionPropBytes = lastDistribution.map{
+              (consVal: (Coll[Byte], Coll[Long])) =>
+                consVal._1
+            }
+            val lastDistributionValues = lastDistribution.map{
+              (consVal: (Coll[Byte], Coll[Long])) =>
+                consVal._2
+            }
+            val outputsWithTokens = OUTPUTS.filter{
+              (b: Box) => b.tokens.size > 0
+            }.filter{
+              (b: Box) => b.tokens(0)._1 == tokenToDistribute
+            }
+
+            val outputPropBytes = outputsWithTokens.map{
+              (box: Box) => box.propositionBytes
+            }
+            val outputValues = outputsWithTokens.map{
+              (box: Box) => box.tokens(0)._2
+            }
+
+            // Ensures there exists output boxes for each distribution value
+            // And that owed payments are stored
+            val distributionPaid = currentDistribution.forall{
+              (consVal: (Coll[Byte], Coll[Long])) =>
+
+                // If the last stored payout value + current payout(from shares) is >= min payout, then set outbox value
+                // equal to stored payout + current payout
+
+                val currentShareNumber = consVal._2(0)
+                val currentMinPayout = consVal._2(1)
+                val currentStoredPayout = consVal._2(2)
+                val valueFromShares = getValueFromShare(currentShareNumber)
+                val indexInLastDistribution = lastDistributionPropBytes.indexOf(consVal._1, 0)
+                val indexInOutputs = outputPropBytes.indexOf(consVal._1, 0)
+
+                if(indexInLastDistribution != -1){
+                  val lastStoredPayout = lastDistributionValues(indexInLastDistribution)(2)
+
+                  if(lastStoredPayout + valueFromShares >= currentMinPayout){
+                    if(indexInOutputs != -1){
+                      (isValueInRange( (lastStoredPayout + valueFromShares, outputValues(indexInOutputs)) )) && (currentStoredPayout == 0L)
+                    }else{
+                      false
+                    }
+                  }else{
+                    (indexInOutputs == -1) && (isValueInRange( (lastStoredPayout + valueFromShares, currentStoredPayout) ))
+                  }
+                }else{
+                  // If the last distribution doesn't exist, we can say the last payment was 0 and just use val from shares
+                  if(valueFromShares >= currentMinPayout){
+                    if(indexInOutputs != -1){
+                      (isValueInRange( (valueFromShares, outputValues(indexInOutputs)) )) && (currentStoredPayout == 0L)
+                    }else{
+                      false
+                    }
+                  }else{
+                    (indexInOutputs == -1) && (isValueInRange( (valueFromShares, currentStoredPayout) ))
+                  }
+                }
+            }
+
+            // Value that is to be sent back to holding box as change
+            val totalChange = currentDistribution
+              .filter{(consVal:(Coll[Byte], Coll[Long])) => consVal._2(2) < consVal._2(1)}
+              .fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(2)})
+
+            // Ensure that change is stored as an outbox with holding prop bytes
+            val changeInOutputs =
+              if(totalChange > 0){
+                outputsWithTokens.exists{(box: Box) => isValueInRange( (totalChange, box.tokens(0)._2) ) && box.propositionBytes == SELF.propositionBytes}
+              }
+              else{
+                true
+              }
+
+
+            // This verifies that each member of the distribution has some output box
+            // protected by their script and that the value of each box is the
+            // value obtained from distribution.
+            // This boolean value is returned and represents the main sigma proposition of the smartpool holding
+            // contract.
+            // This boolean value also verifies that poolFees are paid and go to the correct boxes.
+              distributionPaid && feeList.forall{
+                (poolFeeVal: (Coll[Byte], Long)) =>
+                if(poolFeeVal._2 > 0){
+                  val propBytesIndex = outputPropBytes.indexOf(poolFeeVal._1, 0)
+                  if(propBytesIndex != -1){
+                    val feeTokenValue = outputsWithTokens(propBytesIndex).tokens(0)._2
+                    isValueInRange( (poolFeeVal._2, feeTokenValue) ) && outputsWithTokens(propBytesIndex).value == MIN_BOX_VAL
+                  }else{
+                    false
+                  }
+                }else{
+                  true
+                }
+            } && changeInOutputs && tokensAreSame
+
+          }else{
+            false
+          }
+      }
+
+      sigmaProp(distributionValid)
+    }

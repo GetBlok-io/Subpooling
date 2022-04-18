@@ -3,19 +3,22 @@ package groups.stages
 
 import groups.entities.{Pool, Subpool}
 
-import io.getblok.subpooling_core.contracts.holding.HoldingContract
+import io.getblok.subpooling_core.boxes.BoxHelpers
+import io.getblok.subpooling_core.contracts.holding.{HoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.groups.models.TransactionStage
-import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox, OutBox}
+import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
+import org.ergoplatform.appkit.{Address, BlockchainContext, ErgoToken, InputBox, OutBox, Parameters}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long])
-  extends TransactionStage[InputBox](pool, ctx, wallet) {
+class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long],
+                  inputBoxes: Option[Seq[InputBox]] = None)
+  extends TransactionStage[InputBox](pool, ctx, wallet) with ParallelRoot {
   override val stageName: String = "HoldingRoot"
   val log = LoggerFactory.getLogger(stageName)
   override def executeStage: TransactionStage[InputBox] = {
@@ -56,16 +59,18 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         }
 
 
-        val inputBoxes = ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs)
 
-        if(inputBoxes.isPresent) inputBoxes.get().asScala.toArray.foreach(i => log.info(s"Id: ${i.getId}, val: ${i.getValue}"))
+        val boxesToSpend = inputBoxes.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs).get().asScala.toSeq)
+
+
+        boxesToSpend.foreach(i => log.info(s"Id: ${i.getId}, val: ${i.getValue}"))
 
         val txB = ctx.newTxBuilder()
         val outputBoxes = outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1)
         outputBoxes.foreach(o => log.info(s"Output value: ${o.getValue}"))
 
         val unsignedTx = txB
-          .boxesToSpend(inputBoxes.get())
+          .boxesToSpend(boxesToSpend.asJava)
           .fee(totalTxFees)
           .outputs((outputBoxes ++ feeOutputs): _*)
           .sendChangeTo(wallet.p2pk.getErgoAddress)
@@ -82,5 +87,23 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
     this
   }
 
+  /**
+   * Predicts total ERG value of Input boxes required to "fuel" the entire group through its phases(stages / chains)
+   *
+   * @return
+   */
+  def predictTotalInputs: Long = {
+    val totalTxFees = pool.subPools.size * AppParameters.groupFee
+    val totalBaseFees = baseFeeMap.values.sum
+    val totalOutputs = pool.subPools.size * pool.subPools.map(p => p.nextHoldingValue).sum
+    totalTxFees + totalBaseFees + totalOutputs
+  }
+}
 
+object HoldingRoot {
+  def getMaxInputs(blockReward: Long): Long = {
+    val totalTxFees = 100 * AppParameters.groupFee
+
+    blockReward + totalTxFees
+  }
 }

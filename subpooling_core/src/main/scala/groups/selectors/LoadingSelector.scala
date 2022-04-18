@@ -8,7 +8,7 @@ import persistence.models.Models.PoolPlacement
 import registers.{MemberInfo, PropBytes, ShareDistribution}
 
 import org.ergoplatform.appkit.Address
-
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -20,9 +20,14 @@ class LoadingSelector(placements: Array[PoolPlacement]) extends GroupSelector {
   def loadPlacements: LoadingSelector = {
     for (subpool <- pool.subPools) {
       val subpoolPlacements = placements.filter(p => p.subpool_id == subpool.id)
-      val dist = new ShareDistribution(subpoolPlacements.map(p => PropBytes.ofAddress(Address.create(p.miner))(AppParameters.networkType) ->
-        new MemberInfo(Array(p.score, p.minpay, 0L, p.epochs_mined, 0L))).toMap)
-      subpool.nextDist = dist
+      val logger: Logger = LoggerFactory.getLogger("LoadingSelector")
+      //logger.info(s"Now loading placements for subpool ${subpool.id} in pool ${subpool.token.toString}")
+      if(subpoolPlacements.nonEmpty) {
+        //logger.info(s"Placements were found for subpool ${subpool.id}! Total of ${subpoolPlacements.length} placements were found!")
+        val dist = new ShareDistribution(subpoolPlacements.map(p => PropBytes.ofAddress(Address.create(p.miner))(AppParameters.networkType) ->
+          new MemberInfo(Array(p.score, p.minpay, 0L, p.epochs_mined, 0L))).toMap)
+        subpool.nextDist = dist
+      }
     }
     this
   }
