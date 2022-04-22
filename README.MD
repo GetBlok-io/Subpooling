@@ -82,7 +82,7 @@ set of transactions that are interrelated.
 
 ## Transaction Group
 A Transaction Group is simply a set of transactions pertaining to some smart contract system that must
-be chained together (using the inputs of one as outputs for another). Transaction Groups deal with some
+be chained together (using the outputs of one as inputs for another). Transaction Groups deal with some
 *selected* set of boxes. We may divide transaction groups into two fundamental components:
 - Stages
 - Chains
