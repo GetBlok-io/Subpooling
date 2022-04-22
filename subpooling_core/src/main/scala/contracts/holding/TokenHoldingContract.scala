@@ -49,7 +49,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val feeList = currentPoolFees.fees.map{
       // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
-        val feeAmount: Long = (poolFee._2.toLong * totalRewards)/PoolFees.POOL_FEE_CONST.toLong
+        val feeAmount: Long = ((BigInt(poolFee._2.toLong) * totalRewards)/PoolFees.POOL_FEE_CONST.toLong).toLong
 
         (poolFee._1 , feeAmount)
     }
@@ -66,7 +66,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
         logger.info(s"Share score for ${consVal._1.address}: $shareNum")
-        var valueFromShares = ((totalValAfterFees * BigDecimal(shareNum)) / BigDecimal(totalShares)).toLong
+        var valueFromShares = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / BigInt(totalShares)).toLong
 
 
         logger.info("Member: " + consVal._1.address)
@@ -111,7 +111,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     logger.info("Now generating initial holding outputs for SimpleHoldingContract")
     val metadataBox = distributionTx.metadataInputBox
     val commandBox = distributionTx.commandInputBox
-    val holdingAddress = distributionTx.holdingContract.getAddress
+    val holdingAddress = distributionTx.holdingContract.toAddress
     val initBoxes: List[InputBox] = List(metadataBox.asInput, commandBox.asInput)
     val inputList = initBoxes++holdingBoxes
     val inputBoxes: Array[InputBox] = inputList.toArray
@@ -140,7 +140,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 
     val feeList = currentPoolFees.fees.map{
       f =>
-        val feeAmount = (f._2.toLong * totalRewards) / PoolFees.POOL_FEE_CONST.toLong
+        val feeAmount = ((BigInt(f._2.toLong) * totalRewards) / PoolFees.POOL_FEE_CONST).toLong
 
         (f._1, feeAmount)
     }
@@ -157,7 +157,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     // The percentage used is the proportion of the share number passed in over the total number of shares.
     def getValueFromShare(shareNum: Long) = {
       if(totalShares != 0) {
-        val newBoxValue = ((totalValAfterFees * BigDecimal(shareNum)) / BigDecimal(totalShares)).toLong
+        val newBoxValue = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / BigInt(totalShares)).toLong
         newBoxValue
       }else
         0L
@@ -281,7 +281,7 @@ object TokenHoldingContract {
     val feeList = poolFees.fees.map{
       // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
-        val feeAmount: Long = (poolFee._2.toLong * totalRewards)/PoolFees.POOL_FEE_CONST.toLong
+        val feeAmount: Long = ((BigInt(poolFee._2.toLong) * totalRewards)/PoolFees.POOL_FEE_CONST.toLong).toLong
         (poolFee._1 , feeAmount)
     }
     // Total amount in holding after pool fees and tx fees.
@@ -295,7 +295,7 @@ object TokenHoldingContract {
 
   def getBoxValue(shareNum: Long, totalShares: Long, totalValueAfterFees: Long): Long = {
     if(totalShares != 0) {
-      val boxValue = ((totalValueAfterFees * BigDecimal(shareNum)) / BigDecimal(totalShares)).toLong
+      val boxValue = ((BigInt(totalValueAfterFees) * BigInt(shareNum)) / BigInt(totalShares)).toLong
       boxValue
     } else
       0L

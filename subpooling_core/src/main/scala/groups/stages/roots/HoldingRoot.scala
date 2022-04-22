@@ -1,15 +1,13 @@
 package io.getblok.subpooling_core
-package groups.stages
+package groups.stages.roots
 
+import contracts.holding.HoldingContract
+import global.AppParameters
+import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
+import groups.models.TransactionStage
 
-import io.getblok.subpooling_core.boxes.BoxHelpers
-import io.getblok.subpooling_core.contracts.holding.{HoldingContract, TokenHoldingContract}
-import io.getblok.subpooling_core.global.AppParameters
-import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
-import io.getblok.subpooling_core.groups.models.TransactionStage
-import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
-import org.ergoplatform.appkit.{Address, BlockchainContext, ErgoToken, InputBox, OutBox, Parameters}
+import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox, OutBox}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
@@ -17,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long],
-                  inputBoxes: Option[Seq[InputBox]] = None)
+                  var inputBoxes: Option[Seq[InputBox]] = None)
   extends TransactionStage[InputBox](pool, ctx, wallet) with ParallelRoot {
   override val stageName: String = "HoldingRoot"
   val log = LoggerFactory.getLogger(stageName)

@@ -57,10 +57,11 @@ class CreateSubpoolTokenTx(unsignedTxBuilder: UnsignedTransactionBuilder) extend
 
 
   override def build(): UnsignedTransaction = {
-    val subpoolTokens = new ErgoToken(_inputBoxes.head.getId, numSubpools)
+
+    val subpoolTokens = new Eip4Token(_inputBoxes.head.getId.toString, numSubpools, "GetBlok.io Subpool Token", "This token identifier represents a subpool under GetBlok.io's Subpooling system.", 0)
     val outBox = unsignedTxBuilder.outBoxBuilder()
       .value(numSubpools * metadataValue + txFee)
-      .mintToken(subpoolTokens, "GetBlok.io Subpool Token", "This token identifier represents a subpool under GetBlok.io's Subpooling system.", 0)
+      .mintToken(subpoolTokens)
       .contract(new ErgoTreeContract(_creatorAddress.getErgoAddress.script, AppParameters.networkType))
       .build()
 

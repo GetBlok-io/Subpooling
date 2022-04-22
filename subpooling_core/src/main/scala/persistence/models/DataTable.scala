@@ -56,6 +56,8 @@ abstract class DataTable[T](dbConn: DbConn) {
     s"${table}_$part "
   }
 
+  protected def fromTableOf(str: String) = s"FROM $str "
+
 
   protected def allFields(fieldSeq: String*): String = {
     val prefix = s"("
@@ -142,7 +144,7 @@ object DataTable {
     var rowsUpdated = createNewPartition(dbConn, "subpool_states", part)
     rowsUpdated = createNewPartition(dbConn, "subpool_members", part)
     rowsUpdated = createNewPartition(dbConn, "subpool_placements", part)
-
+    rowsUpdated = createNewPartition(dbConn, "pool_blocks", part)
     logger.info(s"Partitions created, $rowsUpdated results returned.")
     rowsUpdated
   }

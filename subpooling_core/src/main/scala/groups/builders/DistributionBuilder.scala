@@ -4,9 +4,9 @@ package groups.builders
 import boxes.MetadataInputBox
 import global.AppParameters.NodeWallet
 import groups.models.GroupBuilder
-import groups.stages.DistributionRoot
 
 import io.getblok.subpooling_core.groups.entities.Pool
+import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
 class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox],

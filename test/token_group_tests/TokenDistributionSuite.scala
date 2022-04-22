@@ -28,7 +28,7 @@ class TokenDistributionSuite extends AnyFunSuite {
 
         group = new DistributionGroup(singlePool, ctx, dummyWallet,
           commandContract, holdingContract, false)
-        logger.info("holdingContract: " + holdingContract.getAddress.toString)
+        logger.info("holdingContract: " + holdingContract.toAddress.toString)
     }
   }
 
@@ -109,7 +109,7 @@ class TokenDistributionSuite extends AnyFunSuite {
   test("Subpool has fee box in outputs") {
     assert(manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray.exists {
       i =>
-        (i.getValue == holdingValue / 100) && (PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == PropBytes.ofAddress(creatorAddress)(AppParameters.networkType))
+        (i.getTokens.get(0).getValue == holdingValue / 100) && (PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == PropBytes.ofAddress(creatorAddress)(AppParameters.networkType))
     })
     logger.info(s"tx Cost: ${manager.completedGroups(subPool).getCost}")
   }

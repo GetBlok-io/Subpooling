@@ -1,11 +1,13 @@
 package io.getblok.subpooling_core
 
-import boxes.MetadataInputBox
+import boxes.{EmissionsBox, MetadataInputBox}
 import boxes.builders.MetadataOutputBuilder
 import contracts.MetadataContract
-import contracts.holding.{SimpleHoldingContract, TokenHoldingContract}
+import contracts.holding.{HoldingContract, SimpleHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.emissions.EmissionsContract
 import io.getblok.subpooling_core.token_group_tests.MockData._
 import io.getblok.subpooling_core.groups.entities.{Member, Pool, Subpool}
+import io.getblok.subpooling_core.registers.{LongReg, PropBytes}
 import org.ergoplatform.appkit._
 import org.ergoplatform.appkit.impl.ErgoTreeContract
 import org.slf4j.{Logger, LoggerFactory}
@@ -47,7 +49,7 @@ package object token_group_tests {
         val txB = ctx.newTxBuilder()
         val metadataContract = MetadataContract.generateTestContract(ctx)
         val subpoolToken = ErgoId.create(dummyToken)
-        val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.getAddress, subpoolToken)
+        val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, subpoolToken)
         val holdingBox = txB.outBoxBuilder()
           .value(Parameters.MinFee * 10)
           .contract(holdingContract.asErgoContract)
@@ -58,6 +60,24 @@ package object token_group_tests {
         holdingBox
     }
   }
+
+  def buildEmissionsBox(tokenValue: Long, emissionReward: Long, exchangeAddress: Address, holdingContract: HoldingContract): EmissionsBox = {
+    ergoClient.execute{
+      ctx =>
+        val txB = ctx.newTxBuilder()
+        val emissionsContract = EmissionsContract.generate(ctx, shareOperator, emissionsOperator, holdingContract, isTest = true)
+        val emissionsBox = txB.outBoxBuilder()
+          .value(Parameters.MinFee)
+          .contract(emissionsContract.contract)
+          .tokens(new ErgoToken(dummyEmissionsToken, 1), new ErgoToken(dummyDistributionToken, tokenValue))
+          .registers(LongReg(emissionReward).ergoVal, PropBytes.ofAddress(exchangeAddress)(ctx.getNetworkType).ergoVal)
+          .build()
+          .convertToInputWith(dummyTxId, 0)
+
+        new EmissionsBox(emissionsBox, emissionsContract)
+    }
+  }
+
 
   def getInputBoxes: Array[InputBox] = Array(buildUserBox(Parameters.OneErg * 122))
 

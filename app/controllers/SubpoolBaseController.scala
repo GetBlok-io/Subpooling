@@ -2,8 +2,8 @@ package controllers
 
 import configs._
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.persistence.{BlocksTable, SettingsTable, SharesTable, StateTable}
-import io.getblok.subpooling_core.persistence.models.Models.DbConn
+import io.getblok.subpooling_core.persistence.{BlocksTable, InfoTable, SettingsTable, SharesTable, StateTable}
+import io.getblok.subpooling_core.persistence.models.Models.{DbConn, PoolInformation}
 import org.ergoplatform.appkit.ErgoClient
 import play.api.Configuration
 import play.api.libs.json.{Json, Writes}
@@ -26,6 +26,7 @@ extends BaseController{
   val sharesTable   = new SharesTable(dbConn)
   val stateTable    = new StateTable(dbConn)
   val settingsTable = new SettingsTable(dbConn)
+  val infoTable     = new InfoTable(dbConn)
 
   def okJSON[T](o: T)(implicit tjs: Writes[T]): Result = {
     Ok(Json.prettyPrint(Json.toJson(o)))

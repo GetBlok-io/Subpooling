@@ -20,8 +20,9 @@ class BlockingDbWriter @Inject()(configuration: Configuration) extends Actor{
 
   override def receive: Receive = {
     case updateRequest: DatabaseUpdateRequest =>
-      val stateTable    = new StateTable(dbConn)
-      val blocksTable   = new BlocksTable(dbConn)
+      val stateTable        = new StateTable(dbConn)
+      val blocksTable       = new BlocksTable(dbConn)
+      val poolBlocksTable   = new PoolBlocksTable(dbConn)
       val settingsTable = new SettingsTable(dbConn)
       val infoTable: InfoTable = new InfoTable(dbConn)
       def membersTable(partition: String)   = new MembersTable(dbConn, partition)
@@ -30,10 +31,14 @@ class BlockingDbWriter @Inject()(configuration: Configuration) extends Actor{
       updateRequest match {
         case UpdateBlockStatus(status, blockHeight) =>
           sender ! blocksTable.updateBlockStatus(status, blockHeight)
-        case UpdateBlockConf(status, confirmation, blockHeight) =>
-          sender ! blocksTable.updateBlockStatusAndConfirmation(status, confirmation, blockHeight)
+        case UpdatePoolBlockStatus(status, blockHeight) =>
+          sender ! poolBlocksTable.updateBlockStatus(status, blockHeight)
+        case UpdatePoolBlockConf(status, confirmation, blockHeight, gEpoch) =>
+          sender ! poolBlocksTable.updateBlockStatusAndConfirmation(status, confirmation, blockHeight, gEpoch)
         case UpdateWithValidation(blockHeight, partialBlockInfo) =>
-          sender ! blocksTable.updateBlockValidation(blockHeight, partialBlockInfo)
+          sender ! poolBlocksTable.updateBlockValidation(blockHeight, partialBlockInfo)
+        case PostBlock(blockHeight, poolTag) =>
+          sender ! poolBlocksTable.insertWithBlock(blockHeight, poolTag)
         case InsertMembers(poolTag, memberSeq) =>
           sender ! membersTable(poolTag).insertMemberArray(memberSeq)
         case InsertPlacements(poolTag, placementSeq) =>
@@ -76,9 +81,10 @@ object BlockingDbWriter {
   sealed trait DatabaseUpdateRequest
   // Blocks
   case class UpdateBlockStatus(status: String, blockHeight: Long)       extends DatabaseUpdateRequest
-  case class UpdateBlockConf(status: String,
-                             confirmation: Double, blockHeight: Long)   extends DatabaseUpdateRequest
-
+  case class UpdatePoolBlockStatus(status: String, blockHeight: Long)       extends DatabaseUpdateRequest
+  case class UpdatePoolBlockConf(status: String,
+                                 confirmation: Double, blockHeight: Long, gEpoch: Long = -1)   extends DatabaseUpdateRequest
+  case class PostBlock(blockHeight: Long, poolTag: String)              extends  DatabaseUpdateRequest
   case class UpdateWithValidation(blockHeight: Long,
                                   partialBlockInfo: PartialBlockInfo)   extends DatabaseUpdateRequest
   // Members

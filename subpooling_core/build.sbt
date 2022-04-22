@@ -6,7 +6,7 @@ idePackagePrefix := Some("io.getblok.subpooling_core")
 scalaVersion := "2.12.10"
 
 libraryDependencies ++= Seq(
-  "org.ergoplatform" %% "ergo-appkit" % "develop-d90135c5-SNAPSHOT",
+  "org.ergoplatform" %% "ergo-appkit" % "4.0.8",
   "org.postgresql" % "postgresql" % "42.3.3",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test"
 //  "org.slf4j" % "slf4j-simple" % "1.7.36"

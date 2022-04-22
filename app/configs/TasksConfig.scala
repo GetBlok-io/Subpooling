@@ -5,8 +5,10 @@ import play.api.Configuration
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 class TasksConfig(config: Configuration){
-  val blockCheckConfig: TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "block-status-check")
-  val groupExecConfig: TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "group-execution")
+  val blockCheckConfig:   TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "block-status-check")
+  val groupExecConfig:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "group-execution")
+  val poolBlockConfig:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "pool-block-listener")
+  val dbCrossCheckConfig: TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "db-cross-check")
 }
 
 object TasksConfig {

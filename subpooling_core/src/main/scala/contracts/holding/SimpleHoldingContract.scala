@@ -111,7 +111,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     logger.info("Now generating initial holding outputs for SimpleHoldingContract")
     val metadataBox = distributionTx.metadataInputBox
     val commandBox = distributionTx.commandInputBox
-    val holdingAddress = distributionTx.holdingContract.getAddress
+    val holdingAddress = distributionTx.holdingContract.toAddress
     val initBoxes: List[InputBox] = List(metadataBox.asInput, commandBox.asInput)
     val inputList = initBoxes++holdingBoxes
     val inputBoxes: Array[InputBox] = inputList.toArray

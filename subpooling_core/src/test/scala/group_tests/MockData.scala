@@ -37,7 +37,7 @@ object MockData {
         val txB = ctx.newTxBuilder()
         val metadataContract = MetadataContract.generateTestContract(ctx)
         val subpoolToken = ErgoId.create(dummyToken)
-        SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.getAddress, subpoolToken)
+        SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, subpoolToken)
     }
   }
 

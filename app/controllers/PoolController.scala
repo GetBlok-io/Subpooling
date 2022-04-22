@@ -1,7 +1,7 @@
 
 package controllers
 
-import org.ergoplatform.appkit.Parameters
+import org.ergoplatform.appkit.{Address, Eip4Token, ErgoId, ErgoToken, Parameters}
 import play.api.{Configuration, Logger}
 import play.api.mvc.{Action, AnyContent, ControllerComponents, Result}
 
@@ -24,7 +24,13 @@ import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.persistence.models.Models.{DbConn, MinerSettings, PoolInformation, PoolMember, PoolPlacement, PoolState}
 import play.api.libs.json.{Json, Writes}
 import actors.QuickDbReader._
+import io.getblok.subpooling_core.contracts.MetadataContract
+import io.getblok.subpooling_core.contracts.emissions.EmissionsContract
+import io.getblok.subpooling_core.contracts.holding.TokenHoldingContract
+import io.getblok.subpooling_core.global.Helpers
+import io.getblok.subpooling_core.registers.PoolFees
 
+import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 import scala.language.postfixOps
@@ -38,7 +44,7 @@ extends SubpoolBaseController(components, config){
   val log: Logger = Logger("GenerationController")
   val quickQueryContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.quick-query-dispatcher")
   val slowWriteContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.blocking-io-dispatcher")
-  implicit val timeOut: Timeout = Timeout(10 seconds)
+  implicit val timeOut: Timeout = Timeout(15 seconds)
 
   log.info("Initiating pool controller")
   @ApiOperation(
@@ -71,7 +77,8 @@ extends SubpoolBaseController(components, config){
           log.info("Creating new pool with tag " + poolStates.head.subpool)
 
           DataTable.createSubpoolPartitions(dbConn, poolStates.head.subpool)
-
+          infoTable.insertNewInfo(PoolInformation(group.newPools.head.token.toString, 0L, num, 0L, 0L, 0L, 0L, PoolInformation.CURR_ERG, PoolInformation.PAY_PPLNS,
+            PoolFees.POOL_FEE_CONST, official = true, 5L, 10L, name, creator, LocalDateTime.now(), LocalDateTime.now()))
           stateTable.insertStateArray(poolStates.toArray)
           Ok(Json.prettyPrint(Json.toJson(PoolGenerated(name, poolStates.head.subpool, num,
             groupManager.completedGroups.values.head.getId, creator, ctx.getHeight.toLong, currentTime.toString))))
@@ -80,6 +87,53 @@ extends SubpoolBaseController(components, config){
         }
     }
 
+  }
+
+  def createEmissions(tag: String, currency: String, emissionReward: Double): Action[AnyContent] =  Action {
+    if(currency == "test"){
+      client.execute {
+        ctx =>
+          val poolCreator = infoTable.queryPool(tag).creator
+          val metadataContract = MetadataContract.generateMetadataContract(ctx)
+          val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(tag))
+          val emissionsContract = EmissionsContract.generate(ctx, wallet.p2pk, Address.create(poolCreator), holdingContract)
+
+
+          val distributionToken = new ErgoToken(PoolInformation.TEST_ID, 500000 * Parameters.OneErg)
+
+          val inputBoxes     = ctx.getCoveringBoxesFor(wallet.p2pk, Parameters.MinFee * 10, Seq().asJava).getBoxes
+          val emissionsToken = new Eip4Token(inputBoxes.get(0).getId.toString, 1L, "GetBlok.io Token Emissions Test", "Test token identifying an emissions box", 0)
+
+          val outBox     = ctx.newTxBuilder().outBoxBuilder()
+            .contract(wallet.pk.contract)
+            .value(Parameters.MinFee * 10)
+            .mintToken(emissionsToken)
+            .build()
+          val unsignedTokenTx = ctx.newTxBuilder().boxesToSpend(inputBoxes).outputs(outBox).fee(Parameters.MinFee).sendChangeTo(wallet.p2pk.getErgoAddress).build()
+          val signedTokenTx   = wallet.prover.sign(unsignedTokenTx)
+          val tokenTxId       = ctx.sendTransaction(signedTokenTx).replace("\"", "")
+          val tokenInputBox   = outBox.convertToInputWith(tokenTxId, 0.toShort)
+
+
+          val tokenInputs = ctx.getCoveringBoxesFor(wallet.p2pk, Parameters.MinFee, Seq(distributionToken).asJava).getBoxes
+            .asScala.toSeq.filter(i => i.getTokens.size() > 0).filter(i => i.getTokens.get(0).getId == distributionToken.getId)
+          val emissionsOutBox = EmissionsContract.buildGenesisBox(ctx, emissionsContract,
+            Helpers.ergToNanoErg(emissionReward), Address.create(poolCreator), emissionsToken.getId, distributionToken)
+          val txB = ctx.newTxBuilder()
+          val unsigned = txB.boxesToSpend((Seq(tokenInputBox)++tokenInputs).asJava)
+            .outputs(emissionsOutBox)
+            .fee(Parameters.MinFee)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+          val signed = wallet.prover.sign(unsigned)
+          val txId = ctx.sendTransaction(signed)
+
+          infoTable.updatePoolEmissions(tag, PoolInformation.CURR_TEST_TOKENS, emissionsToken.getId.toString, PoolInformation.TokenExchangeEmissions)
+          Ok(s"EmissionBox created in transaction: ${txId}")
+      }
+    }else{
+      InternalServerError("Something went wrong dawg")
+    }
   }
 
   def updatePoolInfo(tag: String): Action[AnyContent] = Action {

@@ -1,12 +1,12 @@
 package io.getblok.subpooling_core
-package groups.stages
+package groups.stages.roots
 
+import global.AppParameters
+import global.AppParameters.NodeWallet
 import groups.entities.{Pool, Subpool}
+import groups.models.TransactionStage
+import transactions.CreateSubpoolTokenTx
 
-import io.getblok.subpooling_core.global.AppParameters
-import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.groups.models.TransactionStage
-import io.getblok.subpooling_core.transactions.CreateSubpoolTokenTx
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter

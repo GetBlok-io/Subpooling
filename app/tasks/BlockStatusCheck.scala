@@ -1,8 +1,8 @@
 package tasks
 
-import actors.BlockingDbWriter.{UpdateBlockConf, UpdateWithValidation}
+import actors.BlockingDbWriter.{UpdatePoolBlockConf, UpdateWithValidation}
 import actors.ExplorerRequestBus.ExplorerRequests.{BlockByHash, GetCurrentHeight, ValidateBlockByHeight}
-import actors.QuickDbReader.BlocksByStatus
+import actors.QuickDbReader.{PoolBlocksByStatus, QueryPoolInfo}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
@@ -12,7 +12,7 @@ import io.getblok.subpooling_core.explorer.Models.BlockContainer
 import io.getblok.subpooling_core.node.NodeHandler
 import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInfo, ValidBlock}
 import play.api.{Configuration, Logger}
-import io.getblok.subpooling_core.persistence.models.Models.Block
+import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation}
 import org.ergoplatform.appkit.ErgoId
 
 import javax.inject.{Inject, Named, Singleton}
@@ -22,8 +22,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 @Singleton
 class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
-                                @Named("quick-db-reader") quickQuery: ActorRef, @Named("blocking-db-writer") slowWrite: ActorRef,
-                                @Named("explorer-req-bus") explorerReqBus: ActorRef) {
+                                 @Named("quick-db-reader") query: ActorRef, @Named("blocking-db-writer") write: ActorRef,
+                                 @Named("explorer-req-bus") explorerReqBus: ActorRef) {
   val logger: Logger = Logger("BlockStatusCheck")
   val taskConfig: TaskConfiguration = new TasksConfig(config).blockCheckConfig
   val nodeConfig: NodeConfig        = new NodeConfig(config)
@@ -42,7 +42,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         val tryEvaluate = Try
         {
           evaluateNewBlocks()
-          evaluateInitiatedBlocks()
+          evalConfirmingBlocks()
         }
         tryEvaluate match {
           case Success(value) =>
@@ -60,77 +60,70 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     logger.info("Now evaluating pending blocks with confirmationNum 0")
     implicit val timeout: Timeout = Timeout(30 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    val pendingBlocksResult = quickQuery ? BlocksByStatus(Block.PENDING)
-    val pendingBlocks = Await.result(pendingBlocksResult, timeout.duration).asInstanceOf[Seq[Block]]
+    val validatingBlocksResult = query ? PoolBlocksByStatus(PoolBlock.VALIDATING)
+    val validatingBlocks = Await.result(validatingBlocksResult, timeout.duration).asInstanceOf[Seq[PoolBlock]]
 
-    if (pendingBlocks.isEmpty) {
-      logger.warn("No pending blocks found, evaluation for these blocks will now terminate")
+    if (validatingBlocks.isEmpty) {
+      logger.warn("No validating blocks found, evaluation for these blocks will now terminate")
       return
     }
 
-    logger.info(s"Total of ${pendingBlocks.size} pending blocks found in database! " +
+    logger.info(s"Total of ${validatingBlocks.size} validating blocks found in database! " +
       s"Initiating validation for up to ${params.pendingBlockNum} of these blocks")
 
-    pendingBlocks.take(params.pendingBlockNum).map(b => b -> validateBlockAsync(b.blockheight)).foreach(fb => executeInitBlockValidation(fb._1.blockheight, fb._2))
+    val blocksToCheck = validatingBlocks.take(params.pendingBlockNum)
+    blocksToCheck.map(block => block -> validateBlockAsync(block.blockheight)).foreach(bv => executeInitBlockValidation(bv._1.blockheight, bv._2))
   }
 
-  def evaluateInitiatedBlocks(): Unit = {
-    logger.info("Now evaluating initiated blocks")
+  def evalConfirmingBlocks(): Unit = {
+    logger.info("Now evaluating confirming blocks")
     implicit val timeout: Timeout = Timeout(15 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    val initBlocksResult = quickQuery ? BlocksByStatus(Block.INITIATED)
-    val initBlocks = Await.result(initBlocksResult, timeout.duration).asInstanceOf[Seq[Block]].sortBy(b => b.blockheight)
+    val initBlocksResult = query ? PoolBlocksByStatus(PoolBlock.CONFIRMING)
+    val initBlocks = Await.result(initBlocksResult, timeout.duration).asInstanceOf[Seq[PoolBlock]].sortBy(b => b.blockheight)
 
     if(initBlocks.isEmpty) {
-      logger.warn("No initated blocks were found")
+      logger.warn("No confirming blocks were found")
       return
     }
 
-    logger.info(s"Total of ${initBlocks.size} initiated blocks found in database! Only a max of ${params.pendingBlockNum}" +
-      s" initiated blocks will be evaluated")
+    logger.info(s"Total of ${initBlocks.size} confirming blocks found in database! Only a max of ${params.pendingBlockNum}" +
+      s" confirming blocks will be evaluated")
 
-    val blocksToCheck = initBlocks.filter(b => b.hash != null && b.reward != 0.0)
+    val blocksToCheck = initBlocks.filter(b => b.hash != null && b.reward != 0.0).take(params.pendingBlockNum)
 
-    val blockChecks = blocksToCheck.take(params.pendingBlockNum).map(b => (b, (explorerReqBus ? GetCurrentHeight).mapTo[Int]))
-    blockChecks.foreach{
-      f =>
-        f._2.onComplete{
-          case Success(height) =>
-            logger.info("Current height request returned from explorerReqBus")
-            val block = f._1
-            if(height > block.blockheight) {
-              logger.info(s"New confirmation update being made for block ${block.blockheight}")
-              val newConfirmationNumber = BigDecimal((height - block.blockheight)) / params.confirmationNum
-              val nextConfirmations = Math.min(newConfirmationNumber.toDouble, 1.0)
-              var nextStatus = Block.INITIATED
-              if(nextConfirmations == 1.0)
-                nextStatus = Block.CONFIRMED
-              logger.info(s"Updating block ${f._1.blockheight} with status $nextStatus and confirmations $nextConfirmations")
-              val blockUpdate = slowWrite ? UpdateBlockConf(nextStatus, nextConfirmations, f._1.blockheight)
-
-              blockUpdate.mapTo[Long].onComplete{
-                case Success(rows) =>
-                  if(rows > 0)
-                    logger.info(s"Successfully updated block ${block.blockheight}")
-                  else {
-                    logger.error(s"Block ${block.blockheight} could not be updated!")
+    val blockPoolInfo = Future.sequence(blocksToCheck.map(b => (query ? QueryPoolInfo(b.poolTag)).mapTo[PoolInformation]))
+    val futBlockHeight = (query ? GetCurrentHeight).mapTo[Int]
+    for{
+      poolInfoSeq <- blockPoolInfo
+      height      <- futBlockHeight
+    } yield {
+      val blockGroups = blocksToCheck.groupBy(b => b.poolTag)
+      blockGroups.foreach {
+        bg =>
+          val poolInfo = poolInfoSeq.find(info => info.poolTag == bg._1).get
+          val blocksOrdered = bg._2.sortBy(b => b.blockheight)
+          val blocksZipped = blocksOrdered.zipWithIndex.map(bz => bz._1 -> (bz._2 + 1L + poolInfo.blocksFound))
+          blocksZipped.foreach{
+            bz =>
+              val block = bz._1
+              var nextGEpoch = bz._2
+              if(height > block.blockheight){
+                logger.info(s"New confirmation update being made for block ${block.blockheight}")
+                  val newConfirmationNumber = BigDecimal((height - block.blockheight)) / params.confirmationNum
+                  val nextConfirmations = Math.min(newConfirmationNumber.toDouble, 1.0)
+                  var nextStatus = PoolBlock.CONFIRMING
+                  if(nextConfirmations == 1.0) {
+                    nextStatus = PoolBlock.CONFIRMED
+                  }else{
+                    nextGEpoch = -1
                   }
-                case Failure(t) =>
-                  logger.error(s"There was an error updating block ${block.blockheight}")
-                  logger.error("The following error occurred: ", t)
+                  logger.info(s"Updating block ${block.blockheight} with status $nextStatus, confirmations $nextConfirmations," +
+                    s" and GEpoch $nextGEpoch")
+                  write ! UpdatePoolBlockConf(nextStatus, nextConfirmations, block.blockheight, nextGEpoch)
               }
-            }else if(block.blockheight == height){
-              logger.info(s"Block ${block.blockheight} has same height as current height $height, skipping confirmation updates.")
-            }else{
-              logger.warn(s"Block ${block.blockheight} has a larger height than the current height, maybe a node is desynced?")
-              logger.warn(s"Skipping confirmation updates for Block ${block.blockheight}")
-            }
-          case Failure(t) =>
-
-            logger.error(s"There was a critical error while evaluating block ${f._1.blockheight}", t)
-            logger.warn(s"No updates being made for block ${f._1.blockheight}")
-
-        }
+          }
+      }
     }
   }
 
@@ -145,15 +138,13 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
       case Success(value) =>
         value match {
           case Some(partialBlockInfo: PartialBlockInfo) =>
-            val blockUpdate = slowWrite ? UpdateWithValidation(blockHeight, partialBlockInfo)
+            val blockUpdate = write ? UpdateWithValidation(blockHeight, partialBlockInfo)
 
             partialBlockInfo match{
               case OrphanBlock(reward, txConf, hash) =>
                 logger.warn(s"Block at height $blockHeight was found to be an orphan")
               case ValidBlock(reward, txConf, hash) =>
                 logger.info(s"Block at height $blockHeight was successfully validated and set to initiated")
-              case NodeHandler.ConfirmedBlock(reward, txConf, hash) =>
-                logger.info(s"Block at height $blockHeight was successfully validated and set to confirmed")
             }
 
             blockUpdate.onComplete{

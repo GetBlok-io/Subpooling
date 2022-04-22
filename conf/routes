@@ -3,6 +3,7 @@
 GET   /pools/createPool        controllers.PoolController.createPool(num: Int, name: String, creator: String)
 GET   /pools/:tag              controllers.PoolController.getPoolInfo(tag: String)
 GET   /pools/:tag/addMiner     controllers.PoolController.addMiner(tag: String, miner: String)
+GET   /pools/:tag/createEmissions     controllers.PoolController.createEmissions(tag: String, currency: String, emissionReward: Long)
 GET   /pools                   controllers.PoolController.getAllPools
 GET   /pools/all                        controllers.PoolController.getAllPools
 GET   /pools/official                   controllers.PoolController.getOfficialPools

@@ -89,7 +89,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
 
   override def buildMetadataTx(): UnsignedTransaction = {
     val commandContract = commandInputBox.contract
-    val holdingAddress = holdingContract.getAddress
+    val holdingAddress = holdingContract.toAddress
 
 
     logger.info(s"Total Holding Box Value: ${BoxHelpers.sumBoxes(holdingInputs)}")

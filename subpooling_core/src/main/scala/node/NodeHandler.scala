@@ -31,25 +31,24 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
       logger.info("Couldn't get any miner PK, defaulting to value in config")
       AppParameters.defaultMiningPK
     }
+
   }
 
   def validateBlock(blockHeight: Long): Option[NodeHandler.PartialBlockInfo] = {
     val blockHashResponse = blockService.getFullBlockAt(blockHeight.toInt).execute()
     val blockHash = asOption(blockHashResponse).map(l => l.asScala.toSeq)
-    if(blockHash.isDefined){
-      if(blockHash.get.nonEmpty){
+    if (blockHash.isDefined) {
+      if (blockHash.get.nonEmpty) {
         logger.info(s"Current block hashes at height $blockHeight: ${blockHash.get.mkString}")
         val fullBlockResponse = blockService.getFullBlockById(blockHash.get.head).execute()
         val fullBlock = asOption(fullBlockResponse)
-        if(fullBlock.isDefined){
+        if (fullBlock.isDefined) {
           val currentTime = Instant.now().toEpochMilli
           val blockTime = fullBlock.get.getHeader.getTimestamp
           // If time is less than 10 minutes since block was created, do not evaluate just yet
-          if(currentTime - blockTime < 600000){
+          if (currentTime - blockTime < 600000) {
             return None
           }
-
-
           val attemptBlockValidation = Try {
             val blockNonce = fullBlock.get.getHeader.getPowSolutions.getN
             val minerPK = fullBlock.get.getHeader.getPowSolutions.getPk
@@ -58,7 +57,7 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
             val txReward = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue
 
             var nodePK = getMinerPK
-            if(nodePK == null){
+            if (nodePK == null) {
               logger.info("NodePK was null, setting to app params value: " + AppParameters.defaultMiningPK)
               nodePK = AppParameters.defaultMiningPK
             }
@@ -68,34 +67,30 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
               logger.warn(s"Block at $blockHeight had miner pk $minerPK rather than the correct $nodePK")
               Some(OrphanBlock(0.0, "none", "none"))
             } else {
-              if(txReward == 0){
+              if (txReward == 0) {
                 logger.info("No reward existed for transaction, classifying as empty block!")
                 Some(OrphanBlock(0.0, "none", "none"))
-              }else {
-                val currentHeight = ergoClient.execute(ctx => ctx.getHeight)
-                if(coinbaseTx.getOutputs.get(0).getCreationHeight >= AppParameters.numMinConfirmations){
-
-                  Some(ConfirmedBlock(Helpers.nanoErgToErg(txReward), blockNonce, blockHash.get.head))
-                }else {
-                  Some(ValidBlock(Helpers.nanoErgToErg(txReward), blockNonce, blockHash.get.head))
-                }
+              } else {
+                Some(ValidBlock(Helpers.nanoErgToErg(txReward), blockNonce, blockHash.get.head))
               }
             }
           }
-          if(attemptBlockValidation.isSuccess)
+          if (attemptBlockValidation.isSuccess)
             attemptBlockValidation.get
           else
             None
-        }else{
+        } else {
           None
         }
-      }else{
+      } else {
         None
       }
     }else{
+      logger.warn(s"There was no block hash defined for block $blockHeight, maybe a node is desynced?")
       None
     }
   }
+
 
   private def asOption[T](resp: Response[T]): Option[T] = {
     if (resp.isSuccessful)
@@ -122,9 +117,10 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
 object NodeHandler {
   sealed trait BlockValidationResponse
 
-  class PartialBlockInfo(val reward: Double, val txConfirmationInfo: String, val blockHash: String) extends BlockValidationResponse
-
-  case class ConfirmedBlock(override val reward: Double, txConf: String, hash: String) extends PartialBlockInfo(reward, txConf, hash)
+  class PartialBlockInfo(val reward: Double, val txConfirmationInfo: String, val blockHash: String, val gEpoch: Long = -1L) extends BlockValidationResponse
+  @Deprecated
+  case class ConfirmedBlock(override val reward: Double, txConf: String, hash: String, override val gEpoch: Long)
+    extends PartialBlockInfo(reward, txConf, hash, gEpoch)
   case class ValidBlock(override val reward: Double, txConf: String, hash: String) extends PartialBlockInfo(reward, txConf, hash)
   case class OrphanBlock(override val reward: Double, txConf: String, hash: String) extends PartialBlockInfo(reward, txConf, hash)
 

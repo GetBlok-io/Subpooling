@@ -28,7 +28,7 @@ class SingleDistributionSuite extends AnyFunSuite {
 
         group = new DistributionGroup(singlePool, ctx, dummyWallet,
           commandContract, holdingContract, getInputBoxes)
-        logger.info("holdingContract: " + holdingContract.getAddress.toString)
+        logger.info("holdingContract: " + holdingContract.toAddress.toString)
     }
   }
 

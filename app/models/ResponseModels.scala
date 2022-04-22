@@ -43,16 +43,23 @@ object ResponseModels {
     }
   }
 
-  implicit val blockWrites: Writes[Block] = new Writes[Block] {
-    override def writes(o: Block): JsValue = {
+  implicit val blockWrites: Writes[PoolBlock] = new Writes[PoolBlock] {
+    override def writes(o: PoolBlock): JsValue = {
       Json.obj( fields =
         "id" -> o.id,
         "blockHeight" -> o.blockheight,
+        "poolTag" -> o.poolTag,
+        "gEpoch" -> o.gEpoch,
         "status" -> o.status,
         "miner" -> o.miner,
-        "confirmation" -> o.confirmationprogress,
         "reward" -> o.reward,
-        "created" -> o.created.toString
+        "confirmation" -> o.confirmation,
+        "nonce" -> o.txConfirmation,
+        "hash" -> o.hash,
+        "effort" -> o.effort,
+        "networkDifficulty" -> o.netDiff,
+        "created" -> o.created.toString,
+        "updated" -> o.updated
       )
     }
   }

@@ -3,9 +3,9 @@ package groups.builders
 
 import global.AppParameters.NodeWallet
 import groups.models.GroupBuilder
-import groups.stages.GenesisRoot
 
 import io.getblok.subpooling_core.groups.entities.Pool
+import io.getblok.subpooling_core.groups.stages.roots.GenesisRoot
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
 class GenesisBuilder(numSubpools: Long, metadataVal: Long) extends GroupBuilder {

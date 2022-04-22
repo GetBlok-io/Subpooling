@@ -20,7 +20,7 @@ abstract class HoldingContract(holdingContract: ErgoContract) extends ErgoContra
 
   override def getErgoTree: Values.ErgoTree = holdingContract.getErgoTree
 
-  def getAddress: Address = Address.fromErgoTree(this.getErgoTree, AppParameters.networkType)
+  override def toAddress: Address = Address.fromErgoTree(this.getErgoTree, AppParameters.networkType)
 
   /**
    * Apply this holding contract's effects to an unbuilt command output. This is necessary to ensure

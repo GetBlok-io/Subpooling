@@ -20,6 +20,14 @@
       SELF.propositionBytes == nextEmissionsBox.propositionBytes && SELF.tokens(0)._1 == nextEmissionsBox.tokens(0)._1
   }
 
+  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+    val expected = valuesPair._1
+    val actual   = valuesPair._2
+    val amountTop = (expected - actual) * 100L // multiply by 100 to prevent integer division
+    val percentage = amountTop / actual
+    (percentage < 3L) && (percentage > -3L) // 3% margin of error during calculations
+  }
+
   if(nextBoxExists){
       val tokenToDistribute = SELF.tokens(1)
       val nextHeldTokens    = nextEmissionsBox.tokens(1)
@@ -43,7 +51,7 @@
 
         val holdingBoxesFunded = holdingBoxes.forall{(box: Box) => box.value == minHoldingBoxVal}
 
-        val tokensAreHeld = tokensInHolding == blockReward
+        val tokensAreHeld = isValueInRange((blockReward, tokensInHolding))
         val blockRewardUnchanged = blockReward == nextBlockReward
         val spentByShareOperator = allOf(
           Coll(
@@ -53,7 +61,7 @@
             holdingBoxesFunded
           )
         )
-        sigmaProp(spentByShareOperator) && shareOperator
+        sigmaProp(spentByShareOperator) //&& shareOperator
       }else{
         // If next tokens are greater than or equal to current tokens, pool operator must have added them.
         val tokensSame    = tokenToDistribute._1 == nextHeldTokens._1

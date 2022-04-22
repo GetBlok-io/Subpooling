@@ -13,6 +13,7 @@ class ParamsConfig(config: Configuration){
   private val adjustCoeff = config.get[Long]("params.scoreAdjustCoeff")
   val pendingBlockNum: Int = config.get[Int]("params.pendingBlockNum")
   val confirmationNum: Int = config.get[Int]("params.confirmationNum")
+  val numToValidate:   Int = config.get[Int]("params.numToValidate")
   val defaultPK: String = config.get[String]("params.defaultMinerPK")
   val autoConfirmGroups: Boolean = config.get[Boolean]("params.autoConfirmGroups")
   val parallelPoolPlacements: Boolean = config.get[Boolean]("params.parallelPoolPlacements")

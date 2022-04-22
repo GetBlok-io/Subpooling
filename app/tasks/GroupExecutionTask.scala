@@ -1,9 +1,9 @@
 package tasks
 
-import actors.BlockingDbWriter.{DeletePlacementsAtBlock, InsertMembers, InsertPlacements, UpdateBlockConf, UpdateBlockStatus, UpdatePoolGEpoch, UpdateWithNewStates, UpdateWithValidation}
-import actors.ExplorerRequestBus.ExplorerRequests.{BlockByHash, ValidateBlockByHeight}
+import actors.BlockingDbWriter.{DeletePlacementsAtBlock, InsertMembers, InsertPlacements, UpdateBlockStatus, UpdatePoolBlockConf, UpdatePoolBlockStatus, UpdatePoolGEpoch, UpdateWithNewStates, UpdateWithValidation}
+import actors.ExplorerRequestBus.ExplorerRequests.{BlockByHash, GetCurrentHeight, ValidateBlockByHeight}
 import actors.GroupRequestHandler.{ConstructDistribution, ConstructHolding, DistributionComponents, DistributionResponse, ExecuteDistribution, ExecuteHolding, FailedPlacements, HoldingComponents, HoldingResponse}
-import actors.QuickDbReader.{BlockByHeight, BlocksByStatus, MinersByAssignedPool, PlacementsByBlock, QueryAllSubPools, QueryLastPlacement, QueryPoolInfo, QueryWithShareHandler, SettingsForMiner}
+import actors.QuickDbReader.{BlockByHeight, MinersByAssignedPool, PlacementsByBlock, PoolBlocksByStatus, QueryAllSubPools, QueryLastPlacement, QueryPoolInfo, QueryWithShareHandler, SettingsForMiner}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
@@ -12,16 +12,17 @@ import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
 import io.getblok.subpooling_core.explorer.Models.BlockContainer
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
-import io.getblok.subpooling_core.groups.stages.{DistributionRoot, HoldingRoot}
+import io.getblok.subpooling_core.groups.stages.roots.{DistributionRoot, EmissionRoot, HoldingRoot}
 import io.getblok.subpooling_core.node.NodeHandler
 import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInfo}
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.payments.ShareCollector
-import io.getblok.subpooling_core.persistence.models.Models.{Block, MinerSettings, PoolInformation, PoolPlacement, PoolState}
-import org.ergoplatform.appkit.{ErgoClient, ErgoId, InputBox, Parameters}
+import io.getblok.subpooling_core.persistence.models.Models.{Block, MinerSettings, PoolBlock, PoolInformation, PoolPlacement, PoolState}
+import org.ergoplatform.appkit.{BoxOperations, ErgoClient, ErgoId, InputBox, Parameters}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import play.api.{Configuration, Logger}
 
+import java.time.{LocalDateTime, ZoneOffset}
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.inject.{Inject, Named, Singleton}
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
@@ -29,11 +30,12 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
+
 import scala.util.{Failure, Success, Try}
 
 @Singleton
 class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
-                                   @Named("quick-db-reader") quickQuery: ActorRef, @Named("blocking-db-writer") slowWrite: ActorRef,
+                                   @Named("quick-db-reader") query: ActorRef, @Named("blocking-db-writer") slowWrite: ActorRef,
                                    @Named("explorer-req-bus") explorerReqBus: ActorRef, @Named("group-handler") groupHandler: ActorRef) {
   val logger: Logger = Logger("GroupExecution")
   val taskConfig: TaskConfiguration = new TasksConfig(config).groupExecConfig
@@ -86,20 +88,22 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
   }else{
     logger.info("GroupExecution Task was not enabled")
   }
-  case class BlockSelections(block: Block, poolTag: String)
+  case class PartialBlockSelection(block: PoolBlock, poolTag: String)
+  case class BlockSelection(block: PoolBlock, poolInformation: PoolInformation)
 
-  def selectBlocks(blocks: Seq[Block], distinctOnly: Boolean): Seq[BlockSelections] = {
+
+  def selectBlocks(blocks: Seq[PoolBlock], distinctOnly: Boolean): Seq[BlockSelection] = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now selecting blocks with unique pool tags")
     val selectedBlocks = blocks.map {
       block =>
         logger.info(s"Getting pool for block ${block.blockheight} with miner ${block.miner}")
-        val settingsQuery = Await.result((quickQuery ? SettingsForMiner(block.miner)).mapTo[MinerSettings].map(s => s.subpool), timeout.duration)
-        BlockSelections(block, settingsQuery)
+        val settingsQuery = Await.result((query ? SettingsForMiner(block.miner)).mapTo[MinerSettings].map(s => s.subpool), timeout.duration)
+        PartialBlockSelection(block, settingsQuery)
     }
     if(distinctOnly) {
-      val distinctBlocks = ArrayBuffer.empty[BlockSelections]
+      val distinctBlocks = ArrayBuffer.empty[PartialBlockSelection]
       for (blockSel <- selectedBlocks) {
         if (!distinctBlocks.exists(bs => bs.poolTag == blockSel.poolTag)) {
           logger.info(s"Unique pool tag ${blockSel.poolTag} was added to selection!")
@@ -107,12 +111,14 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
         }
       }
       distinctBlocks.toSeq.take(params.pendingBlockNum)
+        .map(pb => BlockSelection(pb.block, Await.result((query ? QueryPoolInfo(pb.poolTag)).mapTo[PoolInformation], timeout.duration)))
     }else{
       selectedBlocks.take(params.pendingBlockNum)
+        .map(pb => BlockSelection(pb.block, Await.result((query ? QueryPoolInfo(pb.poolTag)).mapTo[PoolInformation], timeout.duration)))
     }
   }
 
-  def makeBlockBoxMap(blockSelections: Seq[BlockSelections], collectedInputs: ArrayBuffer[InputBox], maxInputs: Long): Map[Long, Seq[InputBox]] = {
+  def makeBlockBoxMap(blockSelections: Seq[BlockSelection], collectedInputs: ArrayBuffer[InputBox], maxInputs: Long): Map[Long, Seq[InputBox]] = {
     var blockAmountMap = Map.empty[Long, Seq[InputBox]]
     for (blockSel <- blockSelections) {
       var blockAmount = 0L
@@ -168,10 +174,10 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
     def executePlacement(): Unit = {
       implicit val timeout: Timeout = Timeout(60 seconds)
       implicit val taskContext: ExecutionContext = contexts.taskContext
-      val blockResp = quickQuery ? BlocksByStatus(Block.CONFIRMED)
+      val blockResp = query ? PoolBlocksByStatus(PoolBlock.CONFIRMED)
       // TODO: Change pending block num to group exec num
       logger.info(s"Querying blocks with confirmed status")
-      val blocks = Await.result(blockResp.mapTo[Seq[Block]], 10 seconds).take(params.pendingBlockNum * 2)
+      val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 10 seconds).take(params.pendingBlockNum * 2)
       if(blocks.nonEmpty) {
         val selectedBlocks = selectBlocks(blocks, !params.parallelPoolPlacements)
         val blockBoxMap = collectHoldingInputs(selectedBlocks)
@@ -183,7 +189,12 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 val inputBoxes = blockBoxMap(holdingComp.block.blockheight)
 
                 logger.info(s"Using input boxes with values: ${inputBoxes.map(b => b.getValue.toLong).mkString}")
-
+                holdingComp.root match {
+                  case root: HoldingRoot =>
+                    root.inputBoxes = Some(inputBoxes)
+                  case root: EmissionRoot =>
+                    root.inputBoxes = Some(inputBoxes)
+                }
                 holdingComp.builder.inputBoxes = Some(inputBoxes)
                 val holdResponse = (groupHandler ? ExecuteHolding(holdingComp)).mapTo[HoldingResponse]
                 evalHoldingResponse(holdResponse)
@@ -213,7 +224,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           if(response.nextPlacements.nonEmpty) {
             logger.info(s"Holding execution was success for block ${response.block.blockheight} and pool ${response.nextPlacements.head}")
             logger.info("Now updating block to processing status and inserting placements into placements table")
-            val blockUpdate = (slowWrite ? UpdateBlockStatus(Block.PROCESSING, response.block.blockheight)).mapTo[Long]
+            val blockUpdate = (slowWrite ? UpdatePoolBlockStatus(PoolBlock.PROCESSING, response.block.blockheight)).mapTo[Long]
             val placeInsertion = (slowWrite ? InsertPlacements(response.nextPlacements.head.subpool, response.nextPlacements)).mapTo[Long]
             val rowsUpdated = for{
               blockRowsUpdated <- blockUpdate
@@ -235,23 +246,21 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
       holdingResponse
     }
 
-    def constructHoldingComponents(blockSelections: Seq[BlockSelections]): Future[Seq[HoldingComponents]] = {
+    def constructHoldingComponents(blockSelections: Seq[BlockSelection]): Future[Seq[HoldingComponents]] = {
       implicit val timeout: Timeout = Timeout(120 seconds)
       implicit val taskContext: ExecutionContext = contexts.taskContext
       val collectedComponents = blockSelections.map {
         blockSel =>
-          val poolTag = blockSel.poolTag
+          val poolTag = blockSel.poolInformation.poolTag
           val block = blockSel.block
-          val poolStateResp = (quickQuery ? QueryAllSubPools(poolTag)).mapTo[Seq[PoolState]]
-          val poolMinersResp = (quickQuery ? MinersByAssignedPool(poolTag)).mapTo[Seq[MinerSettings]]
-          val poolSharesResp = (quickQuery ? QueryWithShareHandler(PaymentType.PPLNS_WINDOW, block.blockheight)).mapTo[ShareCollector]
-          val fPoolInfo      = (quickQuery ? QueryPoolInfo(poolTag)).mapTo[PoolInformation]
+          val poolStateResp = (query ? QueryAllSubPools(poolTag)).mapTo[Seq[PoolState]]
+          val poolMinersResp = (query ? MinersByAssignedPool(poolTag)).mapTo[Seq[MinerSettings]]
+          val poolSharesResp = (query ? QueryWithShareHandler(PaymentType.PPLNS_WINDOW, block.blockheight)).mapTo[ShareCollector]
           val holdingComponents = for{
             poolStates <- poolStateResp
             minerSettings <- poolMinersResp
             collector     <- poolSharesResp
-            poolInfo      <- fPoolInfo
-          } yield modifyHoldingData(poolStates, minerSettings, collector, poolInfo, blockSel)
+          } yield modifyHoldingData(poolStates, minerSettings, collector, blockSel)
           holdingComponents.flatten
       }
       Future.sequence(collectedComponents)
@@ -260,16 +269,22 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
     // TODO: Current parallelized implementation works well for ensuring multiple groups are executed,
     // TODO: But does not take into account that failure during box collection will cause a fatal error for all groups
     // TODO: In the future, ensure failure of one group does not affect others
-    def collectHoldingInputs(blockSelections: Seq[BlockSelections]): Map[Long, Seq[InputBox]] = {
+    def collectHoldingInputs(blockSelections: Seq[BlockSelection]): Map[Long, Seq[InputBox]] = {
       var blockBoxMap = Map.empty[Long, Seq[InputBox]]
       // Make this a future
       for(blockSel <- blockSelections) {
-        blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> collectFromLoaded(HoldingRoot.getMaxInputs(blockSel.block.getErgReward)))
+        blockSel.poolInformation.currency match {
+          case PoolInformation.CURR_ERG =>
+            blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> collectFromLoaded(HoldingRoot.getMaxInputs(blockSel.block.getErgReward)))
+          case PoolInformation.CURR_TEST_TOKENS =>
+            blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> collectFromLoaded(EmissionRoot.getMaxInputs(blockSel.block.getErgReward)))
+        }
+
       }
       blockBoxMap
     }
 
-    def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[MinerSettings], collector: ShareCollector, poolInformation: PoolInformation, blockSel: BlockSelections): Future[HoldingComponents] = {
+    def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[MinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
       implicit val timeout: Timeout = Timeout(15 seconds)
       implicit val taskContext: ExecutionContext = contexts.taskContext
       collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == m))
@@ -286,21 +301,22 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           )
         )
       }
-
+      val poolTag = blockSel.poolInformation.poolTag
+      val poolInformation = blockSel.poolInformation
       logger.info("Num members: " + members.length)
-      val lastPlacementResp = (quickQuery ? QueryLastPlacement(blockSel.poolTag)).mapTo[Option[PoolPlacement]]
+      val lastPlacementResp = (query ? QueryLastPlacement(poolTag)).mapTo[Option[PoolPlacement]]
       lastPlacementResp.flatMap {
         case Some(placement) =>
           logger.info(s"Last placement was found for pool ${placement.subpool} at block ${placement.block}")
-          val placementsByBlock = (quickQuery ? PlacementsByBlock(blockSel.poolTag, placement.block)).mapTo[Seq[PoolPlacement]]
+          val placementsByBlock = (query ? PlacementsByBlock(poolTag, placement.block)).mapTo[Seq[PoolPlacement]]
           placementsByBlock.flatMap{
             blockPlacements =>
-              (groupHandler ? ConstructHolding(blockSel.poolTag, poolStates,
+              (groupHandler ? ConstructHolding(poolTag, poolStates,
                 members, Some(blockPlacements), poolInformation, blockSel.block)).mapTo[HoldingComponents]
           }
         case None =>
-          logger.warn(s"No last placement was found for pool ${blockSel.poolTag} and block ${blockSel.block.blockheight} ")
-          (groupHandler ? ConstructHolding(blockSel.poolTag, poolStates,
+          logger.warn(s"No last placement was found for pool ${poolTag} and block ${blockSel.block.blockheight} ")
+          (groupHandler ? ConstructHolding(poolTag, poolStates,
             members, None, poolInformation, blockSel.block)).mapTo[HoldingComponents]
       }
     }
@@ -313,10 +329,10 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
     def executeDistribution(): Unit = {
       implicit val timeout: Timeout = Timeout(60 seconds)
       implicit val taskContext: ExecutionContext = contexts.taskContext
-      val blockResp = quickQuery ? BlocksByStatus(Block.PROCESSING)
+      val blockResp = query ? PoolBlocksByStatus(PoolBlock.PROCESSING)
       // TODO: Change pending block num to group exec num
       logger.info(s"Querying blocks with processing status")
-      val blocks = Await.result(blockResp.mapTo[Seq[Block]], 10 seconds).take(params.pendingBlockNum * 2)
+      val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 10 seconds).take(params.pendingBlockNum * 2)
       if(blocks.nonEmpty) {
         val selectedBlocks = selectBlocks(blocks, distinctOnly = true)
         val blockBoxMap = collectDistributionInputs(selectedBlocks)
@@ -353,7 +369,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
             if(params.autoConfirmGroups){
               logger.info("Auto confirm groups is on, setting pool states to confirmed and blocks to paid")
               nextStates = dr.nextStates.map(s => s.copy(status = PoolState.CONFIRMED))
-              slowWrite ! UpdateBlockStatus(Block.PAID, dr.nextStates.head.block)
+              slowWrite ! UpdatePoolBlockStatus(PoolBlock.PAID, dr.nextStates.head.block)
               logger.info(s"Now deleting placements for block ${dr.nextStates.head.block}")
               slowWrite ! DeletePlacementsAtBlock(dr.nextStates.head.subpool, dr.nextStates.head.block)
             }
@@ -400,21 +416,21 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
       distResponse
     }
 
-    def constructDistComponents(blockSelections: Seq[BlockSelections]): Future[Seq[DistributionComponents]] = {
+    def constructDistComponents(blockSelections: Seq[BlockSelection]): Future[Seq[DistributionComponents]] = {
       implicit val timeout: Timeout = Timeout(35 seconds)
       implicit val taskContext: ExecutionContext = contexts.taskContext
       val collectedComponents = blockSelections.map {
         blockSel =>
-          val poolTag = blockSel.poolTag
+          val poolTag = blockSel.poolInformation.poolTag
+          val poolInfo = blockSel.poolInformation
           val block = blockSel.block
-          val fPoolInformation = (quickQuery ? QueryPoolInfo(poolTag)).mapTo[PoolInformation]
-          val poolStateResp = (quickQuery ? QueryAllSubPools(poolTag)).mapTo[Seq[PoolState]]
-          val fPlacements = (quickQuery ? PlacementsByBlock(poolTag, block.blockheight)).mapTo[Seq[PoolPlacement]]
-
+          val poolStateResp = (query ? QueryAllSubPools(poolTag)).mapTo[Seq[PoolState]]
+          val fPlacements = (query ? PlacementsByBlock(poolTag, block.blockheight)).mapTo[Seq[PoolPlacement]]
+          val futHeight   = (explorerReqBus ? GetCurrentHeight).mapTo[Int]
           val distComponents = for{
             states <- poolStateResp
             placements <- fPlacements
-            poolInfo <- fPoolInformation
+            height    <- futHeight
           } yield {
 
               val gEpoch = states.head.g_epoch
@@ -431,29 +447,37 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                   constructionResponse
                 case failedPlacements: FailedPlacements =>
                   logger.warn(s"Placements were failed for pool ${poolTag} at block ${failedPlacements.block.blockheight}")
-                  val lastPlacements = (quickQuery ? QueryLastPlacement(poolTag)).mapTo[Option[PoolPlacement]]
-                  lastPlacements.onComplete {
-                    case Success(optPlacement) =>
-                      optPlacement match {
-                        case Some(placed) =>
-                          if(placed.block == failedPlacements.block.blockheight){
-                            logger.info("Last placement and failed placement were the same, no changes will be made.")
-                            // TODO: Refine this so that it doesn't cause issues for low hashrate pools
-                          }else{
-                            logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
-                              "and setting blocks status to confirmed again!")
-                            slowWrite ! DeletePlacementsAtBlock(poolTag, failedPlacements.block.blockheight)
-                            slowWrite ! UpdateBlockStatus(Block.CONFIRMED, failedPlacements.block.blockheight)
-                          }
-                        case None =>
-                          logger.error("This path should never be executed, something went wrong!")
-                      }
+                  if(params.autoConfirmGroups) {
+                    val lastPlacements = (query ? QueryLastPlacement(poolTag)).mapTo[Option[PoolPlacement]]
+                    lastPlacements.onComplete {
+                      case Success(optPlacement) =>
+                        optPlacement match {
+                          case Some(placed) =>
+                            if (placed.block == failedPlacements.block.blockheight) {
+                              logger.info("Last placement and failed placement are the same")
+                              if (height - placed.block > 10){
+                                logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
+                                  "and setting blocks status to confirmed again!")
+                                slowWrite ! DeletePlacementsAtBlock(poolTag, failedPlacements.block.blockheight)
+                                slowWrite ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, failedPlacements.block.blockheight)
+                              }else{
+                                logger.warn(s"Current height $height is not large enough to restart placements")
+                              }
+                            } else {
+                              logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
+                                "and setting blocks status to confirmed again!")
+                              slowWrite ! DeletePlacementsAtBlock(poolTag, failedPlacements.block.blockheight)
+                              slowWrite ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, failedPlacements.block.blockheight)
+                            }
+                          case None =>
+                            logger.error("This path should never be executed, something went wrong!")
+                        }
 
-                    case Failure(exception) =>
-                      logger.error("There was an error while attempting to get last placements. No changes will be made to the database",
-                        exception)
+                      case Failure(exception) =>
+                        logger.error("There was an error while attempting to get last placements. No changes will be made to the database",
+                          exception)
+                    }
                   }
-
                   throw new Exception("Placements failed!")
                 case _ =>
                   logger.error("There was a fatal error during Distribution Construction")
@@ -470,7 +494,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
     // TODO: Current parallelized implementation works well for ensuring multiple groups are executed,
     // TODO: But does not take into account that failure during box collection will cause a fatal error for all groups
     // TODO: In the future, ensure failure of one group does not affect others
-    def collectDistributionInputs(blockSelections: Seq[BlockSelections]): Map[Long, Seq[InputBox]] = {
+    def collectDistributionInputs(blockSelections: Seq[BlockSelection]): Map[Long, Seq[InputBox]] = {
       var blockBoxMap = Map.empty[Long, Seq[InputBox]]
 
       for(blockSel <- blockSelections){

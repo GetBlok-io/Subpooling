@@ -18,7 +18,7 @@ import io.getblok.subpooling_core.groups.selectors.LoadingSelector
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager}
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.payments.ShareHandler
-import io.getblok.subpooling_core.persistence.{BlocksTable, InfoTable, MembersTable, PlacementTable, SettingsTable, SharesTable, StateTable}
+import io.getblok.subpooling_core.persistence.{BlocksTable, InfoTable, MembersTable, PlacementTable, PoolBlocksTable, SettingsTable, SharesTable, StateTable}
 import io.getblok.subpooling_core.persistence.models.Models.{Block, DbConn, PoolMember, PoolPlacement, PoolState}
 import org.ergoplatform.appkit.{BlockchainContext, ErgoClient, ErgoId, NetworkType}
 import play.api.{Configuration, Logger}
@@ -37,8 +37,9 @@ class QuickDbReader @Inject()(configuration: Configuration) extends Actor{
 
   override def receive: Receive = {
     case queryRequest: DatabaseQueryRequest =>
-      val stateTable    = new StateTable(dbConn)
-      val blocksTable   = new BlocksTable(dbConn)
+      val stateTable      = new StateTable(dbConn)
+      val blocksTable     = new BlocksTable(dbConn)
+      val poolBlocksTable = new PoolBlocksTable(dbConn)
       val settingsTable = new SettingsTable(dbConn)
       val sharesTable = new SharesTable(dbConn)
       val infoTable   = new InfoTable(dbConn)
@@ -50,11 +51,13 @@ class QuickDbReader @Inject()(configuration: Configuration) extends Actor{
 
         // Block queries
         case BlockByHeight(height: Long) =>
-          sender() ! blocksTable.queryByHeight(height)
-        case BlocksByStatus(status: String) =>
-          sender() ! blocksTable.queryByStatus(status)
+          sender() ! poolBlocksTable.queryByHeight(height)
+        case PoolBlocksByStatus(status: String) =>
+          sender() ! poolBlocksTable.queryByStatus(status)
+        case QueryPending(limit) =>
+          sender ! blocksTable.queryPendingBlocks(limit)
         case BlockById(id: Long) =>
-          sender() ! blocksTable.queryById(id)
+          sender() ! poolBlocksTable.queryById(id)
         // State queries
         case QueryAllSubPools(poolTag: String) =>
           sender() ! stateTable.queryAllSubPoolStates(poolTag)
@@ -121,7 +124,8 @@ object QuickDbReader {
   // Quick Querying Protocol
   // Multiple values returned as Seq
   case class BlockByHeight(height: Long)    extends DatabaseQueryRequest
-  case class BlocksByStatus(status: String) extends DatabaseQueryRequest
+  case class QueryPending(limit: Int)                   extends DatabaseQueryRequest
+  case class PoolBlocksByStatus(status: String) extends DatabaseQueryRequest
   case class BlockById(id: Long)            extends DatabaseQueryRequest
 
   case class QueryAllSubPools(poolTag: String)       extends DatabaseQueryRequest

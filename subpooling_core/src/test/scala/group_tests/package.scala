@@ -48,7 +48,7 @@ package object group_tests {
         val txB = ctx.newTxBuilder()
         val metadataContract = MetadataContract.generateTestContract(ctx)
         val subpoolToken = ErgoId.create(dummyToken)
-        val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.getAddress, subpoolToken)
+        val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, subpoolToken)
         val holdingBox = txB.outBoxBuilder()
           .value(value)
           .contract(holdingContract.asErgoContract)

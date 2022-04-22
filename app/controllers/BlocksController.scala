@@ -3,7 +3,7 @@ package controllers
 import _root_.io.swagger.annotations._
 import actors.GroupRequestHandler.{DistributionResponse, ExecuteDistribution}
 import actors.QuickDbReader
-import actors.QuickDbReader.{BlockByHeight, BlockById, BlocksByStatus}
+import actors.QuickDbReader.{BlockByHeight, BlockById}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -20,7 +20,7 @@ import io.getblok.subpooling_core.groups.selectors.{LoadingSelector, StandardSel
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.payments.ShareHandler
 import io.getblok.subpooling_core.persistence.{MembersTable, PlacementTable}
-import io.getblok.subpooling_core.persistence.models.Models.{Block, DbConn, PoolMember, PoolState}
+import io.getblok.subpooling_core.persistence.models.Models.{Block, DbConn, PoolBlock, PoolMember, PoolState}
 import models.ResponseModels._
 import org.ergoplatform.appkit.{ErgoId, NetworkType, Parameters}
 import QuickDbReader._
@@ -54,15 +54,15 @@ extends SubpoolBaseController(components, config){
 
   def getBlock(blockHeight: Long): Action[AnyContent] = Action.async {
     val block = quickQuery ? BlockByHeight(blockHeight)
-    block.mapTo[Block].map(b => Ok(Json.prettyPrint(Json.toJson(b))))(quickQueryContext)
+    block.mapTo[PoolBlock].map(b => Ok(Json.prettyPrint(Json.toJson(b))))(quickQueryContext)
   }
   def getBlockById(id: Long): Action[AnyContent] = Action.async {
     val block = quickQuery ? BlockById(id)
-    block.mapTo[Block].map(b => Ok(Json.prettyPrint(Json.toJson(b))))(quickQueryContext)
+    block.mapTo[PoolBlock].map(b => Ok(Json.prettyPrint(Json.toJson(b))))(quickQueryContext)
   }
   def getBlocksByStatus(status: String): Action[AnyContent] = Action.async {
-    val blocks = quickQuery ? BlocksByStatus(status)
-    blocks.mapTo[Seq[Block]].map(b =>
+    val blocks = quickQuery ? PoolBlocksByStatus(status)
+    blocks.mapTo[Seq[PoolBlock]].map(b =>
       Ok(Json.prettyPrint(Json.toJson(b))))(quickQueryContext)
   }
 

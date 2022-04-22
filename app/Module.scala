@@ -6,7 +6,7 @@ import configs.{Contexts, SubpoolActorConfig}
 import play.api.{Configuration, Environment}
 import play.api.inject.Binding
 import play.api.libs.concurrent.AkkaGuiceSupport
-import tasks.{BlockStatusCheck, GroupExecutionTask}
+import tasks.{BlockStatusCheck, DbCrossCheck, GroupExecutionTask, PoolBlockListener}
 class Module(environment: Environment, configuration: Configuration) extends AbstractModule with AkkaGuiceSupport{
   @Override
   override def configure(): Unit = {
@@ -22,6 +22,7 @@ class Module(environment: Environment, configuration: Configuration) extends Abs
       .withRouter(new RoundRobinPool(subpoolActorConfig.numBlockingUpdateWriters)))
     bind[BlockStatusCheck](classOf[BlockStatusCheck]).asEagerSingleton()
     bind[GroupExecutionTask](classOf[GroupExecutionTask]).asEagerSingleton()
-
+    bind[PoolBlockListener](classOf[PoolBlockListener]).asEagerSingleton()
+    bind[DbCrossCheck](classOf[DbCrossCheck]).asEagerSingleton()
   }
 }

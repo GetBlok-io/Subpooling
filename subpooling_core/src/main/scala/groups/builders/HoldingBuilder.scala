@@ -2,24 +2,18 @@ package io.getblok.subpooling_core
 package groups.builders
 
 import io.getblok.subpooling_core.boxes.BoxHelpers
-import io.getblok.subpooling_core.contracts.holding.{HoldingContract, SimpleHoldingContract}
+import io.getblok.subpooling_core.contracts.holding.{HoldingContract, SimpleHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.groups.entities.Pool
-import io.getblok.subpooling_core.groups.models.GroupBuilder
-import io.getblok.subpooling_core.groups.stages.HoldingRoot
+import io.getblok.subpooling_core.groups.models.{GroupBuilder, TransactionStage}
+import io.getblok.subpooling_core.groups.stages.roots.HoldingRoot
 import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
 import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox}
 
-class HoldingBuilder(blockReward: Long, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long],
+class HoldingBuilder(rewardPaid: Long, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long], rootStage: TransactionStage[InputBox],
                      var inputBoxes: Option[Seq[InputBox]] = None) extends GroupBuilder {
   var poolShareScore: Long = 0
 
-  var _rootStage: HoldingRoot = _
-  def getRoot(ctx: BlockchainContext, wallet: NodeWallet): HoldingRoot = {
-    if(_rootStage == null)
-      _rootStage = new HoldingRoot(pool, ctx, wallet, holdingContract, baseFeeMap, inputBoxes)
-    _rootStage
-  }
   /**
    * Collect information that already exists about this Transaction Group and assign it to each subPool
    */
@@ -32,12 +26,21 @@ class HoldingBuilder(blockReward: Long, holdingContract: HoldingContract, baseFe
    * Apply special modifications to the entire Transaction Group
    */
   override def applyModifications: GroupBuilder = {
-    val rewardAfterBaseFee = blockReward - baseFeeMap.values.sum
+    val rewardAfterBaseFee = rewardPaid - baseFeeMap.values.sum
     pool.subPools.foreach {
       s =>
-        s.nextHoldingValue = {
-            BoxHelpers.removeDust(((BigDecimal(s.nextTotalScore) / BigDecimal(poolShareScore)) * rewardAfterBaseFee).toLong)
-        }
+        s.nextHoldingValue =
+          holdingContract match {
+            case contract: SimpleHoldingContract =>
+              // Dust is removed and reward paid has base fee taken away, this is because reward paid is in ERG
+              BoxHelpers.removeDust(((BigDecimal(s.nextTotalScore) / BigDecimal(poolShareScore)) * rewardAfterBaseFee).toLong)
+            case contract: TokenHoldingContract =>
+              // No base fees taken from reward paid, as reward paid is actually
+              // Just the emissions reward
+              ((BigInt(s.nextTotalScore) / BigInt(poolShareScore)) * rewardPaid).toLong
+
+          }
+
     }
     this
   }
@@ -49,7 +52,7 @@ class HoldingBuilder(blockReward: Long, holdingContract: HoldingContract, baseFe
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
   override def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder = {
-    val stageResult = stageManager.execute[InputBox](getRoot(ctx, wallet))
+    val stageResult = stageManager.execute[InputBox](rootStage)
     pool.subPools.foreach {
       p =>
         p.rootBox = stageResult._1(p)

@@ -1,32 +1,36 @@
-package io.getblok.subpooling_core
-package group_tests
+package token_group_tests
 
-import group_tests.groups.{GroupManager, HoldingGroup}
-
-import io.getblok.subpooling_core.group_tests.MockData.{dummyWallet, ergoClient, holdingContract}
-import io.getblok.subpooling_core.group_tests.groups.entities.Subpool
-import io.getblok.subpooling_core.group_tests.groups.models.GroupBuilder
-import io.getblok.subpooling_core.group_tests.groups.selectors.StandardSelector
-import group_tests.MockData.HoldingData._
-
-import io.getblok.subpooling_core.contracts.holding.SimpleHoldingContract
-import io.getblok.subpooling_core.group_tests.groups.builders.HoldingBuilder
+import io.getblok.subpooling_core.boxes.EmissionsBox
+import io.getblok.subpooling_core.contracts.holding.{SimpleHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.groups.builders.HoldingBuilder
+import io.getblok.subpooling_core.groups.models.GroupBuilder
+import io.getblok.subpooling_core.groups.selectors.StandardSelector
+import io.getblok.subpooling_core.groups.stages.roots.EmissionRoot
+import io.getblok.subpooling_core.token_group_tests.MockData.{dummyWallet, emissionsOperator, ergoClient, holdingContract}
+import io.getblok.subpooling_core.groups.{GroupManager, HoldingGroup, entities}
+import io.getblok.subpooling_core.token_group_tests.MockData.HoldingData.{baseFeeMap, emissionsReward, holdingValue, initSingleMembers, initValueAfterFees, singlePool, totalEmissions}
+import io.getblok.subpooling_core.token_group_tests.{buildEmissionsBox, getInputBoxes, printMembers}
 import org.scalatest.funsuite.AnyFunSuite
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-class HoldingSuite extends AnyFunSuite {
+class TokenHoldingSuite extends AnyFunSuite {
+  var root: EmissionRoot = _
   var group: HoldingGroup = _
   var selector: StandardSelector = _
   var builder: GroupBuilder = _
   var manager: GroupManager = _
-  val subPool: Subpool = singlePool.subPools.head
+  val subPool: entities.Subpool = singlePool.subPools.head
   val blockHeight: Long = 1L
+  var emissionsBox: EmissionsBox = _
+
+  private val logger: Logger = LoggerFactory.getLogger("TokenHoldingSuite")
   test("Make HoldingGroup") {
     ergoClient.execute {
       ctx =>
 
-        group = new HoldingGroup(singlePool, ctx, dummyWallet, blockHeight, holdingValue, getInputBoxes)
+        group = new HoldingGroup(singlePool, ctx, dummyWallet, blockHeight, holdingContract)
         logger.info("holdingContract: " + holdingContract.toAddress.toString)
     }
   }
@@ -36,8 +40,21 @@ class HoldingSuite extends AnyFunSuite {
     selector = new StandardSelector(initSingleMembers)
   }
 
+  test("Make Emissions Box"){
+    emissionsBox = buildEmissionsBox(totalEmissions, emissionsReward, emissionsOperator, holdingContract)
+  }
+
+  test("Make Emissions Root") {
+    ergoClient.execute{
+      ctx =>
+        root = new EmissionRoot(singlePool, ctx, dummyWallet, holdingContract, holdingValue, baseFeeMap, emissionsBox,
+          Some(getInputBoxes), false)
+    }
+
+  }
+
   test("Make HoldingBuilder") {
-    builder = new HoldingBuilder(holdingValue, holdingContract, baseFeeMap)
+    builder = new HoldingBuilder(holdingValue, holdingContract, baseFeeMap, root)
   }
 
   test("Make GroupManager") {
@@ -62,7 +79,7 @@ class HoldingSuite extends AnyFunSuite {
   }
 
   test("Subpool root box has same value as nextHoldingValue"){
-    assert(subPool.rootBox.getValue == subPool.nextHoldingValue)
+    assert(subPool.rootBox.getTokens.get(0).getValue == subPool.nextHoldingValue)
   }
 
   test("Pool has rootTx"){
@@ -110,7 +127,7 @@ class HoldingSuite extends AnyFunSuite {
         assert(p.holding_id == subPool.rootBox.getId.toString, "holding_id matches with rootBox")
 
 
-        assert(p.holding_val == subPool.rootBox.getValue, "Holding value matches with rootBox")
+        assert(p.holding_val == subPool.rootBox.getTokens.get(0).getValue, "Holding value matches with rootBox")
 
         val asMember = initSingleMembers.find(m => m.address.toString == p.miner)
 
@@ -130,7 +147,7 @@ class HoldingSuite extends AnyFunSuite {
         assert(p.block == blockHeight, "blockHeight is not preserved")
 
 
-        assert(p.amount == SimpleHoldingContract.getBoxValue(asMember.get.shareScore, subPool.nextTotalScore, initValueAfterFees),
+        assert(p.amount == TokenHoldingContract.getBoxValue(asMember.get.shareScore, subPool.nextTotalScore, initValueAfterFees),
           "Amount added for miner was incorrect")
 
 

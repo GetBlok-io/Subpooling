@@ -21,7 +21,7 @@ abstract class InputTemplate(inputBox: InputBox) extends InputBox{
   val contract: ErgoContract = new ErgoTreeContract(asInput.getErgoTree, networkType)
   val metadataRegisters: MetadataRegisters = MetadataRegisters(shareDistribution, poolFees, poolInfo, poolOps)
 
-  def getValue: lang.Long = asInput.getValue
+  def getValue: Long = asInput.getValue
 
   def getTokens: util.List[ErgoToken] = asInput.getTokens
 
