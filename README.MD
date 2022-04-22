@@ -118,8 +118,8 @@ While Transaction Groups themselves are the most important part of the entire sy
 abstractions which are used to help service the Transaction Group and ensure that its execution is correct.
 
 ### Selectors
-Selectors take some data, be it on-chain or off-chain, and create the selection set which is to be used
-throughout the entire Transaction Group.
+Selectors take some data, be it on-chain or off-chain, and create the selection set of boxes which is to be used
+and referred to throughout the entire Transaction Group.
 
 ### Builders
 Builders once again take on-chain and off-chain data, but this component is specifically run after
