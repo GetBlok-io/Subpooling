@@ -32,7 +32,5 @@ import com.typesafe.sbt.packager.docker.DockerChmodType
 import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 dockerChmodType := DockerChmodType.UserGroupWriteExecute
 dockerPermissionStrategy := DockerPermissionStrategy.CopyChown
+dockerEntrypoint := Seq("/opt/docker/bin/subpooling_service -Dconfig.file=/opt/docker/conf/test.conf")
 
-//assemblyJarName in assembly := s"subpooling-${version.value}.jar"
-//mainClass in assembly := Some("app.SubpoolMain")
-//assemblyOutputPath in assembly := file(s"./subpooling-${version.value}.jar/")
