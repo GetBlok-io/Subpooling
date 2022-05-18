@@ -3,8 +3,9 @@ package persistence
 
 import node.NodeHandler
 import node.NodeHandler.PartialBlockInfo
-import persistence.models.DataTable
-import persistence.models.Models._
+import persistence.models.Models.{DbConn, PoolBlock}
+
+import io.getblok.subpooling_core.persistence.models.DataTable
 
 import java.sql.PreparedStatement
 import java.time.LocalDateTime
@@ -16,6 +17,20 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
   def queryByHeight(height: Long): PoolBlock = {
     implicit val ps: PreparedStatement = state(select, all, fromTable, where, fieldOf("blockheight"), eq, param)
     setLong(1, height)
+    val rs = execQuery
+    rs.next()
+    PoolBlock.fromResultSet(rs)
+  }
+  def queryBlocks(poolTag: Option[String]): Seq[PoolBlock] = {
+    implicit val ps: PreparedStatement = state(select, all, if (poolTag.isDefined) fromTablePart(poolTag.get) else fromTable,
+      order, by, fieldOf("created"), desc)
+    val rs = execQuery
+    buildSeq(rs, PoolBlock.fromResultSet)
+  }
+
+  def queryBlockAtGEpoch(poolTag: String, gEpoch: Long): PoolBlock = {
+    implicit val ps: PreparedStatement = state(select, all, fromTablePart(poolTag),
+      where, fieldOf("g_epoch"), eq, param)
     val rs = execQuery
     rs.next()
     PoolBlock.fromResultSet(rs)
@@ -53,6 +68,16 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
     setLong(3, height)
     execUpdate
   }
+
+  def updateBlockEffort(poolTag: String, effort: Double, height: Long): Long = {
+    implicit val ps: PreparedStatement = state(update, fromTablePart(poolTag), set, fields("effort", "updated"), where,
+      fieldOf("blockheight"), eq, param)
+    setDec(1, effort)
+    setDate(2, LocalDateTime.now())
+    setLong(3, height)
+    execUpdate
+  }
+
   def updateBlockStatusAndConfirmation(status: String, confirmation: Double, height: Long, gEpoch: Long = -1): Long = {
     implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "confirmationprogress", "g_epoch", "updated"), where,
       fieldOf("blockheight"), eq, param)
@@ -102,14 +127,16 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
   }
 
   def insertWithBlock(blockHeight: Long, poolTag: String): Long = {
-    implicit val ps: PreparedStatement = state(insert, into, tablePart(poolTag), "VALUES", valueOfFields("id", "poolid",
+    implicit val ps: PreparedStatement = state(insert, into, tablePart(poolTag), valueOfFields("id", "poolid",
     "blockheight", "networkdifficulty", "status", "type", "confirmationprogress", "effort", "transactionconfirmationdata",
-    "miner", "reward", "source", "hash", "created", "pool_tag", "g_epoch", "updated"), "\n", "(", select, all, fromTableOf("blocks"),
-      where, fieldOf("blockheight"), eq, param, ", ", param, ", ", param, ", ", param, ")")
-    setLong(1, blockHeight)
-    setStr(2, poolTag)
-    setLong(3, -1L)
-    setDate(4, LocalDateTime.now())
+    "miner", "reward", "source", "hash", "created", "pool_tag", "g_epoch", "updated"), "\n", "(", select, all,", ", param, ", ", param, ", ", param,
+      fromTableOf("blocks"),
+      where, fieldOf("blockheight"), eq, param,")")
+
+    setStr(1, poolTag)
+    setLong(2, -1L)
+    setDate(3, LocalDateTime.now())
+    setLong(4, blockHeight)
     execUpdate
   }
 

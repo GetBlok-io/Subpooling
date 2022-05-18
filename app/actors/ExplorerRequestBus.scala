@@ -12,8 +12,10 @@ import io.getblok.subpooling_core.persistence._
 import org.ergoplatform.appkit.{Address, ErgoId}
 import play.api.{Configuration, Logger}
 
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 import scala.language.postfixOps
+import scala.util.{Failure, Try}
 
 class ExplorerRequestBus @Inject()(configuration: Configuration) extends Actor{
   private val log: Logger   = Logger("ExplorerRequestBus")
@@ -28,29 +30,40 @@ class ExplorerRequestBus @Inject()(configuration: Configuration) extends Actor{
     case explorerRequest: ExplorerRequest =>
 
       log.info("New explorer request was received!")
-
-      explorerRequest match {
-        case ExplorerRequests.BlockByHash(blockHash) =>
-          sender() ! handler.getBlockById(blockHash)
-        case TxsForAddress(address, offset, limit) =>
-          sender() ! handler.txsForAddress(address, offset, limit)
-        case TxById(txId) =>
-          sender() ! handler.getTransaction(txId)
-        case BoxesByAddress(address, offset, limit) =>
-          sender() ! handler.boxesByAddress(address, offset, limit)
-        case BoxesByTokenId(tokenId, offset, limit) =>
-          sender() ! handler.boxesByTokenId(tokenId, offset, limit)
-        case TotalBalance(address) =>
-          sender() ! handler.getTotalBalance(address)
-        case ConfirmedBalance(address, minConfirms) =>
-          sender() ! handler.getConfirmedBalance(address, minConfirms)
+      Try {
+        explorerRequest match {
+          case ExplorerRequests.BlockByHash(blockHash) =>
+            sender() ! handler.getBlockById(blockHash)
+          case TxsForAddress(address, offset, limit) =>
+            sender() ! handler.txsForAddress(address, offset, limit)
+          case TxById(txId) =>
+            sender() ! handler.getTransaction(txId)
+          case BoxesByAddress(address, offset, limit) =>
+            sender() ! handler.boxesByAddress(address, offset, limit)
+          case BoxesByTokenId(tokenId, offset, limit) =>
+            sender() ! handler.boxesByTokenId(tokenId, offset, limit)
+          case BoxesById(id) =>
+            sender() ! handler.boxesById(id)
+          case TotalBalance(address) =>
+            sender() ! handler.getTotalBalance(address)
+          case ConfirmedBalance(address, minConfirms) =>
+            sender() ! handler.getConfirmedBalance(address, minConfirms)
           // Node API calls
-        case ValidateBlockByHeight(height) =>
-        sender ! nodeAPIHandler.validateBlock(height)
-        case ExplorerRequests.GetCurrentHeight =>
-          sender ! nodeConfig.getClient.execute(ctx => ctx.getHeight)
+          case ValidateBlockByHeight(height) =>
+            sender ! nodeAPIHandler.validateBlock(height)
+          case ExplorerRequests.GetCurrentHeight =>
+            sender ! nodeConfig.getClient.execute(ctx => ctx.getHeight)
+        }
+      }.recoverWith{
+        case timeout: SocketTimeoutException =>
+          log.error("There was a SocketTimeoutError, maybe explorer is down?", timeout)
+          sender ! TimeoutError(timeout)
+          Failure(timeout)
+        case ex: Exception =>
+          log.error("A fatal error occurred in this ExplorerRequestBus!", ex)
+          sender ! FatalExplorerError(ex)
+          Failure(ex)
       }
-
 
   }
 
@@ -69,10 +82,13 @@ object ExplorerRequestBus {
     case class BoxesByTokenId(tokenId: ErgoId, offset: Int = 0, limit: Int = 10)  extends ExplorerRequest
     case class TotalBalance(address: Address)                                     extends ExplorerRequest
     case class ConfirmedBalance(address: Address, minConfirms: Int = 20)          extends ExplorerRequest
-
+    case class BoxesById(id: ErgoId)                                              extends ExplorerRequest
     // Single node api and client calls
     case class ValidateBlockByHeight(height: Long)                                extends ExplorerRequest
     case object GetCurrentHeight                                                  extends ExplorerRequest
+
+    case class TimeoutError(ex: Exception)
+    case class FatalExplorerError(ex: Exception)
   }
 }
 

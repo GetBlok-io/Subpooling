@@ -1,8 +1,9 @@
 package io.getblok.subpooling_core
 package persistence
 
-import persistence.models.DataTable
 import persistence.models.Models.{DbConn, PoolPlacement}
+
+import io.getblok.subpooling_core.persistence.models.DataTable
 
 import java.sql.PreparedStatement
 
@@ -16,6 +17,17 @@ class PlacementTable(dbConn: DbConn, part: String) extends DataTable[PoolPlaceme
     val rs = execQuery
     buildSeq(rs, PoolPlacement.fromResultSet)
   }
+
+  def queryPlacementsByGEpoch(gEpoch: Long): Seq[PoolPlacement] = {
+    implicit val ps: PreparedStatement = state(select, all, fromTablePart(part), where, fieldOf("g_epoch"), eq, param)
+    setLong(1, gEpoch)
+    val rs = execQuery
+    buildSeq(rs, PoolPlacement.fromResultSet)
+  }
+  /**
+  * Deprecated, use query by gEpoch instead
+  * */
+  @Deprecated
   def queryLastPlacement: Option[PoolPlacement] = {
     implicit val ps: PreparedStatement = state(select, all, fromTablePart(part), order, by, fieldOf("block"), desc,
       limit, num(1))
@@ -49,7 +61,7 @@ class PlacementTable(dbConn: DbConn, part: String) extends DataTable[PoolPlaceme
   }
 
   def queryMinerPendingBalance(miner: String): Long = {
-    implicit val ps: PreparedStatement = state(select, sumOf("amount"), fromTablePart(part),  where, fieldOf("miner"), eq, param)
+    implicit val ps: PreparedStatement = state(select, sumOf("amount"), fromTable,  where, fieldOf("miner"), eq, param)
     setStr(1, miner)
     val rs = execQuery
     if(rs.next())

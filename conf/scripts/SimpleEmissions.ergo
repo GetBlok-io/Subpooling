@@ -57,7 +57,8 @@
       }else{
         // If next tokens are greater than or equal to current tokens, pool operator must have added them.
         val tokensSame    = tokenToDistribute._1 == nextHeldTokens._1
-        sigmaProp(tokensSame) && poolOperator
+        val tokensNotSpent = tokenToDistribute._2 >= nextHeldTokens._2
+        sigmaProp(tokensSame && tokensNotSpent) && poolOperator
 
       }
   }else{

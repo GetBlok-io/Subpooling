@@ -23,6 +23,28 @@
     </encoder>
   </appender>
 
+  <appender name="Groups" class="ch.qos.logback.core.FileAppender">
+    <file>${application.home:-.}/logs/groups.log</file>
+    <encoder>
+      <charset>UTF-8</charset>
+      <pattern>
+        %d{yyyy-MM-dd HH:mm:ss} [%level] [%X{akkaSource}] [%logger{36}] %msg %n %ex %n
+      </pattern>
+    </encoder>
+  </appender>
+
+
+  <appender name="Database" class="ch.qos.logback.core.FileAppender">
+    <file>${application.home:-.}/logs/database.log</file>
+    <encoder>
+      <charset>UTF-8</charset>
+      <pattern>
+        %d{yyyy-MM-dd HH:mm:ss} [%level] [%X{akkaSource}] [%logger{36}] %msg %n %ex %n
+      </pattern>
+    </encoder>
+  </appender>
+
+
   <appender name="ASYNCFILE" class="ch.qos.logback.classic.AsyncAppender">
     <appender-ref ref="FILE" />
   </appender>
@@ -33,6 +55,26 @@
 
   <logger name="play" level="INFO" />
   <logger name="application" level="DEBUG" />
+
+  <logger name = "DistributionFunctions" additivity = "false">
+    <appender-ref ref="Groups"/>
+  </logger>
+  <logger name = "PlacementFunctions" additivity = "false">
+    <appender-ref ref="Groups"/>
+  </logger>
+  <logger name = "ConcurrentBoxLoader" additivity = "false">
+    <appender-ref ref="Groups"/>
+  </logger>
+  <logger name = "GroupRequestHandler" additivity = "false">
+    <appender-ref ref="Groups"/>
+  </logger>
+
+  <logger name = "DBWriter" additivity = "false">
+    <appender-ref ref="Database"/>
+  </logger>
+  <logger name = "DBReader" additivity = "false">
+    <appender-ref ref="Database"/>
+  </logger>
 
   <root level="INFO">
     <appender-ref ref="ASYNCFILE" />

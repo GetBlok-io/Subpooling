@@ -1,4 +1,4 @@
-import actors.{BlockingDbWriter, DbConnectionManager, ExplorerRequestBus, GroupRequestHandler, QuickDbReader}
+import actors.{BlockingDbWriter, DbConnectionManager, ExplorerRequestBus, GroupRequestHandler, PushMessageNotifier, QuickDbReader}
 import akka.actor.Props
 import akka.routing.RoundRobinPool
 import com.google.inject.AbstractModule
@@ -20,6 +20,7 @@ class Module(environment: Environment, configuration: Configuration) extends Abs
       .withRouter(new RoundRobinPool(subpoolActorConfig.numExplorerHandler)))
     bindActor[BlockingDbWriter]("blocking-db-writer", p => p.withDispatcher("subpool-contexts.blocking-io-dispatcher")
       .withRouter(new RoundRobinPool(subpoolActorConfig.numBlockingUpdateWriters)))
+    bindActor[PushMessageNotifier]("push-msg-notifier", p => p.withDispatcher("subpool-contexts.quick-query-dispatcher"))
     bind[BlockStatusCheck](classOf[BlockStatusCheck]).asEagerSingleton()
     bind[GroupExecutionTask](classOf[GroupExecutionTask]).asEagerSingleton()
     bind[PoolBlockListener](classOf[PoolBlockListener]).asEagerSingleton()

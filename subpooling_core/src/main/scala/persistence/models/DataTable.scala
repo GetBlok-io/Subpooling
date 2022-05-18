@@ -3,7 +3,7 @@ package persistence.models
 
 import persistence.models.Models.DbConn
 
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.LoggerFactory
 
 import java.sql.{PreparedStatement, ResultSet}
 import java.time.LocalDateTime

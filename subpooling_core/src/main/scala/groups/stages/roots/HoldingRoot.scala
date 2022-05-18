@@ -28,6 +28,26 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         val totalOutputs = pool.subPools.size * pool.subPools.map(p => p.nextHoldingValue).sum
         log.info(s"Pool size: ${pool.subPools.size}")
         log.info(s"Total Tx fees: $totalTxFees, Total Base fees: $totalBaseFees, Total outputs: $totalOutputs")
+        var initialInputs = inputBoxes
+
+        // Paranoid checks, root transaction is handed off maximum amount of emission currency for the group
+        // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
+        // max selection
+        if(inputBoxes.isDefined) {
+          initialInputs = Some(Seq())
+          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputs
+          val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
+
+          var initialSum: Long = 0L
+          while(initialSum < totalAmountNeeded){
+            if(sortedInputs.hasNext) {
+              val nextBox = sortedInputs.next()
+              initialInputs = initialInputs.map(_ ++ Seq(nextBox))
+              initialSum = initialSum + nextBox.getValue.toLong
+            }
+          }
+        }
+
 
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
         var outputIndex: Int = 0
@@ -58,7 +78,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
 
 
 
-        val boxesToSpend = inputBoxes.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs).get().asScala.toSeq)
 
 
         boxesToSpend.foreach(i => log.info(s"Id: ${i.getId}, val: ${i.getValue}"))

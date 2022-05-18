@@ -1,11 +1,10 @@
-package io.getblok.subpooling_core
 
-import boxes.{EmissionsBox, MetadataInputBox}
-import boxes.builders.MetadataOutputBuilder
-import contracts.MetadataContract
-import contracts.holding.{HoldingContract, SimpleHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.contracts.emissions.EmissionsContract
-import io.getblok.subpooling_core.token_group_tests.MockData._
+import group_test.MockData._
+import io.getblok.subpooling_core.boxes.{EmissionsBox, MetadataInputBox}
+import io.getblok.subpooling_core.boxes.builders.MetadataOutputBuilder
+import io.getblok.subpooling_core.contracts.MetadataContract
+import io.getblok.subpooling_core.contracts.holding.{HoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.groups.entities.{Member, Pool, Subpool}
 import io.getblok.subpooling_core.registers.{LongReg, PropBytes}
 import org.ergoplatform.appkit._
@@ -15,7 +14,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-package object token_group_tests {
+package object group_test {
 
   def logger: Logger = LoggerFactory.getLogger("GroupTesting")
 

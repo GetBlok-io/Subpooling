@@ -1,18 +1,20 @@
 package tasks
 
-import actors.BlockingDbWriter.{UpdatePoolBlockConf, UpdateWithValidation}
+import actors.BlockingDbWriter.{UpdateBlockEffort, UpdatePoolBlockConf, UpdatePoolBlocksFound, UpdateWithValidation}
 import actors.ExplorerRequestBus.ExplorerRequests.{BlockByHash, GetCurrentHeight, ValidateBlockByHeight}
-import actors.QuickDbReader.{PoolBlocksByStatus, QueryPoolInfo}
+import actors.PushMessageNotifier.BlockMessage
+import actors.QuickDbReader.{BlockAtGEpoch, PoolBlocksByStatus, QueryPoolInfo, QuerySharesBefore, QuerySharesBetween}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
 import configs.TasksConfig.TaskConfiguration
 import io.getblok.subpooling_core.explorer.Models.BlockContainer
+import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.node.NodeHandler
 import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInfo, ValidBlock}
 import play.api.{Configuration, Logger}
-import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation}
+import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, Share}
 import org.ergoplatform.appkit.ErgoId
 
 import javax.inject.{Inject, Named, Singleton}
@@ -23,7 +25,7 @@ import scala.util.{Failure, Success, Try}
 @Singleton
 class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
                                  @Named("quick-db-reader") query: ActorRef, @Named("blocking-db-writer") write: ActorRef,
-                                 @Named("explorer-req-bus") explorerReqBus: ActorRef) {
+                                 @Named("explorer-req-bus") explorerReqBus: ActorRef, @Named("push-msg-notifier") push: ActorRef) {
   val logger: Logger = Logger("BlockStatusCheck")
   val taskConfig: TaskConfiguration = new TasksConfig(config).blockCheckConfig
   val nodeConfig: NodeConfig        = new NodeConfig(config)
@@ -93,7 +95,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     val blocksToCheck = initBlocks.filter(b => b.hash != null && b.reward != 0.0).take(params.pendingBlockNum)
 
     val blockPoolInfo = Future.sequence(blocksToCheck.map(b => (query ? QueryPoolInfo(b.poolTag)).mapTo[PoolInformation]))
-    val futBlockHeight = (query ? GetCurrentHeight).mapTo[Int]
+    val futBlockHeight = (explorerReqBus ? GetCurrentHeight).mapTo[Int]
     for{
       poolInfoSeq <- blockPoolInfo
       height      <- futBlockHeight
@@ -104,25 +106,74 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
           val poolInfo = poolInfoSeq.find(info => info.poolTag == bg._1).get
           val blocksOrdered = bg._2.sortBy(b => b.blockheight)
           val blocksZipped = blocksOrdered.zipWithIndex.map(bz => bz._1 -> (bz._2 + 1L + poolInfo.blocksFound))
-          blocksZipped.foreach{
+
+          val updatedBlocks = blocksZipped.map{
             bz =>
               val block = bz._1
               var nextGEpoch = bz._2
               if(height > block.blockheight){
                 logger.info(s"New confirmation update being made for block ${block.blockheight}")
-                  val newConfirmationNumber = BigDecimal((height - block.blockheight)) / params.confirmationNum
-                  val nextConfirmations = Math.min(newConfirmationNumber.toDouble, 1.0)
-                  var nextStatus = PoolBlock.CONFIRMING
-                  if(nextConfirmations == 1.0) {
-                    nextStatus = PoolBlock.CONFIRMED
-                  }else{
-                    nextGEpoch = -1
-                  }
-                  logger.info(s"Updating block ${block.blockheight} with status $nextStatus, confirmations $nextConfirmations," +
-                    s" and GEpoch $nextGEpoch")
-                  write ! UpdatePoolBlockConf(nextStatus, nextConfirmations, block.blockheight, nextGEpoch)
+                val newConfirmationNumber = BigDecimal((height - block.blockheight)) / params.confirmationNum
+                val nextConfirmations = Math.min(newConfirmationNumber.toDouble, 1.0)
+                var nextStatus = PoolBlock.CONFIRMING
+                if(nextConfirmations == 1.0) {
+                  nextStatus = PoolBlock.CONFIRMED
+                  push ! BlockMessage(block.copy(gEpoch = nextGEpoch), poolInfo)
+                }else{
+                  nextGEpoch = -1
+                }
+                logger.info(s"Updating block ${block.blockheight} with status $nextStatus, confirmations $nextConfirmations," +
+                  s" and GEpoch $nextGEpoch")
+                write ! UpdatePoolBlockConf(nextStatus, nextConfirmations, block.blockheight, nextGEpoch)
+                (block, nextStatus)
+              }else{
+                (block, block.status)
               }
           }
+          // Here, we write effort calculations
+          if(poolInfo.g_epoch != 0){
+            val lastBlockFut = (query ? BlockAtGEpoch(poolInfo.poolTag, poolInfo.g_epoch)).mapTo[PoolBlock]
+            lastBlockFut.map{
+              lastBlock =>
+                var startDate = lastBlock.created
+                blocksZipped.foreach{
+                  bz =>
+                    if(bz._1.effort.isEmpty) {
+                      if (bz._2 > poolInfo.g_epoch + 1) {
+                        // Get date of block before the current one if this is the first block in the list
+                        startDate = blocksZipped((bz._2 - poolInfo.g_epoch - 2).toInt)._1.created
+                      }
+                      val endDate = bz._1.created
+                      val sharesBetween = (query ? QuerySharesBetween(startDate, endDate)).mapTo[Seq[Share]]
+                      sharesBetween.map(s => writeEffortForBlock(bz._1, s))
+                    }
+                }
+            }
+          }else{
+            blocksZipped.foreach {
+              bz =>
+                if (bz._1.effort.isDefined) {
+                  // For gEpoch 1, we calculate effort by taking all possible shares made before block was created,
+                  // rather than taking shares between block creations.
+                  if (bz._2 == 1) {
+
+                    val startDate = bz._1.created
+                    val sharesBefore = (query ? QuerySharesBefore(startDate)).mapTo[Seq[Share]]
+                    sharesBefore.map(s => writeEffortForBlock(bz._1, s))
+                  } else {
+                    // Otherwise, pull from block before. Will always work due to ordering of blocks.
+                    val startDate = blocksZipped((bz._2 - 2).toInt)._1.created
+                    val endDate = bz._1.created
+                    val sharesBetween = (query ? QuerySharesBetween(startDate, endDate)).mapTo[Seq[Share]]
+                    sharesBetween.map(s => writeEffortForBlock(bz._1, s))
+                  }
+                }
+            }
+          }
+
+          // Finally, confirmed blocks are posted
+          val confirmedBlocks = updatedBlocks.filter(cb => cb._2 == PoolBlock.CONFIRMED)
+          write ! UpdatePoolBlocksFound(poolInfo.poolTag, poolInfo.blocksFound + confirmedBlocks.length)
       }
     }
   }
@@ -144,7 +195,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               case OrphanBlock(reward, txConf, hash) =>
                 logger.warn(s"Block at height $blockHeight was found to be an orphan")
               case ValidBlock(reward, txConf, hash) =>
-                logger.info(s"Block at height $blockHeight was successfully validated and set to initiated")
+                logger.info(s"Block at height $blockHeight was successfully validated and set to confirming")
             }
 
             blockUpdate.onComplete{
@@ -166,4 +217,11 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     }(contexts.taskContext)
   }
 
+  def writeEffortForBlock(currentBlock: PoolBlock, shares: Seq[Share]): Unit = {
+    val accumulatedDiff = shares.map(s => BigDecimal(s.difficulty)).sum * AppParameters.shareConst
+    val totalEffort = accumulatedDiff / currentBlock.netDiff
+    logger.info(s"Now updating block effort for block ${currentBlock} and poolTag ${currentBlock}")
+    logger.info(s"Effort: ${totalEffort * 100}% ")
+    write ! UpdateBlockEffort(currentBlock.poolTag, totalEffort.toDouble, currentBlock.blockheight)
+  }
 }

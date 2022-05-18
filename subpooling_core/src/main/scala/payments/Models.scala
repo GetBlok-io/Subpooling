@@ -13,6 +13,8 @@ object Models {
     case object EQUAL_PAY extends PaymentType // equal pay
 
     case object PROP_MAX_ROUND extends PaymentType // PROP with max round length
+
+    case object SOLO_SHARES extends PaymentType
   }
 
 }

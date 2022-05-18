@@ -1,27 +1,28 @@
-package io.getblok.subpooling_core
-package token_group_tests
+package group_test
 
-import contracts.holding.{SimpleHoldingContract, TokenHoldingContract}
-import global.AppParameters
-import registers.PropBytes
-
+import io.getblok.subpooling_core.contracts.holding.TokenHoldingContract
+import io.getblok.subpooling_core.explorer.ExplorerHandler
+import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.groups._
 import io.getblok.subpooling_core.groups.builders.DistributionBuilder
 import io.getblok.subpooling_core.groups.entities.Subpool
 import io.getblok.subpooling_core.groups.models.GroupBuilder
-import io.getblok.subpooling_core.groups.selectors.StandardSelector
-import io.getblok.subpooling_core.token_group_tests.MockData.SingleDistributionData._
-import io.getblok.subpooling_core.token_group_tests.MockData.{commandContract, creatorAddress, dummyWallet, ergoClient, holdingContract}
+import io.getblok.subpooling_core.groups.selectors.{SelectionParameters, StandardSelector}
+import io.getblok.subpooling_core.registers.PropBytes
+import MockData.SingleDistributionData._
+import MockData._
+import org.ergoplatform.appkit.{ErgoId, NetworkType}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-class TokenDistributionSuite extends AnyFunSuite {
+class EmissionExchange extends AnyFunSuite {
   var group: DistributionGroup = _
   var selector: StandardSelector = _
   var builder: GroupBuilder = _
   var manager: GroupManager = _
   val subPool: Subpool = singlePool.subPools.head
+  val explorerHandler: ExplorerHandler = new ExplorerHandler(NetworkType.MAINNET)
   test("Make DistributionGroup") {
     ergoClient.execute {
       ctx =>
@@ -32,9 +33,33 @@ class TokenDistributionSuite extends AnyFunSuite {
     }
   }
 
+  test("Get NETA Pool"){
+    val boxItems = explorerHandler.boxesByTokenId(ErgoId.create("7d2e28431063cbb1e9e14468facc47b984d962532c19b0b14f74d0ce9ed459be"))
+    val box = boxItems.get.head
+    val POOL_FEE_DENOM = 1000
+    logger.info(box.toString)
+    val swapAmount = calculateMinOutputAmount(Helpers.ergToNanoErg(50), .01,
+      box.value, box.assets(2).amount, Integer.valueOf(box.registers.R4.get.renderedValue).longValue(), POOL_FEE_DENOM)
+
+    logger.info(s"Swap amount: $swapAmount")
+  }
+
+  def calculateMinOutputAmount(baseAmount: Long, maxSlippagePercentage: Double, xAssetAmount: Long, yAssetAmount: Long, feeNumerator: Long, feeDenominator: Long): Long = {
+    val swapInputAmount:  BigInt = BigInt.apply(baseAmount)
+    val xAmount:          BigInt = BigInt.apply(xAssetAmount)
+    val yAmount:          BigInt = BigInt.apply(yAssetAmount)
+    val feeNum:           BigInt = BigInt.apply(feeNumerator)
+    val feeDenom:   BigInt = BigInt.apply(feeDenominator)
+
+    val slippage: BigInt = BigInt.apply((maxSlippagePercentage * 100D).toInt)
+    val outputAmount: BigInt = (yAmount * swapInputAmount * feeNum) / ((xAmount + (xAmount * slippage) / (BigInt.apply(100) * BigInt.apply(100))) * feeDenom + swapInputAmount * feeNum)
+    val outputAmountLong: Long = outputAmount.toLong
+    outputAmountLong
+  }
+
   test("Make StandardSelector") {
     printMembers(initSingleMembers)
-    selector = new StandardSelector(initSingleMembers)
+    selector = new StandardSelector(initSingleMembers, SelectionParameters())
   }
 
   test("Make DistributionBuilder") {

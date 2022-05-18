@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package payments
 
 import io.getblok.subpooling_core.global.AppParameters
-import io.getblok.subpooling_core.persistence.models.Models.Share
+import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, Share}
 
 class ShareStatistics(miner: String) {
   var shareNum:   BigDecimal   = 0L
@@ -10,9 +10,9 @@ class ShareStatistics(miner: String) {
   var iterations: BigInt       = 0L
   val address:    String       = miner
 
-  def addShare(sh: Share): ShareStatistics = {
-    shareNum    = shareNum + (sh.difficulty * AppParameters.shareConst)
-    shareScore  = shareScore + (sh.difficulty * AppParameters.shareConst) / sh.networkdifficulty
+  def addShare(sh: PartialShare): ShareStatistics = {
+    shareNum    = shareNum + (sh.diff * AppParameters.shareConst)
+    shareScore  = shareScore + (sh.diff * AppParameters.shareConst) / sh.netDiff
     iterations = iterations + 1
     this
   }

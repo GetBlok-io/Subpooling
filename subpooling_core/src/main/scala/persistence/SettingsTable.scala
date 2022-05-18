@@ -1,9 +1,10 @@
 package io.getblok.subpooling_core
 package persistence
 
-import io.getblok.subpooling_core.global.{AppParameters, Helpers}
+import global.{AppParameters, Helpers}
+import persistence.models.Models.{DbConn, MinerSettings}
+
 import io.getblok.subpooling_core.persistence.models.DataTable
-import io.getblok.subpooling_core.persistence.models.Models.{DbConn, MinerSettings}
 
 import java.sql.PreparedStatement
 import java.time.LocalDateTime

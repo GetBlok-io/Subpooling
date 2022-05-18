@@ -1,15 +1,14 @@
-package token_group_tests
+package group_test
 
+import MockData.HoldingData._
+import MockData.{dummyWallet, emissionsOperator, ergoClient, holdingContract}
 import io.getblok.subpooling_core.boxes.EmissionsBox
-import io.getblok.subpooling_core.contracts.holding.{SimpleHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.holding.TokenHoldingContract
 import io.getblok.subpooling_core.groups.builders.HoldingBuilder
 import io.getblok.subpooling_core.groups.models.GroupBuilder
-import io.getblok.subpooling_core.groups.selectors.StandardSelector
+import io.getblok.subpooling_core.groups.selectors.{SelectionParameters, StandardSelector}
 import io.getblok.subpooling_core.groups.stages.roots.EmissionRoot
-import io.getblok.subpooling_core.token_group_tests.MockData.{dummyWallet, emissionsOperator, ergoClient, holdingContract}
 import io.getblok.subpooling_core.groups.{GroupManager, HoldingGroup, entities}
-import io.getblok.subpooling_core.token_group_tests.MockData.HoldingData.{baseFeeMap, emissionsReward, holdingValue, initSingleMembers, initValueAfterFees, singlePool, totalEmissions}
-import io.getblok.subpooling_core.token_group_tests.{buildEmissionsBox, getInputBoxes, printMembers}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -37,7 +36,7 @@ class TokenHoldingSuite extends AnyFunSuite {
 
   test("Make StandardSelector") {
     printMembers(initSingleMembers)
-    selector = new StandardSelector(initSingleMembers)
+    selector = new StandardSelector(initSingleMembers, SelectionParameters())
   }
 
   test("Make Emissions Box"){

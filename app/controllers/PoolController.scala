@@ -20,34 +20,43 @@ import io.getblok.subpooling_core.groups.{GenesisGroup, GroupManager}
 import io.getblok.subpooling_core.groups.builders.GenesisBuilder
 import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
-import io.getblok.subpooling_core.persistence.models.DataTable
-import io.getblok.subpooling_core.persistence.models.Models.{DbConn, MinerSettings, PoolInformation, PoolMember, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.Models.{DbConn, MinerSettings, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
 import play.api.libs.json.{Json, Writes}
 import actors.QuickDbReader._
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.emissions.EmissionsContract
 import io.getblok.subpooling_core.contracts.holding.TokenHoldingContract
-import io.getblok.subpooling_core.global.Helpers
+import io.getblok.subpooling_core.global.{AppParameters, Helpers}
+import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.registers.PoolFees
+import models.InvalidIntervalException
+import models.ResponseModels.Intervals.{DAILY, HOURLY, MONTHLY, YEARLY}
+import persistence.Tables
+import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import slick.ast.TypedType
+import slick.jdbc.PostgresProfile
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 @Api(value = "/pools", description = "Pool operations")
 @Singleton
 class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @Named("blocking-db-writer") slowWrite: ActorRef,
-                                val components: ControllerComponents, system: ActorSystem, config: Configuration)
-extends SubpoolBaseController(components, config){
-  val log: Logger = Logger("GenerationController")
+                               components: ControllerComponents, system: ActorSystem, config: Configuration,
+                               override protected val dbConfigProvider: DatabaseConfigProvider)
+                               extends SubpoolBaseController(components, config) with HasDatabaseConfigProvider[PostgresProfile] {
+
+  val log: Logger = Logger("PoolController")
   val quickQueryContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.quick-query-dispatcher")
   val slowWriteContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.blocking-io-dispatcher")
   implicit val timeOut: Timeout = Timeout(15 seconds)
+  import dbConfig.profile.api._
 
   log.info("Initiating pool controller")
-  @ApiOperation(
+/*  @ApiOperation(
     value = "Creates a new set of pools",
     notes = "Returns PoolGenerated response",
     httpMethod = "GET"
@@ -55,87 +64,9 @@ extends SubpoolBaseController(components, config){
   @ApiResponses(Array(
     new ApiResponse(code = 200, response = classOf[PoolGenerated], message = "Success"),
     new ApiResponse(code = 500, message = "An error occurred while generating the pool")
-  ))
-  // TODO: Change to POST
-  def createPool(num: Int, name:String, creator: String): Action[AnyContent] = Action {
-    client.execute{
-      ctx =>
-        val empty   = new EmptySelector
-        val builder = new GenesisBuilder(num, Parameters.MinFee)
-        val pool    = new Pool(ArrayBuffer.empty[Subpool])
-        val group   = new GenesisGroup(pool, ctx, wallet, Parameters.MinFee)
+  ))*/
 
-        val groupManager = new GroupManager(group, builder, empty)
-        groupManager.initiate()
-
-        if(groupManager.isSuccess){
-          val currentTime = LocalDateTime.now()
-          val poolStates = for(subPool <- group.newPools)
-            yield PoolState(subPool.token.toString, subPool.id, name, subPool.box.getId.toString, group.completedGroups.values.head.getId,
-              0L, 0L, subPool.box.genesis, ctx.getHeight.toLong, PoolState.CONFIRMED, 0, 0L, creator, "none", 0L,
-              currentTime, currentTime)
-          log.info("Creating new pool with tag " + poolStates.head.subpool)
-
-          DataTable.createSubpoolPartitions(dbConn, poolStates.head.subpool)
-          infoTable.insertNewInfo(PoolInformation(group.newPools.head.token.toString, 0L, num, 0L, 0L, 0L, 0L, PoolInformation.CURR_ERG, PoolInformation.PAY_PPLNS,
-            PoolFees.POOL_FEE_CONST, official = true, 5L, 10L, name, creator, LocalDateTime.now(), LocalDateTime.now()))
-          stateTable.insertStateArray(poolStates.toArray)
-          Ok(Json.prettyPrint(Json.toJson(PoolGenerated(name, poolStates.head.subpool, num,
-            groupManager.completedGroups.values.head.getId, creator, ctx.getHeight.toLong, currentTime.toString))))
-        }else{
-          InternalServerError("ERROR 500: An internal server error occurred while generating the pool")
-        }
-    }
-
-  }
-
-  def createEmissions(tag: String, currency: String, emissionReward: Double): Action[AnyContent] =  Action {
-    if(currency == "test"){
-      client.execute {
-        ctx =>
-          val poolCreator = infoTable.queryPool(tag).creator
-          val metadataContract = MetadataContract.generateMetadataContract(ctx)
-          val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(tag))
-          val emissionsContract = EmissionsContract.generate(ctx, wallet.p2pk, Address.create(poolCreator), holdingContract)
-
-
-          val distributionToken = new ErgoToken(PoolInformation.TEST_ID, 500000 * Parameters.OneErg)
-
-          val inputBoxes     = ctx.getCoveringBoxesFor(wallet.p2pk, Parameters.MinFee * 10, Seq().asJava).getBoxes
-          val emissionsToken = new Eip4Token(inputBoxes.get(0).getId.toString, 1L, "GetBlok.io Token Emissions Test", "Test token identifying an emissions box", 0)
-
-          val outBox     = ctx.newTxBuilder().outBoxBuilder()
-            .contract(wallet.pk.contract)
-            .value(Parameters.MinFee * 10)
-            .mintToken(emissionsToken)
-            .build()
-          val unsignedTokenTx = ctx.newTxBuilder().boxesToSpend(inputBoxes).outputs(outBox).fee(Parameters.MinFee).sendChangeTo(wallet.p2pk.getErgoAddress).build()
-          val signedTokenTx   = wallet.prover.sign(unsignedTokenTx)
-          val tokenTxId       = ctx.sendTransaction(signedTokenTx).replace("\"", "")
-          val tokenInputBox   = outBox.convertToInputWith(tokenTxId, 0.toShort)
-
-
-          val tokenInputs = ctx.getCoveringBoxesFor(wallet.p2pk, Parameters.MinFee, Seq(distributionToken).asJava).getBoxes
-            .asScala.toSeq.filter(i => i.getTokens.size() > 0).filter(i => i.getTokens.get(0).getId == distributionToken.getId)
-          val emissionsOutBox = EmissionsContract.buildGenesisBox(ctx, emissionsContract,
-            Helpers.ergToNanoErg(emissionReward), Address.create(poolCreator), emissionsToken.getId, distributionToken)
-          val txB = ctx.newTxBuilder()
-          val unsigned = txB.boxesToSpend((Seq(tokenInputBox)++tokenInputs).asJava)
-            .outputs(emissionsOutBox)
-            .fee(Parameters.MinFee)
-            .sendChangeTo(wallet.p2pk.getErgoAddress)
-            .build()
-          val signed = wallet.prover.sign(unsigned)
-          val txId = ctx.sendTransaction(signed)
-
-          infoTable.updatePoolEmissions(tag, PoolInformation.CURR_TEST_TOKENS, emissionsToken.getId.toString, PoolInformation.TokenExchangeEmissions)
-          Ok(s"EmissionBox created in transaction: ${txId}")
-      }
-    }else{
-      InternalServerError("Something went wrong dawg")
-    }
-  }
-
+  // TODO: Make this part of task
   def updatePoolInfo(tag: String): Action[AnyContent] = Action {
     implicit val ec: ExecutionContext = slowWriteContext
     val fPoolStates = quickQuery ? QueryAllSubPools(tag)
@@ -237,6 +168,47 @@ extends SubpoolBaseController(components, config){
   def getAssignedMembers(tag: String): Action[AnyContent] = Action.async{
     val settings = quickQuery ? MinersByAssignedPool(tag)
     settings.mapTo[Seq[MinerSettings]].map(ms => okJSON(ms.map(m => m.address)))(quickQueryContext)
+  }
+
+  def getPoolStats(tag: String): Action[AnyContent] = Action.async {
+    implicit val ec: ExecutionContext = quickQueryContext
+    val fSettings = (quickQuery ? MinersByAssignedPool(tag)).mapTo[Seq[MinerSettings]]
+    val fInfo = (quickQuery ? QueryPoolInfo(tag)).mapTo[PoolInformation]
+    val fEffortDiff = fInfo.map{
+      info =>
+        db.run(Tables.PoolSharesTable.getEffortDiff(tag, paramsConfig.defaultPoolTag, info.last_block))
+    }.flatten
+    val fStats = db.run(Tables.MinerStats.sortBy(_.created.desc)
+              .filter(_.created > LocalDateTime.now().minusHours(1))
+              .result)
+
+    fStats.transformWith{
+      case Success(stats) =>
+        val fPoolStats = for{
+          settings <- fSettings
+          effortDiff <- fEffortDiff
+        } yield {
+          val filteredStats = stats.filter(s => settings.exists(st => st.address == s.miner))
+          if(filteredStats.nonEmpty) {
+            val avgHash = filteredStats.groupBy(s => s.miner)
+              .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.hashrate)).sum / filteredStats.size).values.sum
+            val avgShares = filteredStats.groupBy(s => s.miner)
+              .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.sharespersecond)).sum / filteredStats.size).values.sum
+            val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
+            PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, effort.toDouble)
+          }else{
+            val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
+            PoolStatistics(tag, 0.0, 0.0, effort.toDouble)
+          }
+        }
+        fPoolStats.map(okJSON(_))
+      case Failure(ex: InvalidIntervalException) =>
+        Future(InternalServerError(ex.getMessage))
+      case Failure(ex: Exception) =>
+        Future(InternalServerError("There was an unknown error while serving your request:\n"+ ex.getMessage))
+    }
+
+
   }
 
   def addMiner(tag: String, miner: String): Action[AnyContent] = Action {

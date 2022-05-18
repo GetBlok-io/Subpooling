@@ -1,11 +1,9 @@
 package io.getblok.subpooling_core
 package persistence
 
-import persistence.models.DataTable
-import persistence.models.Models._
+import persistence.models.Models.{Block, DbConn}
 
-import io.getblok.subpooling_core.node.NodeHandler
-import io.getblok.subpooling_core.node.NodeHandler.PartialBlockInfo
+import io.getblok.subpooling_core.persistence.models.DataTable
 
 import java.sql.PreparedStatement
 class BlocksTable(dbConn: DbConn) extends DataTable[Block](dbConn) {

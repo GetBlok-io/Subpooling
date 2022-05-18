@@ -5,6 +5,9 @@ import io.getblok.subpooling_core.global.Helpers
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import io.getblok.subpooling_core.persistence.models.Models._
 import io.getblok.subpooling_core.registers.PoolFees
+import models.DatabaseModels.{BalanceChange, ChangeKeys, Payment}
+
+import java.time.LocalDateTime
 object ResponseModels {
   case class PoolGenerated(poolName: String, poolTag: String, numSubpools: Int,
                            txId: String, creator: String, height: Long, timestamp: String)
@@ -130,6 +133,7 @@ object ResponseModels {
         "globalEpoch" -> o.g_epoch,
         "numSubPools" -> o.subpools,
         "lastBlock" -> o.last_block,
+        "blocksFound" -> o.blocksFound,
         "totalMembers" -> o.total_members,
         "maxMembers" -> o.max_members,
         "valueLocked" -> Helpers.nanoErgToErg(o.value_locked),
@@ -141,9 +145,116 @@ object ResponseModels {
         "official" -> o.official,
         "creator" -> o.creator,
         "updated" -> o.updated.toString,
-        "created" -> o.created.toString
+        "created" -> o.created.toString,
+        "emissionsId" -> o.emissions_id,
+        "emissionsType" -> o.emissions_type
       )
     }
   }
 
+  case class PagedResponse(numPages: Int, totalValues: Long, payload: JsValue)
+  implicit val writesPagedResponse: Writes[PagedResponse] = new Writes[PagedResponse] {
+    override def writes(o: PagedResponse): JsValue = {
+      Json.obj( fields =
+        "numPages" -> o.numPages,
+        "totalValues" -> o.totalValues,
+        "payload" -> o.payload
+      )
+    }
+  }
+
+  implicit val writesChangeKeys: Writes[ChangeKeys] = new Writes[ChangeKeys] {
+    override def writes(o: ChangeKeys): JsValue = {
+      Json.obj( fields =
+        "poolTag" -> o.poolTag,
+        "block" -> o.block,
+        "gEpoch" -> o.gEpoch
+      )
+    }
+  }
+
+  case class MinerResponse(poolTag: String, minPay: Double, pending: Double, owed: Double, avg: Double, lastMemberInfo: PoolMember)
+
+  implicit val writesMinerResponse: Writes[MinerResponse] = new Writes[MinerResponse] {
+    override def writes(o: MinerResponse): JsValue = {
+      Json.obj( fields =
+        "poolTag" -> o.poolTag,
+        "minPay" -> o.minPay,
+        "pendingBalance" -> o.pending,
+        "owedBalance" -> o.owed,
+        "avgDelta" -> o.avg,
+        "lastMemberInfo" -> Json.toJson(o.lastMemberInfo)
+      )
+    }
+  }
+
+  implicit val writesPayments: Writes[Payment] = new Writes[Payment] {
+    override def writes(o: Payment): JsValue = {
+      Json.obj( fields =
+        "address" -> o.address,
+        "coin" -> o.coin,
+        "amount" -> o.amount,
+        "txId" -> o.tx,
+        "tokens" -> o.tokens.getOrElse("").toString,
+        "poolTag" -> o.poolTag,
+        "gEpoch" -> o.gEpoch,
+        "block" -> o.block,
+        "created" -> o.created
+      )
+    }
+  }
+
+  implicit val writesBalanceChange: Writes[BalanceChange] = new Writes[BalanceChange] {
+    override def writes(o: BalanceChange): JsValue = {
+      Json.obj( fields =
+        "address" -> o.address,
+        "coin" -> o.coin,
+        "amount" -> o.amount,
+        "txId" -> o.tx,
+        "tokens" -> o.tokens.getOrElse("").toString,
+        "poolTag" -> o.poolTag,
+        "gEpoch" -> o.gEpoch,
+        "block" -> o.block,
+        "created" -> o.created
+      )
+    }
+  }
+  case class Earnings(address: String, coin: String, amount: Double, date: LocalDateTime)
+  implicit val writesEarnings: Writes[Earnings] = new Writes[Earnings] {
+    override def writes(o: Earnings): JsValue = {
+      Json.obj( fields =
+        "address" -> o.address,
+        "coin" -> o.coin,
+        "amount" -> o.amount,
+        "date" -> o.date
+      )
+    }
+  }
+
+  case class PoolStatistics(poolTag: String, hashrate: Double, sharesPerSecond: Double, effort: Double)
+  implicit val writesPoolStats: Writes[PoolStatistics] = new Writes[PoolStatistics] {
+    override def writes(o: PoolStatistics): JsValue = {
+      Json.obj( fields =
+        "poolTag" -> o.poolTag,
+        "hashrate" -> o.hashrate,
+        "sharesPerSecond" -> o.sharesPerSecond,
+        "effort" -> o.effort
+      )
+    }
+  }
+
+  object Paginate {
+    def apply[T](writeable: Seq[T], pageSize: Option[Int])(implicit write: Writes[T]): PagedResponse ={
+
+      PagedResponse(pageSize.get, writeable.length, Json.toJson(writeable.take(pageSize.get)))
+    }
+  }
+
+  object Intervals {
+    final val HOURLY  = "hour"
+    final val DAILY   = "day"
+    final val MONTHLY = "month"
+    final val YEARLY  = "year"
+
+  }
 }

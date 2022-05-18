@@ -1,0 +1,75 @@
+{
+  // Additive Token Pool Emissions Contract - Kirat Singh
+  // Additive emissions contract, similar to simple token emissions contract with slight change in that
+  // there is no requirement set on ERG value, therefore allowing for the share operator to distribute
+  // ERG to the holding contracts.
+  val blockReward = SELF.R4[(Long, Long)].get
+  val shareOperator: SigmaProp  = const_shareOpPK
+  val poolOperator:  SigmaProp  = const_poolOpPK
+
+
+  val holdingBytes: Coll[Byte]  = const_holdingBytesHashed
+  val minHoldingBoxVal: Long    = 1000L * 1000L * 10 // Up to 10 members in each subpool, so make sure enough ERG is in holding
+
+  val nextEmissionsBox: Box     = OUTPUTS(0)
+  val nextBlockReward:  Long    = nextEmissionsBox.R4[Long].get
+
+  val nextBoxExists = {
+      SELF.propositionBytes == nextEmissionsBox.propositionBytes && SELF.tokens(0)._1 == nextEmissionsBox.tokens(0)._1
+  }
+
+  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+    val expected = valuesPair._1
+    val actual   = valuesPair._2
+    val amountTop = (expected - actual) * 100L // multiply by 100 to prevent integer division
+    val percentage = amountTop / actual
+    (percentage < 2L) && (percentage > -2L) // 2% margin of error during calculations
+  }
+
+  if(nextBoxExists){
+      val tokenToDistribute = SELF.tokens(1)
+      val nextHeldTokens    = nextEmissionsBox.tokens(1)
+
+      // Only share operator may spend tokens
+      if(tokenToDistribute._2 > nextHeldTokens._2){
+        val spentTokens      = tokenToDistribute._2 - nextHeldTokens._2
+
+        val tokensSame       = tokenToDistribute._1 == nextHeldTokens._1
+        val blockRewardSpent = spentTokens == blockReward
+
+        val holdingBoxes = OUTPUTS.filter{ (box: Box) => blake2b256(box.propositionBytes) == holdingBytes}
+        val tokensInHolding = holdingBoxes.fold(0L, {
+          (lastSum: Long, box: Box) =>
+            if(box.tokens(0)._1 == tokenToDistribute._1){
+              lastSum + box.tokens(0)._2
+            }else{
+              lastSum
+            }
+        })
+        // Allow for additive emissions by enabling holding box value to be greater than 0
+        val holdingBoxesFunded = holdingBoxes.forall{(box: Box) => box.value >= minHoldingBoxVal}
+
+        val tokensAreHeld = isValueInRange((blockReward, tokensInHolding))
+        val blockRewardUnchanged = blockReward == nextBlockReward
+        val spentByShareOperator = allOf(
+          Coll(
+            tokensSame,
+            blockRewardSpent,
+            tokensAreHeld,
+            holdingBoxesFunded
+          )
+        )
+        sigmaProp(spentByShareOperator) //&& shareOperator
+      }else{
+        // If next tokens are greater than or equal to current tokens, pool operator must have added them.
+        val tokensSame    = tokenToDistribute._1 == nextHeldTokens._1
+        val tokensNotSpent = tokenToDistribute._2 >= nextHeldTokens._2
+        sigmaProp(tokensSame && tokensNotSpent) && poolOperator
+
+      }
+  }else{
+    sigmaProp(false)
+  }
+
+
+}

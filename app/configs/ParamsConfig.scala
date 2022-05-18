@@ -6,11 +6,13 @@ import play.api.Configuration
 
 import java.sql.DriverManager
 import java.util.Properties
+import scala.concurrent.duration.FiniteDuration
 
 class ParamsConfig(config: Configuration){
 
   private val window = config.get[Double]("params.pplnsWindow")
   private val adjustCoeff = config.get[Long]("params.scoreAdjustCoeff")
+
   val pendingBlockNum: Int = config.get[Int]("params.pendingBlockNum")
   val confirmationNum: Int = config.get[Int]("params.confirmationNum")
   val numToValidate:   Int = config.get[Int]("params.numToValidate")
@@ -18,6 +20,17 @@ class ParamsConfig(config: Configuration){
   val autoConfirmGroups: Boolean = config.get[Boolean]("params.autoConfirmGroups")
   val parallelPoolPlacements: Boolean = config.get[Boolean]("params.parallelPoolPlacements")
   val amountToPreCollect: Long = Helpers.ergToNanoErg(config.get[Double]("params.amountToPreCollect"))
+  val restartPlacements: FiniteDuration = config.get[FiniteDuration]("params.restartPlacements")
+  val restartDists: FiniteDuration = config.get[FiniteDuration]("params.restartDists")
+
+  val blockBotToken: String = config.get[String]("params.blockBotToken")
+  val blockBotChat: String = config.get[String]("params.blockBotChat")
+  val enableBlockBot: Boolean = config.get[Boolean]("params.enableBlockBot")
+
+  val defaultPoolTag: String = config.get[String]("params.defaultPool")
+  val keepSharesWindowInWeeks: Int = config.get[Int]("params.keepSharesWindow")
+  val keepMinerStatsWindowInWeeks: Int = config.get[Int]("params.keepMinerStatsWindow")
+
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff
   AppParameters.defaultMiningPK = defaultPK

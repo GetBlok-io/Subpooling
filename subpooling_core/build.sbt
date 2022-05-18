@@ -7,7 +7,7 @@ scalaVersion := "2.12.10"
 
 libraryDependencies ++= Seq(
   "org.ergoplatform" %% "ergo-appkit" % "4.0.8",
-  "org.postgresql" % "postgresql" % "42.3.3",
+  "org.postgresql" % "postgresql" % "42.3.4",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test"
 //  "org.slf4j" % "slf4j-simple" % "1.7.36"
 )

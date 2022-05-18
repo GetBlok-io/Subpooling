@@ -1,8 +1,9 @@
 package io.getblok.subpooling_core
 package persistence
 
+import persistence.models.Models.{DbConn, Share}
+
 import io.getblok.subpooling_core.persistence.models.DataTable
-import io.getblok.subpooling_core.persistence.models.Models.{DbConn, Share}
 
 import java.sql.PreparedStatement
 import java.time.LocalDateTime
@@ -15,6 +16,22 @@ class SharesTable(dbConn: DbConn) extends DataTable[Share](dbConn) {
     implicit val ps: PreparedStatement = state(select, all, fromTable, where, fieldOf("blockheight"), lTeq, param,
       order, by, fieldOf("created"), desc, limit, num(50000), offset, num(start))
     setLong(1, blockHeight)
+    val rs = execQuery
+    buildSeq(rs, Share.fromResultSet)
+  }
+
+  def queryBetween(start: LocalDateTime, end: LocalDateTime): Seq[Share] = {
+    implicit val ps: PreparedStatement = state(select, all, fromTable, where, fieldOf("created"), gTeq, param,
+      and, fieldOf("created"), lTeq, param)
+    setDate(1, start)
+    setDate(2, end)
+    val rs = execQuery
+    buildSeq(rs, Share.fromResultSet)
+  }
+
+  def queryBefore(date: LocalDateTime): Seq[Share] = {
+    implicit val ps: PreparedStatement = state(select, all, fromTable, where, fieldOf("created"), lTeq, param)
+    setDate(1, date)
     val rs = execQuery
     buildSeq(rs, Share.fromResultSet)
   }

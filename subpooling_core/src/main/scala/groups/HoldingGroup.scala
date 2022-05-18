@@ -33,7 +33,7 @@ class HoldingGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, block
                 val minerBoxValue = SimpleHoldingContract.getBoxValue(d._2.getScore, p.nextTotalScore, poolValAfterFees)
                 logger.info(s"Next box val for miner ${d._1.address}: $minerBoxValue")
                 PoolPlacement(p.token.toString, p.id, blockMined, p.rootBox.getId.toString, p.nextHoldingValue,
-                  d._1.address.toString, d._2.getScore, d._2.getMinPay, d._2.getEpochsMined, minerBoxValue, p.epoch + 1, pool.globalEpoch + 1)
+                  d._1.address.toString, d._2.getScore, d._2.getMinPay, d._2.getEpochsMined, minerBoxValue, p.epoch + 1, pool.globalEpoch)
             }
             poolPlacements ++= placements
 
@@ -55,7 +55,7 @@ class HoldingGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, block
                 val minerBoxValue = TokenHoldingContract.getBoxValue(d._2.getScore, p.nextTotalScore, poolValAfterFees)
                 logger.info(s"Next box val for miner ${d._1.address}: $minerBoxValue")
                 PoolPlacement(p.token.toString, p.id, blockMined, p.rootBox.getId.toString, p.nextHoldingValue,
-                  d._1.address.toString, d._2.getScore, d._2.getMinPay, d._2.getEpochsMined, minerBoxValue, p.epoch + 1, pool.globalEpoch + 1)
+                  d._1.address.toString, d._2.getScore, d._2.getMinPay, d._2.getEpochsMined, minerBoxValue, p.epoch + 1, pool.globalEpoch)
             }
             poolPlacements ++= placements
 

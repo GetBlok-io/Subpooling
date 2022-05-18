@@ -9,7 +9,7 @@ import java.sql.{Connection, PreparedStatement, ResultSet}
 import java.time.LocalDateTime
 
 object Models {
-  abstract class DatabaseConversion[T] {
+  trait DatabaseConversion[T] {
     protected def fromResultSet(resultSet: ResultSet): T
 
     protected def str(idx: Int)(implicit rs: ResultSet): String = {
@@ -26,6 +26,15 @@ object Models {
 
     protected def dec(idx: Int)(implicit rs: ResultSet): Double = {
       rs.getDouble(idx)
+
+    }
+
+    protected def decOpt(idx: Int)(implicit rs: ResultSet): Option[Double] = {
+      val effort = rs.getDouble(idx)
+      if(rs.wasNull())
+        None
+      else
+        Some(effort)
     }
 
     protected def int(idx: Int)(implicit rs: ResultSet): Int = {
@@ -48,7 +57,10 @@ object Models {
                         minpay: Long, stored: Long, paid: Long, change: Long, epochs_mined: Long,
                         token: String, token_paid: Long, block: Long, created: LocalDateTime)
 
-  object PoolMember extends DatabaseConversion[PoolMember] {
+  object PoolMember extends DatabaseConversion[PoolMember] with Function20[String, Long, String, String, Long, Long, Long,
+    String, Long, Long, Double, Long, Long, Long,
+    Long, Long, String, Long, Long, LocalDateTime, PoolMember]{
+
     override def fromResultSet(rs: ResultSet): PoolMember = {
       implicit val resultSet: ResultSet = rs
       PoolMember(str(1), long(2), str(3), str(4), long(5), long(6), long(7),
@@ -59,7 +71,24 @@ object Models {
 
   case class PoolState(subpool: String, subpool_id: Long, title: String, box: String, tx: String, g_epoch: Long, epoch: Long,
                        g_height: Long, height: Long, status: String, members: Int, block: Long, creator: String,
-                       stored_id: String, stored_val: Long, updated: LocalDateTime, created: LocalDateTime)
+                       stored_id: String, stored_val: Long, updated: LocalDateTime, created: LocalDateTime) {
+
+    def makeConfirmed(nextBox: String, nextStored_id: String, nextStored_val: Long): PoolState = {
+      this.copy(status = PoolState.CONFIRMED, box = nextBox, stored_id = nextStored_id, stored_val = nextStored_val, updated = LocalDateTime.now())
+    }
+
+    def makeSuccess(nextTx: String, nextHeight: Long, nextEpoch: Long): PoolState = {
+      this.copy(status = PoolState.SUCCESS, tx = nextTx, height = nextHeight, epoch = nextEpoch, updated = LocalDateTime.now())
+    }
+
+    def makeInitiated(nextMembers: Int, nextBlock: Long): PoolState = {
+      this.copy(status = PoolState.INITIATED, members = nextMembers, block = nextBlock, updated = LocalDateTime.now())
+    }
+
+    def makeFailure: PoolState = {
+      this.copy(status = PoolState.FAILURE, updated = LocalDateTime.now(), epoch = epoch - 1)
+    }
+  }
 
   object PoolState extends DatabaseConversion[PoolState] {
     override def fromResultSet(rs: ResultSet): PoolState = {
@@ -68,6 +97,8 @@ object Models {
         long(8), long(9), str(10), int(11), long(12), str(13), str(14),
         long(15), date(16), date(17))
     }
+
+
 
     val SUCCESS   = "success"
     val FAILURE   = "failure"
@@ -100,6 +131,7 @@ object Models {
     val PAY_PPLNS = "PPLNS"
     val PAY_PPS   = "PPS"
     val PAY_EQ    = "EQUAL"
+    val PAY_SOLO  = "SOLO"
 
     val TokenExchangeEmissions = "TokenExchange"
     val NoEmissions   = "none"
@@ -142,7 +174,7 @@ object Models {
     val TRANSFERRED = "transferred"
   }
 
-  case class PoolBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Double, txConfirmation: String,
+  case class PoolBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: String,
                        miner: String, reward: Double, hash: String, created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime){
     def getErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
   }
@@ -150,7 +182,7 @@ object Models {
   object PoolBlock extends DatabaseConversion[PoolBlock] {
     override def fromResultSet(rs: ResultSet): PoolBlock = {
       implicit val resultSet: ResultSet = rs
-      PoolBlock(long(1), long(3), dec(4), str(5), dec(7), dec(8), str(9), str(10), dec(11),
+      PoolBlock(long(1), long(3), dec(4), str(5), dec(7), decOpt(8), str(9), str(10), dec(11),
         str(13), date(14), str(15), long(16), date(17))
     }
 
@@ -167,19 +199,20 @@ object Models {
 
 
 
-  case class Share(blockheight: Long, miner: String, worker: String, difficulty: Double, networkdifficulty: Double,
-                   created: LocalDateTime)
+  case class Share(poolid: String, blockheight: Long, miner: String, worker: String, difficulty: Double, networkdifficulty: Double,
+                   useragent: String, ipaddress: String, source: String, created: LocalDateTime)
 
-  object Share extends DatabaseConversion[Share] {
+  object Share extends DatabaseConversion[Share] with ((String, Long, String, String, Double, Double,
+    String, String, String, LocalDateTime) => Share) {
     override def fromResultSet(rs: ResultSet): Share = {
       implicit val resultSet: ResultSet = rs
-      Share(long(2), str(5), str(6), dec(3), dec(4), date(10))
+      Share(str(1), long(2), str(5), str(6), dec(3), dec(4),str(7), str(8), str(9), date(10))
     }
   }
-
+  case class PartialShare(miner: String, diff: Double, netDiff: Double, poolTag: Option[String])
   case class MinerSettings(address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
                            subpool: String)
-  object MinerSettings extends DatabaseConversion[MinerSettings] {
+  object MinerSettings extends DatabaseConversion[MinerSettings] with ((String, Double, LocalDateTime, LocalDateTime, String) => MinerSettings) {
     override def fromResultSet(rs: ResultSet): MinerSettings = {
       implicit val resultSet: ResultSet = rs
       MinerSettings(str(2), dec(3), date(4), date(5), str(7))

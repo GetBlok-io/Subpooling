@@ -71,13 +71,13 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
             val change = getAmountAdded(p, d)
             if (p.paymentMap.contains(d._1)) {
               val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
-                p.nextBox.getId.toString, pool.globalEpoch + 1, p.nextBox.epoch,
+                p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
                 p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
                 currencyValue(p.paymentMap(d._1)), change, d._2.getEpochsMined, "none", 0L, block.blockheight, LocalDateTime.now())
               poolMembers += poolMember
             }else{
               val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
-                p.nextBox.getId.toString, pool.globalEpoch + 1, p.nextBox.epoch,
+                p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
                 p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
                 0L, change, d._2.getEpochsMined, "none", 0L, block.blockheight, LocalDateTime.now())
               poolMembers += poolMember
@@ -107,12 +107,11 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
 
   }
 
-  def getNextStates(block: PoolBlock): Array[PoolState] = {
+  def getNextStates(completedStates: Seq[PoolState]): Array[PoolState] = {
     completedGroups.map{ g =>
-      PoolState(g._1.token.toString, g._1.id, "notUpdated", g._1.nextBox.getId.toString, g._2.getId.replace("\"", ""),
-        0L, g._1.nextBox.epoch, g._1.nextBox.genesis, g._1.nextBox.epochHeight, PoolState.SUCCESS, g._1.nextBox.shareDistribution.size,
-        block.blockheight, "notUpdated", g._1.nextStorage.map(_.getId.toString).getOrElse("none"), g._1.nextStorage.map(currencyValue).getOrElse(0L),
-        LocalDateTime.now(), LocalDateTime.now())
+      val state = completedStates.find(s => s.subpool_id == g._1.id).get
+      state.makeSuccess(g._2.getId.replace("\"", ""), g._1.nextBox.epochHeight, g._1.nextBox.epoch)
+
     }.toArray
   }
 

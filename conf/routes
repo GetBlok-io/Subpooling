@@ -1,9 +1,9 @@
 
 
-GET   /pools/createPool        controllers.PoolController.createPool(num: Int, name: String, creator: String)
+
 GET   /pools/:tag              controllers.PoolController.getPoolInfo(tag: String)
 GET   /pools/:tag/addMiner     controllers.PoolController.addMiner(tag: String, miner: String)
-GET   /pools/:tag/createEmissions     controllers.PoolController.createEmissions(tag: String, currency: String, emissionReward: Long)
+
 GET   /pools                   controllers.PoolController.getAllPools
 GET   /pools/all                        controllers.PoolController.getAllPools
 GET   /pools/official                   controllers.PoolController.getOfficialPools
@@ -17,7 +17,7 @@ GET   /pools/:tag/members/byBlock          controllers.PoolController.getPoolMem
 GET   /pools/:tag/assigned         controllers.PoolController.getAssignedMembers(tag: String)
 GET   /pools/:tag/insert        controllers.PoolController.insertDefaultInfo(tag:String, numSubpools: Int, title: String, creator: String)
 GET   /pools/:tag/update        controllers.PoolController.updatePoolInfo(tag:String)
-
+GET   /pools/:tag/stats         controllers.PoolController.getPoolStats(tag: String)
 
 GET   /pools/:tag/subpools/:id          controllers.PoolController.getSubpool(tag: String, id: Long)
 GET   /pools/:tag/subpools/:id/placements   controllers.PoolController.getSubPoolPlacements(tag: String, id: Long)
@@ -25,9 +25,15 @@ GET   /pools/:tag/subpools/:id/members/byEpoch      controllers.PoolController.g
 GET   /pools/:tag/subpools/:id/members/byGlobalEpoch      controllers.PoolController.getSubPoolMembersAtGEpoch(tag: String, id: Long, gEpoch: Long)
 GET   /pools/:tag/subpools/:id/members/byBlock      controllers.PoolController.getSubPoolMembersAtBlock(tag: String, id: Long, block: Long)
 
-
+GET   /blocks                            controllers.BlocksController.allBlocks(poolTag: Option[String], pageSize: Option[Int] = Some(10))
 GET   /blocks/:blockHeight               controllers.BlocksController.getBlock(blockHeight: Long)
 GET   /blocks/byId/:id                   controllers.BlocksController.getBlockById(id: Long)
 GET   /blocks/byStatus/:status           controllers.BlocksController.getBlocksByStatus(status: String)
+
+GET /miners/:address                     controllers.MinerController.getMiner(address: String)
+GET /miners/:address/payments            controllers.MinerController.getPayments(address: String)
+GET /miners/:address/rewards             controllers.MinerController.getRewards(address: String)
+GET /miners/:address/earnings/:i         controllers.MinerController.getEarnings(address: String, i: String)
+
 
 GET   /swagger.json            controllers.Assets.at(path="/public", file="swagger.json")

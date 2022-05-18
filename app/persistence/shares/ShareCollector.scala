@@ -1,22 +1,22 @@
-package io.getblok.subpooling_core
-package payments
+package persistence.shares
 
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.groups.entities.Member
 import io.getblok.subpooling_core.payments.Models.PaymentType
-import io.getblok.subpooling_core.persistence.models.Models.Share
+import io.getblok.subpooling_core.payments.ShareStatistics
+import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, Share}
 import io.getblok.subpooling_core.registers.MemberInfo
 import org.ergoplatform.appkit.{Address, NetworkType}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.util.Try
-class ShareCollector(paymentType: PaymentType) {
+class ShareCollector(paymentType: PaymentType, blockMiner: String) {
   val shareMap: mutable.Map[String, ShareStatistics] = mutable.Map.empty[String, ShareStatistics]
   implicit val networkType: NetworkType = AppParameters.networkType
   val log = LoggerFactory.getLogger("ShareCollector")
 
-  def addToMap(share: Share): ShareCollector = {
+  def addToMap(share: PartialShare): ShareCollector = {
     if(shareMap.contains(share.miner)){
       shareMap(share.miner).addShare(share)
     }else{
@@ -41,6 +41,10 @@ class ShareCollector(paymentType: PaymentType) {
       case PaymentType.EQUAL_PAY =>
         val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(10000L, 0L, 0L, 0L, 0L))))
         members.toArray
+      case PaymentType.SOLO_SHARES =>
+        val memberInfo = new MemberInfo(Array(shareMap.filter(_._1 == blockMiner).head._2.adjustedScore.longValue(), 0L, 0L, 0L, 0L))
+        val minerMember = Member(Address.create(blockMiner), memberInfo)
+        Array(minerMember)
       case _ =>
         // Match to PPLNS_WINDOW for default
         val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(a._2.adjustedScore.longValue(), 0L, 0L, 0L, 0L))))

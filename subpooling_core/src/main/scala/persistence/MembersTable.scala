@@ -1,8 +1,9 @@
 package io.getblok.subpooling_core
 package persistence
 
+import persistence.models.Models.{DbConn, PoolMember}
+
 import io.getblok.subpooling_core.persistence.models.DataTable
-import io.getblok.subpooling_core.persistence.models.Models.{DbConn, PoolMember}
 
 import java.sql.PreparedStatement
 
@@ -22,6 +23,16 @@ class MembersTable(dbConn: DbConn, part: String) extends DataTable[PoolMember](d
     setLong(1, gepoch)
     val rs = execQuery
     buildSeq(rs, PoolMember.fromResultSet)
+  }
+
+  def queryPaidAtGEpoch(gepoch: Long): Long = {
+    implicit val ps: PreparedStatement = state(select, sumOf("paid"), fromTablePart(part),  where, "g_epoch ", eq, param)
+    setLong(1, gepoch)
+    val rs = execQuery
+    if(rs.next())
+      rs.getLong(1)
+    else
+      -1
   }
 
   def querySubPoolMembersAtGEpoch(id: Long, gepoch: Long): Seq[PoolMember] = {
@@ -87,6 +98,14 @@ class MembersTable(dbConn: DbConn, part: String) extends DataTable[PoolMember](d
   def insertMemberArray(arr: Array[PoolMember]): Long = {
     val rows = for(m <- arr) yield insertMember(m)
     rows.sum
+  }
+
+  def deleteByGEpochAndId(gEpoch: Long, id: Long): Long = {
+    implicit val ps: PreparedStatement = state(delete, fromTablePart(part),  where, fieldOf("subpool_id"), eq, param, and,
+      fieldOf("gEpoch"), eq, param)
+    setLong(1, id)
+    setLong(2, gEpoch)
+    execUpdate
   }
 
 

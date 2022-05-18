@@ -10,10 +10,10 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 
-class StandardSelector(val members: Array[Member]) extends GroupSelector {
+class StandardSelector(val members: Array[Member], selectionParams: SelectionParameters) extends GroupSelector {
 
-  final val MEMBER_LIMIT = 10
-  final val EPOCH_MINED_LIMIT = -5
+  final val MEMBER_LIMIT = selectionParams.maxMemberLimit
+  final val EPOCH_MINED_LIMIT = selectionParams.epochMinedLimit
   final val KICKED_PAYMENT_THRESHOLD = Parameters.MinFee
 
   var membersAdded: ArrayBuffer[Member] = ArrayBuffer.empty[Member]

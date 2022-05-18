@@ -1,15 +1,16 @@
 package io.getblok.subpooling_core
 package persistence
 
-import persistence.models.DataTable
-import persistence.models.Models.{DbConn, PoolInformation, PoolState}
+import persistence.models.Models.{DbConn, PoolInformation}
+
+import io.getblok.subpooling_core.persistence.models.DataTable
 
 import java.sql.PreparedStatement
 import java.time.LocalDateTime
 
 class InfoTable(dbConn: DbConn) extends DataTable[PoolInformation](dbConn) {
   override def table: String = "pool_info"
-  override val numFields: Int = 19
+  override val numFields: Int = 20
 
   def queryAllPools: Seq[PoolInformation] = {
     implicit val ps: PreparedStatement = state(select, all, fromTable)

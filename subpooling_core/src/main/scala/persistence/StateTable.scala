@@ -1,8 +1,9 @@
 package io.getblok.subpooling_core
 package persistence
 
+import persistence.models.Models.{DbConn, PoolState}
+
 import io.getblok.subpooling_core.persistence.models.DataTable
-import io.getblok.subpooling_core.persistence.models.Models.{DbConn, PoolState}
 
 import java.sql.PreparedStatement
 import java.time.LocalDateTime

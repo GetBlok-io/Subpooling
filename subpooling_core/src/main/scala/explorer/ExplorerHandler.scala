@@ -19,8 +19,9 @@ class ExplorerHandler(networkType: NetworkType) {
   private def asOption[T](resp: Response[T]): Option[T] = {
     if (resp.isSuccessful)
       Some(resp.body())
-    else
+    else {
       None
+    }
   }
 
   private def itemSeq[T](opt: Option[Items[T]]) = {
@@ -110,6 +111,14 @@ class ExplorerHandler(networkType: NetworkType) {
     Output.fromOptionSeq(
       outputSeq(asOption[ItemsA](apiService.getApiV1BoxesUnspentBytokenidP1(tokenId.toString, offset, limit).execute()))
     )
+  }
+
+  /**
+   * Get a box with the given id
+   * @param id Id of box to search for
+   */
+  def boxesById(id: ErgoId): Option[Output] = {
+      Output.fromOption(asOption[OutputInfo](apiService.getApiV1BoxesP1(id.toString).execute()))
   }
 
   /**
