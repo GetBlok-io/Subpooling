@@ -27,6 +27,12 @@ resolvers ++= Seq(
   "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
 )
 topLevelDirectory := Some("subpooling_service")
+
+import com.typesafe.sbt.packager.docker.DockerChmodType
+import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
+dockerChmodType := DockerChmodType.UserGroupWriteExecute
+dockerPermissionStrategy := DockerPermissionStrategy.CopyChown
+
 //assemblyJarName in assembly := s"subpooling-${version.value}.jar"
 //mainClass in assembly := Some("app.SubpoolMain")
 //assemblyOutputPath in assembly := file(s"./subpooling-${version.value}.jar/")
