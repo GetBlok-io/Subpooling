@@ -31,6 +31,7 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
   def queryBlockAtGEpoch(poolTag: String, gEpoch: Long): PoolBlock = {
     implicit val ps: PreparedStatement = state(select, all, fromTablePart(poolTag),
       where, fieldOf("g_epoch"), eq, param)
+    setLong(1, gEpoch)
     val rs = execQuery
     rs.next()
     PoolBlock.fromResultSet(rs)
@@ -70,7 +71,7 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
   }
 
   def updateBlockEffort(poolTag: String, effort: Double, height: Long): Long = {
-    implicit val ps: PreparedStatement = state(update, fromTablePart(poolTag), set, fields("effort", "updated"), where,
+    implicit val ps: PreparedStatement = state(update, tablePart(poolTag), set, fields("effort", "updated"), where,
       fieldOf("blockheight"), eq, param)
     setDec(1, effort)
     setDate(2, LocalDateTime.now())
@@ -78,15 +79,25 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
     execUpdate
   }
 
-  def updateBlockStatusAndConfirmation(status: String, confirmation: Double, height: Long, gEpoch: Long = -1): Long = {
-    implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "confirmationprogress", "g_epoch", "updated"), where,
-      fieldOf("blockheight"), eq, param)
-    setStr(1, status)
-    setDec(2, confirmation)
-    setLong(3, gEpoch)
-    setDate(4, LocalDateTime.now())
-    setLong(5, height)
-    execUpdate
+  def updateBlockStatusAndConfirmation(status: String, confirmation: Double, height: Long, gEpoch: Option[Long]): Long = {
+    if(gEpoch.isDefined) {
+      implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "confirmationprogress", "g_epoch", "updated"), where,
+        fieldOf("blockheight"), eq, param)
+      setStr(1, status)
+      setDec(2, confirmation)
+      setLong(3, gEpoch.get)
+      setDate(4, LocalDateTime.now())
+      setLong(5, height)
+      execUpdate
+    }else{
+      implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "confirmationprogress", "updated"), where,
+        fieldOf("blockheight"), eq, param)
+      setStr(1, status)
+      setDec(2, confirmation)
+      setDate(3, LocalDateTime.now())
+      setLong(4, height)
+      execUpdate
+    }
   }
   def updateBlockValidation(height: Long, partialBlockInfo: PartialBlockInfo): Long = {
     partialBlockInfo match {

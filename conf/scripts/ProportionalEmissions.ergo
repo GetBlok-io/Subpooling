@@ -1,0 +1,69 @@
+{
+  // Exchanged Emissions - Kirat Singh
+  // This contract takes the block reward (sum of all other input boxes value in ERG), removes a fee from it, and
+  // then performs a simulated swap and adjusts the output using the given percentage value.
+  // This output value represents the tokens taken from the emission box, and represents the miner's
+  // block reward, which must be distributed amongst holding contracts
+
+  // Constants
+  val shareOperator: SigmaProp  = const_shareOpPK
+  val poolOperator:  SigmaProp  = const_poolOpPK
+  val distToken:     Coll[Byte] = const_distTokenId
+  val holdingBytes:  Coll[Byte] = const_holdingBytesHashed
+  val decimalPlaces: Long       = const_decimalPlaces
+  val minHoldingBoxVal: Long    = 1000L * 1000L * 10 // Up to 10 members in each subpool, so make sure enough ERG is in holding
+  val poolFeeDenom:  Long       = 100000L
+  // SELF Assets & Registers
+  val emToken:       Coll[Byte] = SELF.tokens(0)._1 // emission NFT
+  val distTokenAmnt: Coll[Byte] = SELF.tokens(1)._2
+  val proportion:    Long       = SELF.R4[Long].get
+  val poolFee:       Long       = SELF.R5[Long].get
+
+  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+    val expected = valuesPair._1
+    val actual   = valuesPair._2
+    val amountTop = (expected - actual) * 100L
+    val percentage = amountTop / actual
+    (percentage < 1L) && (percentage > -1L) // 1% margin of error during calculations
+  }
+  val holdingBoxes = OUTPUTS.filter{ (box: Box) => blake2b256(box.propositionBytes) == holdingBytes}
+
+  val blockReward: Long   = INPUTS(1).value
+  val rewardAfterFees: Long   = blockReward - ((blockReward * (poolFee)) / poolFeeDenom)
+
+  val valueInHolding = holdingBoxes.fold(0L, {
+    (lastSum: Long, box: Box) =>
+      lastSum + box.value
+  })
+  val tokensInHolding = holdingBoxes.fold(0L, {
+    (lastSum: Long, box: Box) =>
+      lastSum + box.tokens(0)._2
+  })
+
+
+  val hasNextEmissions: Boolean = {
+    allOf(Coll(
+      OUTPUTS(0).propositionBytes == SELF.propositionBytes,
+      OUTPUTS(0).tokens(0)._1 == emToken,
+      OUTPUTS(0).tokens(1)._1 == distToken,
+      OUTPUTS(0).tokens(1)._2 >= distTokenAmnt - tokensInHolding,
+      OUTPUTS(0).value        == SELF.value,
+      OUTPUTS(0).R4[Long].get  >  0,
+      OUTPUTS(0).R5[Long].get  <= 2500, // Share operator may take max fee of 2000 / 100000 or 2%, and may change every emission cycle
+      OUTPUTS(0).R5[Long].get  >= 0
+    ))
+  }
+
+
+
+  val holdingValid: Boolean = {
+    allOf(Coll(
+      isValueInRange((valueInHolding, rewardAfterFees)),
+      isValueInRange((tokensInHolding, (valueInHolding * proportion) / decimalPlaces)),
+    ))
+  }
+
+  sigmaProp(hasNextEmissions && holdingValid) // && shareOperator
+
+
+}

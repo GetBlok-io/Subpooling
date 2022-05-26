@@ -47,11 +47,12 @@ object MetadataContract {
    * @param currentHeight    current height from blockchain context
    * @return OutBox representing new metadata box with initialized registers.
    */
-  def buildGenesisBox(mOB: MetadataOutputBuilder, metadataContract: ErgoContract, poolOp: Address, initialValue: Long, currentHeight: Int, subpoolToken: ErgoId, subpoolId: Long): MetadataOutBox = {
+  def buildGenesisBox(mOB: MetadataOutputBuilder, metadataContract: ErgoContract, poolOp: Address, initialValue: Long, currentHeight: Int,
+                      subpoolToken: ErgoId, subpoolId: Long, feeAmount: Int = 1000): MetadataOutBox = {
     val poolOpBytes = PropBytes.ofAddress(poolOp)(AppParameters.networkType)
     val memberInfo = new MemberInfo(Array(1L, (1 * Parameters.OneErg)/10 , 0L, 0L, 0L))
     val initialConsensus: ShareDistribution = new ShareDistribution(Map((poolOpBytes, memberInfo)))
-    val initialPoolFee: PoolFees = new PoolFees(Map((poolOpBytes, 1000)))
+    val initialPoolFee: PoolFees = new PoolFees(Map((poolOpBytes, feeAmount)))
     val initialPoolOp: PoolOperators = new PoolOperators(Array(poolOpBytes))
     // The following info is stored: epoch 0, currentEpochHeight, creationEpochHeight,
     // and a filler value for the box id, since that info can only be obtained after the first spending tx.

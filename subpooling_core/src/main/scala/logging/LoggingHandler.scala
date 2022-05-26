@@ -29,7 +29,7 @@ object LoggingHandler {
 
     val LOG_COMMAND_TX = "CommandTx"
     val LOG_DIST_TX = "DistributionTx"
-    val LOG_HOLD_CONTRACT = "HoldingContract"
+    val LOG_HOLD_CONTRACT = "SimpleHoldingContract"
     val LOG_GEN_TX = "GenesisTx"
     val LOG_MOD_TX = "ModificationTx"
     val LOG_REGROUP_TX = "RegroupTx"

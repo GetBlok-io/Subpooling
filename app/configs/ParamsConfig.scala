@@ -30,9 +30,13 @@ class ParamsConfig(config: Configuration){
   val defaultPoolTag: String = config.get[String]("params.defaultPool")
   val keepSharesWindowInWeeks: Int = config.get[Int]("params.keepSharesWindow")
   val keepMinerStatsWindowInWeeks: Int = config.get[Int]("params.keepMinerStatsWindow")
+  val currentFeeAddress: String = config.get[String]("params.feeAddress")
+  val currentFeePerc: Double    = config.get[Double]("params.feePercent")
 
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff
   AppParameters.defaultMiningPK = defaultPK
   AppParameters.numMinConfirmations = confirmationNum
+  AppParameters.feeAddress = currentFeeAddress
+  AppParameters.feePerc = currentFeePerc
 }

@@ -9,6 +9,7 @@ class TasksConfig(config: Configuration){
   val groupExecConfig:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "group-execution")
   val poolBlockConfig:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "pool-block-listener")
   val dbCrossCheckConfig: TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "db-cross-check")
+  val initPoolConfig:     TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "init-pool-task")
 }
 
 object TasksConfig {

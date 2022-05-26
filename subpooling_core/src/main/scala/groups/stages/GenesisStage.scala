@@ -14,7 +14,7 @@ import org.ergoplatform.appkit.BlockchainContext
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.util.Try
 
-class GenesisStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, metadataVal: Long)
+class GenesisStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, metadataVal: Long, feeValue: Int = 1000)
   extends TransactionStage[MetadataInputBox](pool, ctx, wallet) {
   override val stageName: String = "GenesisStage"
 
@@ -32,6 +32,7 @@ class GenesisStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, metad
           .metadataValue(metadataVal)
           .tokenInputBox(pool.rootTx.getOutputsToSpend.get(0))
           .smartPoolToken(poolToken)
+          .feeAmount(feeValue)
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))

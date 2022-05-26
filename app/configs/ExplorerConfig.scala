@@ -6,6 +6,6 @@ import play.api.Configuration
 
 class ExplorerConfig(config: Configuration) {
   private val networkType = NetworkType.valueOf(config.get[String]("node.networkType"))
-
-  def explorerHandler = new ExplorerHandler(networkType)
+  private val customURL   = config.get[String]("node.explorerURL")
+  def explorerHandler = new ExplorerHandler(networkType, Some(customURL))
 }

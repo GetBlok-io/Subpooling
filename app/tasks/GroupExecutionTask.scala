@@ -56,7 +56,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
   if(taskConfig.enabled) {
     logger.info(s"GroupExecution Task will initiate in ${taskConfig.startup.toString()} with an interval of" +
       s" ${taskConfig.interval}")
-    system.scheduler.scheduleAtFixedRate(initialDelay = taskConfig.startup, interval = taskConfig.interval)({
+    system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
 
       logger.info("GroupExecution has begun")

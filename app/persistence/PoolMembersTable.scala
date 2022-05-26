@@ -9,7 +9,7 @@ import slick.lifted.{ProvenShape, ShapedValue, Tag}
 
 import java.time.LocalDateTime
 
-class PoolMembersTable(tag: Tag) extends Table[PoolMember](tag, "pool_balance_changes") {
+class PoolMembersTable(tag: Tag) extends Table[PoolMember](tag, "subpool_members") {
   def subpool       = column[String]("subpool")
   def subpool_id    = column[Long]("subpool_id")
   def tx            = column[String]("tx")

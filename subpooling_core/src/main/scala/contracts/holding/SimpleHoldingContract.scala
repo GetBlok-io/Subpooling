@@ -241,7 +241,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
 }
 
 object SimpleHoldingContract {
-
+  val logger: Logger = LoggerFactory.getLogger(LoggingHandler.loggers.LOG_HOLD_CONTRACT)
   val script: String = Scripts.SIMPLE_HOLDING_SCRIPT
 
   /**

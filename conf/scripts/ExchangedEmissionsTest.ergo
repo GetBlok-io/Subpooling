@@ -1,0 +1,102 @@
+{
+  // Exchanged Emissions - Kirat Singh
+  // This contract takes the block reward (sum of all other input boxes value in ERG), removes a fee from it, and
+  // then performs a simulated swap and adjusts the output using the given percentage value.
+  // This output value represents the tokens taken from the emission box, and represents the miner's
+  // block reward, which must be distributed amongst holding contracts
+
+  // Constants
+  val shareOperator: SigmaProp  = const_shareOpPK
+  val poolOperator:  SigmaProp  = const_poolOpPK
+  val LPToken:       Coll[Byte] = const_LPTokenId
+  val distToken:     Coll[Byte] = const_distTokenId
+  val holdingBytes:  Coll[Byte] = const_holdingBytesHashed
+  val slippage:      Int        = 1 // Assume 1% slippage
+  val minHoldingBoxVal: Long    = 1000L * 1000L * 10 // Up to 10 members in each subpool, so make sure enough ERG is in holding
+  val poolFeeDenom:  Long        = 100000L
+  // SELF Assets & Registers
+  val emToken:       Coll[Byte] = SELF.tokens(0)._1 // emission NFT
+  val distTokenAmnt: Coll[Byte] = SELF.tokens(1)._2
+  val percentChange: Long        = SELF.R4[Long].get // percent added
+  val poolFee:       Long        = SELF.R5[Long].get
+
+
+  // Other Assets & Registers
+  val LPBox:  Box                   = CONTEXT.dataInputs(0)
+  val feeNum: Int                   = LPBox.R4[Int].get
+  val realLPToken:   Coll[Byte]     = LPBox.tokens(0)._1
+  val realDistToken: Coll[Byte]     = LPBox.tokens(2)._1
+  val assetX:  Long                 = LPBox.value
+  val assetY:  Long                 = LPBox.tokens(2)._2
+
+  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+    val expected = valuesPair._1
+    val actual   = valuesPair._2
+    val amountTop = (expected - actual) * 100L
+    val percentage = amountTop / actual
+    (percentage < 5L) && (percentage > -5L) // 1% margin of error during calculations
+  }
+  val holdingBoxes = OUTPUTS.filter{ (box: Box) => blake2b256(box.propositionBytes) == holdingBytes}
+
+  // Reward to simulate swap, total val of all input boxes other than emissions box
+  // Nitro not included in calculation
+  val rewardToSimSwap: Long   = INPUTS(1).value
+  val rewardAfterFees: Long   = rewardToSimSwap - ((rewardToSimSwap * (poolFee)) / poolFeeDenom) - (holdingBoxes.size * minHoldingBoxVal)
+  // Perform simulated swap
+  val outputNum    = (assetY / 100000) * ((rewardAfterFees * feeNum) / 100000)
+
+  val maxAssetX    = (assetX + ((assetX * slippage) / 10000)) * 1000
+  val adjustedFee  = rewardAfterFees * feeNum
+
+  val outputDenom  = ((maxAssetX) + (((adjustedFee)) )) / 100000
+
+  val outputAmount = (outputNum / outputDenom) * 100000
+
+  // Adjust output to add percentage
+  val adjustedOutput = (outputAmount + ((outputAmount * percentChange) / poolFeeDenom))
+
+  // Boolean Props
+  val validLPBox: Boolean = {
+    allOf(Coll(
+      LPToken == realLPToken,
+      distToken == realDistToken
+    ))
+  }
+
+  val hasNextEmissions: Boolean = {
+    allOf(Coll(
+      OUTPUTS(0).propositionBytes == SELF.propositionBytes,
+      OUTPUTS(0).tokens(0)._1 == emToken,
+      OUTPUTS(0).tokens(1)._1 == distToken,
+      isValueInRange((OUTPUTS(0).tokens(1)._2, distTokenAmnt - adjustedOutput)),
+      OUTPUTS(0).value        == SELF.value,
+      OUTPUTS(0).R4[Long].get  == percentChange,
+      OUTPUTS(0).R5[Long].get  <= 2000, // Share operator may take max fee of 2000 / 100000 or 2%, and may change every emission cycle
+      OUTPUTS(0).R5[Long].get  >= 0
+    ))
+  }
+
+
+  val holdingBoxesFunded = holdingBoxes.forall{(box: Box) => box.value == minHoldingBoxVal}
+  val tokensInHolding = holdingBoxes.fold(0L, {
+    (lastSum: Long, box: Box) =>
+      if(box.tokens(0)._1 == distToken){
+        lastSum + box.tokens(0)._2
+      }else{
+        lastSum
+      }
+  })
+
+  val outputSwapped = OUTPUTS.exists{ (box: Box) => isValueInRange((box.value, rewardAfterFees)) && box.propositionBytes == poolOperator.propBytes}
+
+  val holdingValid: Boolean = {
+    allOf(Coll(
+      isValueInRange((tokensInHolding, adjustedOutput)),
+      holdingBoxesFunded
+    ))
+  }
+
+  sigmaProp(validLPBox && hasNextEmissions && holdingValid && outputSwapped) // && shareOperator
+
+
+}

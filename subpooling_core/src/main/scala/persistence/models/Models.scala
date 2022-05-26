@@ -90,7 +90,9 @@ object Models {
     }
   }
 
-  object PoolState extends DatabaseConversion[PoolState] {
+  object PoolState extends DatabaseConversion[PoolState]
+    with Function17[String, Long, String, String, String, Long, Long, Long, Long, String, Int, Long, String,
+                    String, Long, LocalDateTime, LocalDateTime, PoolState] {
     override def fromResultSet(rs: ResultSet): PoolState = {
       implicit val resultSet: ResultSet = rs
       PoolState(str(1), long(2), str(3), str(4), str(5), long(6), long(7),
@@ -113,7 +115,10 @@ object Models {
                              updated: LocalDateTime, created: LocalDateTime, emissions_id: String = "none", emissions_type: String = "none",
                              blocksFound: Long = 0L)
 
-  object PoolInformation extends DatabaseConversion[PoolInformation] {
+  object PoolInformation extends DatabaseConversion[PoolInformation]
+    with Function20[String, Long, Long, Long, Long, Long, Long, String,
+      String, Long, Boolean, Long, Long, String, String, LocalDateTime,
+      LocalDateTime, String, String, Long, PoolInformation] {
     override def fromResultSet(rs: ResultSet): PoolInformation = {
       implicit val resultSet: ResultSet = rs
       PoolInformation(str(1), long(2), long(3), long(4), long(5), long(6), long(7),
@@ -124,16 +129,18 @@ object Models {
     val CURR_ERG = "ERG"
     val CURR_NETA = "NETA"
     val CURR_COMET = "COMET"
+    val CURR_ERG_COMET = "ERG+COMET"
     val CURR_NUGS  = "Nuggies"
     val CURR_TEST_TOKENS = "tToken"
-    val TEST_ID = "2adb1b96acbcc10a8c6138a7f968c657f1130f70559d8f49abb391ac72800f0f"
+    val TEST_ID = "d35cc88ad1ae67539a95261736af734fa9922db35d0133c08df2e767bdc99c5f"
 
     val PAY_PPLNS = "PPLNS"
     val PAY_PPS   = "PPS"
     val PAY_EQ    = "EQUAL"
     val PAY_SOLO  = "SOLO"
 
-    val TokenExchangeEmissions = "TokenExchange"
+    val TokenExchangeEmissions = "Exchange"
+    val ProportionalEmissions  = "Proportional"
     val NoEmissions   = "none"
   }
 
@@ -176,10 +183,11 @@ object Models {
 
   case class PoolBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: String,
                        miner: String, reward: Double, hash: String, created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime){
-    def getErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
+    def getNanoErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
   }
 
-  object PoolBlock extends DatabaseConversion[PoolBlock] {
+  object PoolBlock extends DatabaseConversion[PoolBlock]
+    with Function14[Long, Long, Double, String, Double, Option[Double], String, String, Double, String, LocalDateTime, String, Long, LocalDateTime, PoolBlock] {
     override def fromResultSet(rs: ResultSet): PoolBlock = {
       implicit val resultSet: ResultSet = rs
       PoolBlock(long(1), long(3), dec(4), str(5), dec(7), decOpt(8), str(9), str(10), dec(11),

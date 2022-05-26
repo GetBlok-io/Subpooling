@@ -3,11 +3,11 @@ package actors
 import actors.GroupRequestHandler._
 import akka.actor.{Actor, Props}
 import configs.NodeConfig
-import io.getblok.subpooling_core.boxes.{EmissionsBox, MetadataInputBox}
+import io.getblok.subpooling_core.boxes.{EmissionsBox, ExchangeEmissionsBox, MetadataInputBox, ProportionalEmissionsBox}
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.command.{CommandContract, PKContract}
-import io.getblok.subpooling_core.contracts.emissions.EmissionsContract
-import io.getblok.subpooling_core.contracts.holding.{HoldingContract, SimpleHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, ProportionalEmissionsContract}
+import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, SimpleHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager, HoldingGroup}
@@ -15,11 +15,12 @@ import io.getblok.subpooling_core.groups.builders.{DistributionBuilder, HoldingB
 import io.getblok.subpooling_core.groups.entities.{Member, Pool, Subpool}
 import io.getblok.subpooling_core.groups.models.{GroupBuilder, GroupSelector, TransactionGroup, TransactionStage}
 import io.getblok.subpooling_core.groups.selectors.{LoadingSelector, SelectionParameters, StandardSelector}
-import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, HoldingRoot}
+import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
-import org.ergoplatform.appkit.{Address, BlockchainContext, ErgoClient, ErgoClientException, ErgoId, ErgoToken, InputBox, NetworkType, Parameters, RestApiErgoClient}
+import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoClientException, ErgoId, ErgoToken, InputBox, NetworkType, Parameters, RestApiErgoClient}
 import play.api.libs.json.Json
 import play.api.{Configuration, Logger}
+import utils.EmissionTemplates
 
 import javax.inject.Inject
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
@@ -126,6 +127,12 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                         case PoolInformation.CURR_TEST_TOKENS =>
                           logger.info("Using test tokens for currency!")
                           TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
+                        case PoolInformation.CURR_NETA =>
+                          logger.info("Using NETA for currency!")
+                          TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
+                        case PoolInformation.CURR_ERG_COMET =>
+                          logger.info("Using ERG+COMET for currency!")
+                          AdditiveHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
                         case _ =>
                           SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
                       }
@@ -183,8 +190,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                     case PoolInformation.CURR_ERG =>
                       val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
-                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(block.getErgReward))
-                      val builder = new HoldingBuilder(block.getErgReward, holdingContract, AppParameters.getBaseFees(block.getErgReward), root)
+                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward))
+                      val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
                     case PoolInformation.CURR_TEST_TOKENS =>
@@ -198,8 +205,47 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                         .filter(i => i.getTokens.get(0).getId.toString == poolInformation.emissions_id).head
                       val emissionsBox = new EmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An emissions box was found! $emissionsBox")
-                      val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, block.getErgReward, AppParameters.getBaseFees(block.getErgReward), emissionsBox)
-                      val builder = new HoldingBuilder(emissionsBox.emissionReward.value, holdingContract, AppParameters.getBaseFees(block.getErgReward), root)
+                      val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward, AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
+                      val builder = new HoldingBuilder(emissionsBox.emissionReward.value, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
+                      GroupCurrencyComponents(holdingContract, root, builder)
+
+                    case PoolInformation.CURR_NETA =>
+                      logger.info("Using NETA tokens for currency!")
+                      val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
+                      val template = EmissionTemplates.getNETATemplate(ctx.getNetworkType)
+                      val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpToken, template.distToken)
+                      logger.info(s"Emissions Contract: ${emissionsContract.getAddress}")
+                      val potentialBoxes = ctx.getCoveringBoxesFor(emissionsContract.getAddress, 0L, Seq(new ErgoToken(poolInformation.emissions_id, 1L)).asJava).getBoxes
+
+                      logger.info("Potential boxes: ")
+                      potentialBoxes.asScala.map(_.toJson(true)).foreach(j => logger.info(j))
+
+                      val emissionInput = ctx.getCoveringBoxesFor(emissionsContract.getAddress,
+                        0L, Seq(new ErgoToken(poolInformation.emissions_id, 1L)).asJava).getBoxes
+                        .asScala.toSeq
+                        .filter(i => i.getTokens.size() > 0)
+                        .filter(i => i.getTokens.get(0).getId.toString == poolInformation.emissions_id).head
+
+
+                      val emissionsBox = new ExchangeEmissionsBox(emissionInput, emissionsContract)
+                      logger.info(s"An exchange emissions box was found! $emissionsBox")
+                      val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward, AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
+                      val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
+                      GroupCurrencyComponents(holdingContract, root, builder)
+                    case PoolInformation.CURR_ERG_COMET =>
+                      logger.info("Using ERG+COMET tokens for currency!")
+                      val holdingContract = AdditiveHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
+                      val template = EmissionTemplates.getCOMETTemplate(ctx.getNetworkType)
+                      val emissionsContract = ProportionalEmissionsContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.distToken, template.decimalPlaces)
+                      val emissionInput = ctx.getCoveringBoxesFor(emissionsContract.getAddress,
+                        0L, Seq(new ErgoToken(poolInformation.emissions_id, 1L)).asJava).getBoxes
+                        .asScala.toSeq
+                        .filter(i => i.getTokens.size() > 0)
+                        .filter(i => i.getTokens.get(0).getId.toString == poolInformation.emissions_id).head
+                      val emissionsBox = new ProportionalEmissionsBox(emissionInput, emissionsContract)
+                      logger.info(s"An exchange emissions box was found! $emissionsBox")
+                      val root = new ProportionalEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward, AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
+                      val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                   }
 

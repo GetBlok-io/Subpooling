@@ -66,7 +66,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
     new ApiResponse(code = 500, message = "An error occurred while generating the pool")
   ))*/
 
-  // TODO: Make this part of task
+/*  // TODO: Make this part of task
   def updatePoolInfo(tag: String): Action[AnyContent] = Action {
     implicit val ec: ExecutionContext = slowWriteContext
     val fPoolStates = quickQuery ? QueryAllSubPools(tag)
@@ -93,7 +93,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
         else
           InternalServerError("There was an error writing information for the pool")
     }(slowWriteContext)
-  }
+  }*/
 
 
   // States
@@ -211,6 +211,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
 
   }
 
+/*
   def addMiner(tag: String, miner: String): Action[AnyContent] = Action {
 
     val tryUpdate = Try(settingsTable.updateMinerPool(miner, tag))
@@ -219,6 +220,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
     else
       InternalServerError("ERROR 500: An internal server error occurred while adding the miner.")
   }
+*/
 
 
 }

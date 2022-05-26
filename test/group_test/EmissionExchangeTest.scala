@@ -16,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-class EmissionExchange extends AnyFunSuite {
+class EmissionExchangeTest extends AnyFunSuite {
   var group: DistributionGroup = _
   var selector: StandardSelector = _
   var builder: GroupBuilder = _
@@ -28,7 +28,7 @@ class EmissionExchange extends AnyFunSuite {
       ctx =>
 
         group = new DistributionGroup(singlePool, ctx, dummyWallet,
-          commandContract, holdingContract, false)
+          commandContract, holdingContract, None, false)
         logger.info("holdingContract: " + holdingContract.toAddress.toString)
     }
   }
@@ -38,7 +38,7 @@ class EmissionExchange extends AnyFunSuite {
     val box = boxItems.get.head
     val POOL_FEE_DENOM = 1000
     logger.info(box.toString)
-    val swapAmount = calculateMinOutputAmount(Helpers.ergToNanoErg(50), .01,
+    val swapAmount = calculateMinOutputAmount(Helpers.ergToNanoErg(122), .01,
       box.value, box.assets(2).amount, Integer.valueOf(box.registers.R4.get.renderedValue).longValue(), POOL_FEE_DENOM)
 
     logger.info(s"Swap amount: $swapAmount")
@@ -52,8 +52,18 @@ class EmissionExchange extends AnyFunSuite {
     val feeDenom:   BigInt = BigInt.apply(feeDenominator)
 
     val slippage: BigInt = BigInt.apply((maxSlippagePercentage * 100D).toInt)
-    val outputAmount: BigInt = (yAmount * swapInputAmount * feeNum) / ((xAmount + (xAmount * slippage) / (BigInt.apply(100) * BigInt.apply(100))) * feeDenom + swapInputAmount * feeNum)
-    val outputAmountLong: Long = outputAmount.toLong
+    //val outputAmount: BigInt = (yAmount * swapInputAmount * feeNum) / ((xAmount + ((xAmount * slippage) / (BigInt.apply(100) * BigInt.apply(100)))) * feeDenom + swapInputAmount * feeNum)
+    val outputNum = ((yAssetAmount / 100000) * ((baseAmount * feeNumerator) / 100000))
+    logger.info(s"OutputNumerator: ${outputNum}")
+    val outputDenom = (((xAssetAmount + ((xAssetAmount * 1) / 10000)) * feeDenominator) + (baseAmount * feeNumerator)) / 100000
+    logger.info(s"OutputDenominator: ${outputDenom}")
+    val unadjustedOutput = outputNum / outputDenom
+    logger.info(s"unAdj Output: ${unadjustedOutput}")
+    val reAdjOutput = unadjustedOutput * 100000
+    logger.info(s"Output reAdj: ${reAdjOutput}")
+    val outputAmountLong: Long = reAdjOutput.toLong
+    val percentAdded = outputAmountLong + ((outputAmountLong * 10000)/ 100000)
+    logger.info(s"With percent added: ${percentAdded}")
     outputAmountLong
   }
 

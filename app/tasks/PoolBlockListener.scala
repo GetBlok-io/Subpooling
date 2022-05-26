@@ -43,7 +43,7 @@ class PoolBlockListener @Inject()(system: ActorSystem, config: Configuration,
   if(taskConfig.enabled) {
     logger.info(s"PoolBlockListener Task will initiate in ${taskConfig.startup.toString()} with an interval of" +
       s" ${taskConfig.interval}")
-    system.scheduler.scheduleAtFixedRate(initialDelay = taskConfig.startup, interval = taskConfig.interval)({
+    system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
       logger.info("PoolBlockListener has begun execution, now initiating block evaluation")
         val tryEvaluate = Try
@@ -60,8 +60,8 @@ class PoolBlockListener @Inject()(system: ActorSystem, config: Configuration,
                   settingsQuery.map{
                     s =>
                       val postBlock = if(s.nonEmpty) {
-                        logger.info(s"Now posting block ${b.blockheight} with miner ${b.miner} to pool ${s.head.subpool}")
-                        (write ? PostBlock(b.blockheight, s.head.subpool)).mapTo[Long].flatMap {
+                        logger.info(s"Now posting block ${b.blockheight} with miner ${b.miner} to pool ${s.head.subpool.getOrElse(params.defaultPoolTag)}")
+                        (write ? PostBlock(b.blockheight, s.head.subpool.getOrElse(params.defaultPoolTag))).mapTo[Long].flatMap {
                           rows =>
                             (write ? UpdateBlockStatus(Block.TRANSFERRED, b.blockheight)).mapTo[Long]
                         }

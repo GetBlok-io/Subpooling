@@ -8,8 +8,11 @@ import akka.util.Timeout
 import io.getblok.subpooling_core.persistence.models.Models.PoolBlock
 import io.getblok.subpooling_core.persistence.{MembersTable, PlacementTable}
 import models.ResponseModels._
+import persistence.Tables
+import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import play.api.{Configuration, Logger}
+import slick.jdbc.PostgresProfile
 
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.ExecutionContext
@@ -19,15 +22,17 @@ import scala.language.postfixOps
 @Singleton
 class BlocksController @Inject()(@Named("group-handler") groupRequestHandler: ActorRef,
                                  @Named("quick-db-reader") query: ActorRef, system: ActorSystem,
-                                 val components: ControllerComponents, config: Configuration)
-extends SubpoolBaseController(components, config){
+                                 val components: ControllerComponents, config: Configuration,
+                                 override protected val dbConfigProvider: DatabaseConfigProvider
+                                ) extends SubpoolBaseController(components, config)
+                                with HasDatabaseConfigProvider[PostgresProfile] {
   implicit val quickQueryContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.quick-query-dispatcher")
   val groupContext: ExecutionContext      = system.dispatchers.lookup("subpool-contexts.group-dispatcher")
 
 
   implicit val timeOut: Timeout = Timeout(20 seconds)
   private val logger: Logger    = Logger("BlocksController")
-
+  import dbConfig.profile.api._
 
 
   logger.info("Initiating blocks controller")
@@ -41,19 +46,18 @@ extends SubpoolBaseController(components, config){
     block.mapTo[PoolBlock].map(b => okJSON(b))(quickQueryContext)
   }
   def getBlocksByStatus(status: String, page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10)): Action[AnyContent] = Action.async {
-    val blocks = query ? PoolBlocksByStatus(status)
-    blocks.mapTo[Seq[PoolBlock]].map(b =>
-      okJSON(Paginate(b, pageSize))
-
-    )(quickQueryContext)
+    db.run(Tables.PoolBlocksTable.filter(_.status === status).drop(page.get * pageSize.get).take(pageSize.get).result).map(okJSON(_))
   }
 
-  def allBlocks(poolTag: Option[String], pageSize: Option[Int] = Some(10)): Action[AnyContent] = Action.async {
-    val blocks = (query ? QueryBlocks(poolTag)).mapTo[Seq[PoolBlock]]
-    blocks.map(b => okJSON(Paginate(b, pageSize)))
+  def allBlocks(poolTag: Option[String], page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10)): Action[AnyContent] = Action.async {
+    poolTag match {
+      case Some(tag) =>
+        db.run(Tables.PoolBlocksTable.filter(_.poolTag === tag).drop(page.get * pageSize.get).take(pageSize.get).result).map(okJSON(_))
+      case None =>
+        db.run(Tables.PoolBlocksTable.drop(page.get * pageSize.get).take(pageSize.get).result).map(okJSON(_))
+    }
+
   }
 
-  def placementTable(part: String) = new PlacementTable(dbConn, part)
-  def memTable(part: String) = new MembersTable(dbConn, part)
 
 }

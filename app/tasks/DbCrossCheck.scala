@@ -54,9 +54,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   if(taskConfig.enabled) {
     logger.info(db.source.toString)
     logger.info(dbConfig.profileName)
-    logger.info(s"DatabaseCrossCheck will initiate in ${taskConfig.startup.toString()} with an interval of " +
+    logger.info(s"DatabaseCrossCheck will initiate in ${taskConfig.startup.toString()} with an interval of" +
       s" ${taskConfig.interval}")
-    system.scheduler.scheduleAtFixedRate(initialDelay = taskConfig.startup, interval = taskConfig.interval)({
+    system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
 
         Try {
@@ -273,9 +273,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     Try {
       // Update pool info
       write ! UpdatePoolInfo(block.poolTag, block.gEpoch, block.blockheight, members.length, members.map(_.stored).sum,
-        members.map(_.paid).sum)
+        info.total_paid + members.map(_.paid).sum)
 
       write ! DeletePlacementsAtBlock(block.poolTag, block.blockheight)
+      logger.info("Finished updating info and deleting placements")
     }.recoverWith{
       case ex: Exception =>
         logger.error("There was a fatal exception while updating info and deleting placements!", ex)

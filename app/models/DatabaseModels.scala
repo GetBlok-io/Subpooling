@@ -19,5 +19,6 @@ object DatabaseModels {
   case class MinerStats(id: Long, poolId: String, miner: String, worker: String, hashrate: Double, sharespersecond: Double,
                         created: LocalDateTime)
 
-
+  case class SMinerSettings(address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
+                           subpool: Option[String])
 }

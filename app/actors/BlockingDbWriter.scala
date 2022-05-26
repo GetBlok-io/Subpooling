@@ -88,7 +88,7 @@ object BlockingDbWriter {
   case class UpdateBlockStatus(status: String, blockHeight: Long)       extends DatabaseUpdateRequest
   case class UpdatePoolBlockStatus(status: String, blockHeight: Long)       extends DatabaseUpdateRequest
   case class UpdatePoolBlockConf(status: String,
-                                 confirmation: Double, blockHeight: Long, gEpoch: Long = -1)   extends DatabaseUpdateRequest
+                                 confirmation: Double, blockHeight: Long, gEpoch: Option[Long])   extends DatabaseUpdateRequest
   case class UpdateBlockEffort(poolTag: String, effort: Double, blockHeight: Long) extends DatabaseUpdateRequest
   case class PostBlock(blockHeight: Long, poolTag: String)              extends  DatabaseUpdateRequest
   case class UpdateWithValidation(blockHeight: Long,

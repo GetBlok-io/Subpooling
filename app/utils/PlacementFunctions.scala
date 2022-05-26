@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
-import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, HoldingRoot}
+import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.Models._
 import org.ergoplatform.appkit.{InputBox, Parameters}
@@ -50,6 +50,10 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
                 case root: HoldingRoot =>
                   root.inputBoxes = Some(inputBoxes)
                 case root: EmissionRoot =>
+                  root.inputBoxes = Some(inputBoxes)
+                case root: ExchangeEmissionsRoot =>
+                  root.inputBoxes = Some(inputBoxes)
+                case root: ProportionalEmissionsRoot =>
                   root.inputBoxes = Some(inputBoxes)
               }
               holdingComp.builder.inputBoxes = Some(inputBoxes)
@@ -136,9 +140,13 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     for(blockSel <- blockSelections) {
       blockSel.poolInformation.currency match {
         case PoolInformation.CURR_ERG =>
-          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(HoldingRoot.getMaxInputs(blockSel.block.getErgReward)))
+          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(HoldingRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
         case PoolInformation.CURR_TEST_TOKENS =>
-          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(EmissionRoot.getMaxInputs(blockSel.block.getErgReward)))
+          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(EmissionRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
+        case PoolInformation.CURR_NETA =>
+          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(ExchangeEmissionsRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
+        case PoolInformation.CURR_ERG_COMET =>
+          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(ProportionalEmissionsRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
       }
 
     }
@@ -148,7 +156,8 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[MinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
     implicit val timeout: Timeout = Timeout(15 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == m))
+
+    //collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == ms.))
 
     logger.info(s"Collector shareMap length: ${collector.shareMap.size}")
     logger.info(s"shareMap: ${collector.shareMap.toString()}")
@@ -156,9 +165,12 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
 
     // Collect new min payments for this placement
     val members = collector.toMembers.map{
-      m => m.copy( memberInfo =
+      m =>
+        // Double wrap option to account for null values
+        val minPay = Option(minerSettings.find(s => s.address == m.address.toString).map(_.paymentthreshold).getOrElse(0.01))
+        m.copy( memberInfo =
         m.memberInfo.withMinPay(
-          (minerSettings.find(s => s.address == m.address.toString).get.paymentthreshold * BigDecimal(Parameters.OneErg)).longValue()
+          (minPay.getOrElse(0.01) * BigDecimal(Parameters.OneErg)).longValue()
         )
       )
     }

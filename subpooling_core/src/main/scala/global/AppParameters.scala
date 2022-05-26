@@ -31,7 +31,10 @@ object AppParameters {
   var scoreAdjustmentCoeff: Long = 10000000L
   var defaultMiningPK = "" // default miner pk to use in case query request does not work
   var numMinConfirmations = 20
-  val baseFeePerc = Map(Address.create("3WwF1KHM9LJyF6T7RVeXgwvbCEsxpho7EMsmtKYBb3KrFs1vRowN") -> 1.0)
+  var feeAddress = "3WwF1KHM9LJyF6T7RVeXgwvbCEsxpho7EMsmtKYBb3KrFs1vRowN"
+  var feePerc    = 1.0
+  var baseFeePerc = Map(Address.create(feeAddress) -> feePerc)
 
+  def getFeeAddress: Address = Address.create(feeAddress)
   def getBaseFees(blockReward: Long): Map[Address, Long] = baseFeePerc.map(f => f._1 -> BoxHelpers.removeDust((BigDecimal(blockReward) * (f._2 / 100)).longValue()))
 }

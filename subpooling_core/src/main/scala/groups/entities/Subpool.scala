@@ -35,6 +35,7 @@ class Subpool(metadataInputBox: MetadataInputBox) {
 
   // Used during placement
   var nextHoldingValue: Long = _
+  var nextHoldingShare: Long = _
 
   var rootBox: InputBox = _
   var holdingBox: InputBox = _

@@ -3,7 +3,7 @@ package group_test
 import io.getblok.subpooling_core.boxes.MetadataInputBox
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.command.{CommandContract, PKContract}
-import io.getblok.subpooling_core.contracts.holding.{HoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.groups.entities.{Member, Pool}
 import io.getblok.subpooling_core.persistence.models.Models.PoolPlacement
@@ -23,7 +23,7 @@ object MockData {
   val mockAddresses: Array[Address] = mockAddressStrings.map(Address.create)
 
 
-  val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", "")
+  val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
   val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
@@ -42,6 +42,15 @@ object MockData {
         TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, subpoolToken)
     }
   }
+  val additiveHoldingContract: HoldingContract = {
+    ergoClient.execute {
+      ctx =>
+        val txB = ctx.newTxBuilder()
+        val metadataContract = MetadataContract.generateTestContract(ctx)
+        val subpoolToken = ErgoId.create(dummyToken)
+        AdditiveHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, subpoolToken)
+    }
+  }
 
   object SingleDistributionData {
     // Init Mock data
@@ -54,6 +63,7 @@ object MockData {
         a.toString, randomShareScore, randomMinPay, 1L, 0L, 0L, 0L))
     }
     val initSingleHoldingMap: Map[MetadataInputBox, InputBox] = Map(singlePool.subPools.head.box -> buildHoldingBox(holdingValue))
+    val initSingleAdditiveHoldingMap: Map[MetadataInputBox, InputBox] = Map(singlePool.subPools.head.box -> buildAdditiveHoldingBox(holdingValue))
     val initValueAfterFees: Long = holdingValue - (holdingValue / 100)
   }
 
@@ -64,7 +74,8 @@ object MockData {
     val emissionsReward: Long = Parameters.OneErg * 66
     val singlePool: Pool = initSinglePool
     val initSingleMembers: Array[Member] = mockAddresses.map(a => Member(a, new MemberInfo(Array(randomShareScore, randomMinPay, 0, 0, 0))))
-    val baseFeeMap: Map[Address, Long] = Map(Address.create("9gZsTqubics5VyrWZ2aXUy6HYUctyne6BrTzAeQFMqw4CNMxLVq") -> randomMinPay)
+    val baseFeePerc: Map[Address, Double] = Map(Address.create("9gZsTqubics5VyrWZ2aXUy6HYUctyne6BrTzAeQFMqw4CNMxLVq") -> 1.0)
+    val baseFeeMap: Map[Address, Long] = Map(Address.create("9gZsTqubics5VyrWZ2aXUy6HYUctyne6BrTzAeQFMqw4CNMxLVq") -> Parameters.MinFee * 10)
     val initPartialPlacements: Array[PoolPlacement] = {
 
       mockAddresses.map(a => PoolPlacement(dummyToken, 0L, 0L, "", 0L,

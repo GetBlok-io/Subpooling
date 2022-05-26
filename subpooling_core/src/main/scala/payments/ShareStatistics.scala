@@ -23,6 +23,9 @@ class ShareStatistics(miner: String) {
 
   def adjustedScore: BigDecimal = shareScore * AppParameters.scoreAdjustmentCoeff
 
+  override def toString: String = {
+    s"num: $shareNum \n score: $shareScore \n iterations: $iterations"
+  }
 }
 
 object ShareStatistics{

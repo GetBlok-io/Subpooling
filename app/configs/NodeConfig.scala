@@ -16,12 +16,13 @@ class NodeConfig(config: Configuration) {
   private val networkType: NetworkType = NetworkType.valueOf(config.get[String]("node.networkType"))
   private val scriptBase: String = config.get[String]("params.scriptBasePath")
   private val secretStorage: SecretStorage = SecretStorage.loadFrom(storagePath)
-
+  private var explorerURL: String = config.get[String]("node.explorerURL")
 
   AppParameters.networkType = getNetwork
   AppParameters.scriptBasePath = scriptBase
   secretStorage.unlock(password)
-  private val explorerURL: String = RestApiErgoClient.getDefaultExplorerUrl(networkType)
+  if(explorerURL == "default")
+    explorerURL = RestApiErgoClient.getDefaultExplorerUrl(networkType)
   private val ergoClient: ErgoClient = RestApiErgoClient.create(nodeURL, networkType, nodeKey, getExplorerURL)
   val apiClient = new ApiClient(nodeURL, "ApiKeyAuth", nodeKey)
   private val prover: ErgoProver = ergoClient.execute{

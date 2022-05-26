@@ -6,19 +6,19 @@ import registers.{MemberInfo, PropBytes, ShareDistribution}
 
 import io.getblok.subpooling_core.groups.models.GroupSelector
 import org.ergoplatform.appkit.Parameters
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable.ArrayBuffer
 
 class StandardSelector(val members: Array[Member], selectionParams: SelectionParameters) extends GroupSelector {
-
+  private val logger: Logger = LoggerFactory.getLogger("StandardSelector")
   final val MEMBER_LIMIT = selectionParams.maxMemberLimit
   final val EPOCH_MINED_LIMIT = selectionParams.epochMinedLimit
   final val KICKED_PAYMENT_THRESHOLD = Parameters.MinFee
 
   var membersAdded: ArrayBuffer[Member] = ArrayBuffer.empty[Member]
   var membersRemoved: ArrayBuffer[Member] = ArrayBuffer.empty[Member]
-
+  logger.info(s"Total of ${members.length} members are ready for selection")
   // TODO: Add maps for unused and removed pools
   def placeCurrentMiners: GroupSelector = {
     val currentPools = pool.subPools.filter(p => p.epoch > 0)
@@ -109,11 +109,12 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
 
     val newFreePools = pool.subPools.filter(p => p.epoch == 0)
     var membersLeft = members.diff(membersAdded).diff(membersRemoved)
-
+    logger.info(s"Total of ${membersLeft.length} members left after placement in existing pools. Now placing into new pools.")
     for (subPool <- newFreePools) {
       var distMap = Map.empty[PropBytes, MemberInfo]
 
       for (freeMember <- membersLeft) {
+        logger.info(s"Now evaluating member ${freeMember.address.toString} with info ${freeMember.memberInfo.toString}")
         if (distMap.size < MEMBER_LIMIT) {
           distMap = distMap + freeMember.copy(memberInfo
           = freeMember.memberInfo
@@ -139,11 +140,11 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
     pool.subPools --= pool.subPools.filter(p => p.nextDist == null)
     pool.subPools --= pool.subPools.filter(p => p.nextDist.size == 0)
 
-    val log = LoggerFactory.getLogger("StandardSelector")
-    log.info("Pools were selected!")
-    log.info(s"Num pools: ${pool.subPools.length}")
-    log.info(s"Pool distributions: ")
-    pool.subPools.foreach(s => log.info(s.nextDist.toString))
+
+    logger.info("Pools were selected!")
+    logger.info(s"Num pools: ${pool.subPools.length}")
+    logger.info(s"Pool distributions: ")
+    pool.subPools.foreach(s => logger.info(s.nextDist.toString))
 
     pool
   }

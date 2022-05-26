@@ -72,6 +72,8 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
     minerResponse.map(okJSON(_))
   }
 
+
+
   def getPayments(address: String): Action[AnyContent] = Action.async{
     val payments = db.run(Tables.Payments.filter(_.address === address).sortBy(_.created.desc).result)
     payments.map(okJSON(_))

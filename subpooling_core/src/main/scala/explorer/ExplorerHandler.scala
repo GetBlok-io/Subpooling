@@ -11,8 +11,14 @@ import sigmastate.Values.ErgoTree
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
-class ExplorerHandler(networkType: NetworkType) {
-  private val url: String = RestApiErgoClient.getDefaultExplorerUrl(networkType)
+class ExplorerHandler(networkType: NetworkType, customURL: Option[String] = None) {
+  private val url: String = {
+    if(customURL.isDefined && customURL.get == "default")
+      RestApiErgoClient.getDefaultExplorerUrl(networkType)
+    else{
+      customURL.getOrElse(RestApiErgoClient.getDefaultExplorerUrl(networkType))
+    }
+  }
   private val apiClient = new ExplorerApiClient(url)
   private val apiService: DefaultApi = apiClient.createService(classOf[DefaultApi])
 

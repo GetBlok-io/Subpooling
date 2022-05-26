@@ -12,7 +12,8 @@ import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.util.Try
 
-class GenesisRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, numSubpools: Long, metadataVal: Long)
+class GenesisRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, numSubpools: Long, metadataVal: Long,
+                  tokenName: Option[String] = None, tokenDesc: Option[String] = None)
   extends TransactionStage[InputBox](pool, ctx, wallet) {
   override val stageName: String = "GenesisRoot"
 
@@ -30,6 +31,8 @@ class GenesisRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, numSub
           .txFee(AppParameters.groupFee)
           .creatorAddress(wallet.p2pk)
           .inputBoxes(boxes)
+          .tokenName(tokenName)
+          .tokenDesc(tokenDesc)
           .build()
 
 

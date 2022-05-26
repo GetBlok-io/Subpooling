@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package groups.builders
 
 import io.getblok.subpooling_core.boxes.BoxHelpers
-import io.getblok.subpooling_core.contracts.holding.{HoldingContract, SimpleHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, SimpleHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.groups.entities.Pool
 import io.getblok.subpooling_core.groups.models.{GroupBuilder, TransactionStage}
@@ -37,9 +37,14 @@ class HoldingBuilder(rewardPaid: Long, holdingContract: HoldingContract, baseFee
             case contract: TokenHoldingContract =>
               // No base fees taken from reward paid, as reward paid is actually
               // Just the emissions reward
+              // CAUTION: Usage of emission exchange contract makes this calculation obsolete, as nextHoldingValue is
+              // calculated after the emission cycle.
               ((BigInt(s.nextTotalScore) / BigInt(poolShareScore)) * rewardPaid).toLong
-
+            case contract: AdditiveHoldingContract =>
+              BoxHelpers.removeDust(((BigDecimal(s.nextTotalScore) / BigDecimal(poolShareScore)) * rewardAfterBaseFee).toLong)
           }
+
+        s.nextHoldingShare = s.nextTotalScore
 
     }
     this

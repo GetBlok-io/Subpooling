@@ -16,11 +16,11 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
   val collector: ShareCollector = new ShareCollector(paymentType, blockMiner)
   private val logger = LoggerFactory.getLogger("ShareHandler")
   final val SHARE_LIMIT = 50000
-
+  logger.info(s"ShareHandler is using payment type ${paymentType.toString}")
   def queryToWindow(block: PoolBlock, defaultTag: String): ShareCollector = {
     logger.info(s"Share handler querying to window for block ${block.blockheight}")
     var offset = 0
-    while(collector.totalScore < AppParameters.pplnsWindow || offset == -1){
+    while(collector.totalScore < AppParameters.pplnsWindow && offset != -1){
       val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate(block.poolTag, defaultTag, block.created, offset, SHARE_LIMIT))
       val shares = Await.result(fShares, 20 seconds).map(s => PartialShare(s._1, s._2, s._3, s._4))
       logger.info(s"${shares.size} shares were queried")

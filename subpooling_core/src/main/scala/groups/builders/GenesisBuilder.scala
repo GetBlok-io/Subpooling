@@ -8,7 +8,8 @@ import io.getblok.subpooling_core.groups.entities.Pool
 import io.getblok.subpooling_core.groups.stages.roots.GenesisRoot
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 
-class GenesisBuilder(numSubpools: Long, metadataVal: Long) extends GroupBuilder {
+class GenesisBuilder(numSubpools: Long, metadataVal: Long,
+                     tokenName: Option[String] = None, tokenDesc: Option[String] = None) extends GroupBuilder {
 
   /**
    * Collect information that already exists about this Transaction Group and assign it to each subPool
@@ -31,7 +32,7 @@ class GenesisBuilder(numSubpools: Long, metadataVal: Long) extends GroupBuilder 
    * @return this Group Builder, with it's subPools assigned to the correct root boxes.
    */
   override def executeRootTx(ctx: BlockchainContext, wallet: NodeWallet): GroupBuilder = {
-    val stageResult = stageManager.execute[InputBox](new GenesisRoot(pool, ctx, wallet, numSubpools, metadataVal))
+    val stageResult = stageManager.execute[InputBox](new GenesisRoot(pool, ctx, wallet, numSubpools, metadataVal, tokenName, tokenDesc))
 
     pool.rootTx = stageResult._2
     this

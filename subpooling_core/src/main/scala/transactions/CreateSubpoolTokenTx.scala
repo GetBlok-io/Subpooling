@@ -55,10 +55,30 @@ class CreateSubpoolTokenTx(unsignedTxBuilder: UnsignedTransactionBuilder) extend
     this
   }
 
+  private[this] var _tokenName: Option[String] = None
+
+  def tokenName: Option[String] = _tokenName
+
+  def tokenName(value: Option[String]): CreateSubpoolTokenTx = {
+    _tokenName = value
+    this
+  }
+
+  private[this] var _tokenDesc: Option[String] = None
+
+  def tokenDesc: Option[String] = _tokenDesc
+
+  def tokenDesc(value: Option[String]): CreateSubpoolTokenTx = {
+    _tokenDesc = value
+    this
+  }
+
 
   override def build(): UnsignedTransaction = {
 
-    val subpoolTokens = new Eip4Token(_inputBoxes.head.getId.toString, numSubpools, "GetBlok.io Subpool Token", "This token identifier represents a subpool under GetBlok.io's Subpooling system.", 0)
+    val subpoolTokens = new Eip4Token(_inputBoxes.head.getId.toString, numSubpools,
+      _tokenName.getOrElse("GetBlok.io Subpool Token"),
+      _tokenDesc.getOrElse("This token identifier represents a subpool under GetBlok.io's Subpooling system."), 0)
     val outBox = unsignedTxBuilder.outBoxBuilder()
       .value(numSubpools * metadataValue + txFee)
       .mintToken(subpoolTokens)

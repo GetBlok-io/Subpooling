@@ -25,7 +25,7 @@ class TokenDistributionSuite extends AnyFunSuite {
       ctx =>
 
         group = new DistributionGroup(singlePool, ctx, dummyWallet,
-          commandContract, holdingContract, false)
+          commandContract, holdingContract, None, false)
         logger.info("holdingContract: " + holdingContract.toAddress.toString)
     }
   }

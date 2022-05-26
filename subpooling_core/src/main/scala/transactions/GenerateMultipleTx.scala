@@ -18,7 +18,7 @@ class GenerateMultipleTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends 
   private[this] var _metadataContract: ErgoContract = _
   private[this] var _smartPoolToken: ErgoToken = _
   private[this] var _tokenInputBox: InputBox = _
-
+  private[this] var _feeAmount: Int = 1000
   def tokenInputBox: InputBox = _tokenInputBox
 
   def tokenInputBox(value: InputBox): GenerateMultipleTx = {
@@ -60,13 +60,19 @@ class GenerateMultipleTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends 
     _metadataContract = contract
     this
   }
+  def feeAmount: Int = _feeAmount
+
+  def feeAmount(value: Int): GenerateMultipleTx = {
+    _feeAmount = value
+    this
+  }
 
   override def build(): UnsignedTransaction = {
     var genesisBoxes = Array.empty[OutBox]
     for(i <- 0L to smartPoolToken.getValue - 1){
       val smartPoolSingleton = new ErgoToken(smartPoolToken.getId, 1)
       val genesisBox: MetadataOutBox = MetadataContract.buildGenesisBox(new MetadataOutputBuilder(this.outBoxBuilder()), metadataContract, creatorAddress,
-        metadataValue, ctx.getHeight, smartPoolSingleton.getId, i)
+        metadataValue, ctx.getHeight, smartPoolSingleton.getId, i, feeAmount)
       genesisBoxes = genesisBoxes++Array(genesisBox.outBox)
     }
 

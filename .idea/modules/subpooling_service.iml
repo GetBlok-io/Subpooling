@@ -16,6 +16,7 @@
       <excludeFolder url="file://$MODULE_DIR$/../../target/universal" />
       <excludeFolder url="file://$MODULE_DIR$/../../target/web" />
       <excludeFolder url="file://$MODULE_DIR$/../../target/scala-2.13" />
+      <excludeFolder url="file://$MODULE_DIR$/../../target/docker" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

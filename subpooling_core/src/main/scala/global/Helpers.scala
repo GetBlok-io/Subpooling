@@ -20,6 +20,10 @@ object Helpers {
     currency match {
       case PoolInformation.CURR_ERG =>
         nanoErgToErg(wholeAmount)
+      case PoolInformation.CURR_NETA =>
+        (BigDecimal(wholeAmount) / 1000000).doubleValue()
+      case PoolInformation.CURR_ERG_COMET =>
+        nanoErgToErg(wholeAmount)
       case _ =>
         nanoErgToErg(wholeAmount)
     }

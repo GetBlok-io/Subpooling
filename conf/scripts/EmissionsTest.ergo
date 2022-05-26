@@ -58,7 +58,7 @@
             tokensSame,
             blockRewardSpent,
             tokensAreHeld,
-            holdingBoxesFunded
+            blockRewardUnchanged
           )
         )
         sigmaProp(spentByShareOperator) //&& shareOperator

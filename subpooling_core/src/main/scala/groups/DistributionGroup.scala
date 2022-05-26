@@ -4,7 +4,7 @@ package groups
 import boxes.{CommandInputBox, MetadataInputBox}
 
 import io.getblok.subpooling_core.contracts.command.CommandContract
-import io.getblok.subpooling_core.contracts.holding.{HoldingContract, SimpleHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, SimpleHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.groups.chains.DistributionChain
@@ -21,7 +21,8 @@ import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.collection.mutable.ArrayBuffer
 
 class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
-                        commandContract: CommandContract, holdingContract: HoldingContract, sendTxs: Boolean = true) extends TransactionGroup(pool, ctx, wallet) {
+                        commandContract: CommandContract, holdingContract: HoldingContract, tokenName: Option[String] = None,
+                        sendTxs: Boolean = true) extends TransactionGroup(pool, ctx, wallet) {
   override var completedGroups: Map[Subpool, SignedTransaction] = Map.empty[Subpool, SignedTransaction]
   override var failedGroups: Map[Subpool, Throwable] = Map.empty[Subpool, Throwable]
   override val groupName: String = "DistributionGroup"
@@ -73,13 +74,15 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
               val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
                 p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
                 p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
-                currencyValue(p.paymentMap(d._1)), change, d._2.getEpochsMined, "none", 0L, block.blockheight, LocalDateTime.now())
+                currencyValue(p.paymentMap(d._1)), change, d._2.getEpochsMined, tokenName.getOrElse("none"), p.paymentMap(d._1).getTokens.asScala.headOption.map(_.getValue.toLong).getOrElse(0L),
+                block.blockheight, LocalDateTime.now())
               poolMembers += poolMember
             }else{
               val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
                 p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
                 p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
-                0L, change, d._2.getEpochsMined, "none", 0L, block.blockheight, LocalDateTime.now())
+                0L, change, d._2.getEpochsMined, tokenName.getOrElse("none"), 0L,
+                block.blockheight, LocalDateTime.now())
               poolMembers += poolMember
             }
         }
@@ -121,6 +124,8 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
         inputBox.getValue.toLong
       case contract: TokenHoldingContract =>
         inputBox.getTokens.get(0).getValue.toLong
+      case contract: AdditiveHoldingContract =>
+        inputBox.getValue.toLong
     }
   }
 

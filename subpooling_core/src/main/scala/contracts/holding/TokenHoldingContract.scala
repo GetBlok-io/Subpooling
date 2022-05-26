@@ -21,7 +21,7 @@ import sigmastate.eval.Colls
  * @param holdingContract ErgoContract to build SimpleHoldingContract from.
  */
 class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContract(holdingContract) {
-  val logger: Logger = LoggerFactory.getLogger(LoggingHandler.loggers.LOG_HOLD_CONTRACT)
+  val logger: Logger = LoggerFactory.getLogger("TokenHoldingContract")
   final val MIN_PAYMENT_THRESHOLD = Parameters.OneErg / 10L // TODO: Make this an AppParameter
 
 

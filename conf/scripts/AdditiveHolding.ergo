@@ -1,0 +1,188 @@
+{
+
+      val holdingBoxes = INPUTS.filter{(box: Box) => box.propositionBytes == SELF.propositionBytes}
+      // Security assumption, INPUTS(0) is a metadata box
+      // No matter what, INPUT 0 must have smartPoolNFT
+      val metadataExists = INPUTS(0).tokens(0)._1 == const_smartPoolNFT
+
+      val MIN_TXFEE: Long = 1000L * 1000L
+
+      def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+        val expected = valuesPair._1
+        val actual   = valuesPair._2
+        val amountTop = (expected - actual) * 100L
+        val percentage = amountTop / actual
+        (percentage < 1L) && (percentage > -1L) // 1% margin of error during calculations
+      }
+      // Check if consensus is valid. This is verified by performing consensus on-chain, that means
+      // the amount of erg each box gets is proportional to the amount of shares assigned to them by
+      // the pool.
+      val consensusValid = {
+          if(metadataExists){
+            val totalHeldValue: Long = holdingBoxes.fold(0L, {(accum: Long, box:Box) =>
+              accum + box.value
+            })
+            val totalHeldTokens: Long = holdingBoxes.fold(0L, {(accum: Long, box:Box) =>
+              accum + box.tokens(0)._2
+            })
+
+            val lastConsensus    =  INPUTS(0).R4[Coll[(Coll[Byte], Coll[Long])]].get // old consensus grabbed from metadata
+            val currentConsensus =  INPUTS(1).R4[Coll[(Coll[Byte], Coll[Long])]].get // New consensus grabbed from current command
+            val currentPoolFees  =  INPUTS(0).R5[Coll[(Coll[Byte], Int)]].get        // Pool fees grabbed from current metadata
+            val currentTxFee     =  MIN_TXFEE * currentConsensus.size
+
+            // Get each miners owed payouts from the last consensus
+            val totalUnpaidPayouts = lastConsensus
+              .filter{(consVal:(Coll[Byte], Coll[Long])) => consVal._2(2) < consVal._2(1)}
+              .fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(2)})
+            // Subtract unpaid payments from holded value, gives us the value to calculate fees and rewards from
+            val totalRewards = totalHeldValue - totalUnpaidPayouts
+
+
+            val feeList: Coll[(Coll[Byte], Long)] = currentPoolFees.map{
+              // Pool fee is defined as x/1000 of total inputs value.
+              (poolFee: (Coll[Byte], Int)) =>
+                val feeAmount: Long = (poolFee._2.toLong * totalRewards)/100000L
+                val feeNoDust: Long = feeAmount - (feeAmount % MIN_TXFEE)
+                (poolFee._1 , feeNoDust)
+            }
+
+            // Total amount in holding after pool fees and tx fees.
+            // This is the total amount of ERG to be distributed to pool members
+            val accumFees = ((feeList.fold(totalRewards, {
+              (accum: Long, poolFeeVal: (Coll[Byte], Long)) => accum - poolFeeVal._2
+            })) )
+            val totalValAfterFees = {
+              if(accumFees != totalRewards){
+                accumFees - currentTxFee
+              }else{
+                accumFees
+              }
+            }
+            val totalShares = currentConsensus.fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(0)})
+
+            // Returns some value that is a percentage of the total rewards after the fees.
+            // The percentage used is the proportion of the share number passed in over the total number of shares.
+            def getValueFromShare(shareNum: Long) = {
+              val newBoxValue = (((totalValAfterFees) * (shareNum)) / (totalShares)).toLong
+              val dustRemoved = newBoxValue - (newBoxValue % MIN_TXFEE)
+              dustRemoved
+            }
+
+            val lastConsensusPropBytes = lastConsensus.map{
+              (consVal: (Coll[Byte], Coll[Long])) =>
+                consVal._1
+            }
+            val lastConsensusValues = lastConsensus.map{
+              (consVal: (Coll[Byte], Coll[Long])) =>
+                consVal._2
+            }
+
+            val outputPropBytes = OUTPUTS.map{
+              (box: Box) => box.propositionBytes
+            }
+            val outputValues = OUTPUTS.map{
+              (box: Box) => box.value
+            }
+
+            // Ensures there exists output boxes for each consensus value
+            // And that owed payments are stored
+            val consensusPaid = currentConsensus.forall{
+              (consVal: (Coll[Byte], Coll[Long])) =>
+
+                // If the last stored payout value + current payout(from shares) is >= min payout, then set outbox value
+                // equal to stored payout + current payout
+
+                val currentShareNumber = consVal._2(0)
+                val currentMinPayout = consVal._2(1)
+                val currentStoredPayout = consVal._2(2)
+                val valueFromShares = getValueFromShare(currentShareNumber)
+                val indexInLastConsensus = lastConsensusPropBytes.indexOf(consVal._1, 0)
+                val indexInOutputs = outputPropBytes.indexOf(consVal._1, 0)
+                val tokenAmount = 0
+                if(indexInLastConsensus != -1){
+                  val lastStoredPayout = lastConsensusValues(indexInLastConsensus)(2)
+
+                  if(lastStoredPayout + valueFromShares >= currentMinPayout){
+                    if(indexInOutputs != -1){
+                      if(OUTPUTS(indexInOutputs).tokens.size > 0){
+                        allOf(Coll(
+                          (outputValues(indexInOutputs) == lastStoredPayout + valueFromShares),
+                          (currentStoredPayout == 0L),
+                          (OUTPUTS(indexInOutputs).tokens.map{ (token: (Coll[Byte], Long)) => token._2 }.getOrElse(0, -1L) >= tokenAmount)
+                        ))
+                      }else{
+                        false
+                      }
+                    }else{
+                      false
+                    }
+                  }else{
+                    (indexInOutputs == -1) && (currentStoredPayout == (lastStoredPayout + valueFromShares))
+                  }
+                }else{
+                  // If the last consensus doesn't exist, we can say the last payment was 0 and just use val from shares
+                  if(valueFromShares >= currentMinPayout){
+                    if(indexInOutputs != -1){
+                      if(OUTPUTS(indexInOutputs).tokens.size > 0){
+                        allOf(Coll(
+                          (outputValues(indexInOutputs) == valueFromShares),
+                          (currentStoredPayout == 0L),
+                          (OUTPUTS(indexInOutputs).tokens.map{ (token: (Coll[Byte], Long)) => token._2 }.getOrElse(0, -1L) >= tokenAmount)
+                        ))
+                      }else{
+                        false
+                      }
+                    }else{
+                      false
+                    }
+                  }else{
+                    (indexInOutputs == -1) && (currentStoredPayout == valueFromShares)
+                  }
+                }
+            }
+
+            // Value that is to be sent back to holding box as change
+            val totalChange = currentConsensus
+              .filter{(consVal:(Coll[Byte], Coll[Long])) => consVal._2(2) < consVal._2(1)}
+              .fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(2)})
+
+            // Ensure that change is stored as an outbox with holding prop bytes
+            val changeInOutputs =
+              if(totalChange > 0){
+                OUTPUTS.exists{(box: Box) => box.value == totalChange && box.propositionBytes == SELF.propositionBytes && box.tokens.map{
+                   (token: (Coll[Byte], Long)) => token._2
+                   }.getOrElse(0, -1L) >= 0
+                 }
+              }
+              else{
+                true
+              }
+
+
+            // This verifies that each member of the consensus has some output box
+            // protected by their script and that the value of each box is the
+            // value obtained from consensus.
+            // This boolean value is returned and represents the main sigma proposition of the smartpool holding
+            // contract.
+            // This boolean value also verifies that poolFees are paid and go to the correct boxes.
+              consensusPaid && feeList.forall{
+                (poolFeeVal: (Coll[Byte], Long)) =>
+                if(poolFeeVal._2 > 0){
+                  val propBytesIndex = outputPropBytes.indexOf(poolFeeVal._1, 0)
+                  if(propBytesIndex != -1){
+                    OUTPUTS(propBytesIndex).value == poolFeeVal._2
+                  }else{
+                    false
+                  }
+                }else{
+                  true
+                }
+            } && changeInOutputs
+          }else{
+            false
+          }
+      }
+
+      sigmaProp(consensusValid)
+    }
