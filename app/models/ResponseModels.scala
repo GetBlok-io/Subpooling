@@ -5,7 +5,7 @@ import io.getblok.subpooling_core.global.Helpers
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import io.getblok.subpooling_core.persistence.models.Models._
 import io.getblok.subpooling_core.registers.PoolFees
-import models.DatabaseModels.{BalanceChange, ChangeKeys, Payment}
+import models.DatabaseModels.{BalanceChange, ChangeKeys, Payment, SPoolBlock}
 
 import java.time.LocalDateTime
 object ResponseModels {
@@ -48,6 +48,27 @@ object ResponseModels {
 
   implicit val blockWrites: Writes[PoolBlock] = new Writes[PoolBlock] {
     override def writes(o: PoolBlock): JsValue = {
+      Json.obj( fields =
+        "id" -> o.id,
+        "blockHeight" -> o.blockheight,
+        "poolTag" -> o.poolTag,
+        "gEpoch" -> o.gEpoch,
+        "status" -> o.status,
+        "miner" -> o.miner,
+        "reward" -> o.reward,
+        "confirmation" -> o.confirmation,
+        "nonce" -> o.txConfirmation,
+        "hash" -> o.hash,
+        "effort" -> o.effort,
+        "networkDifficulty" -> o.netDiff,
+        "created" -> o.created.toString,
+        "updated" -> o.updated
+      )
+    }
+  }
+
+  implicit val sblockWrites: Writes[SPoolBlock] = new Writes[SPoolBlock] {
+    override def writes(o: SPoolBlock): JsValue = {
       Json.obj( fields =
         "id" -> o.id,
         "blockHeight" -> o.blockheight,

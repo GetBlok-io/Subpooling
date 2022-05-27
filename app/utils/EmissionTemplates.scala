@@ -29,8 +29,10 @@ object EmissionTemplates {
   case class ProportionalTemplate(swapAddress: Address, feeAddress: Address, distToken: ErgoId, initProportion: Long,
                                   initFee: Long, decimalPlaces: Long, totalEmissions: Long)
 
-  val COMET_TESTNET = ProportionalTemplate(Address.create("9ffAuiHXqgTCNpPdfJxQ4eQzkG5CPvG5bwEPeQZHLR3tLwvp2Zc"), AppParameters.getFeeAddress,
+  val COMET_TESTNET = ProportionalTemplate(Address.create("9h6Ao31CVSsYisf4pWTM43jv6k3BaXV3jovGfaRj9PrqfYms6Rf"), AppParameters.getFeeAddress,
     ErgoId.create("24eb9230e766977811ef045184f24b1daf8b75cd4ca5c85880739449cae0085c"), 5, 1000, 1000000, 1000000000L)
+  val COMET_MAINNET = ProportionalTemplate(Address.create("9h6Ao31CVSsYisf4pWTM43jv6k3BaXV3jovGfaRj9PrqfYms6Rf"), AppParameters.getFeeAddress,
+    ErgoId.create("0cd8c9f416e5b1ca9f986a7f10a84191dfb85941619e49e53c0dc30ebf83324b"), 5, 1000, 1000000, 4500000000L)
 
   def getCOMETTemplate(networkType: NetworkType): ProportionalTemplate = {
     networkType match {

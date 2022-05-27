@@ -2,10 +2,12 @@ package utils
 
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
+import org.ergoplatform.appkit.Address
 
 object PoolTemplates {
   case class PoolTemplate(title: String, fee: Double, numSubpools: Int, paymentType: PaymentType, emissionsType: String,
-                          currency: String, epochKick: Long, maxMembers: Long, tokenName: String, tokenDesc: String)
+                          currency: String, epochKick: Long, maxMembers: Long, tokenName: String, tokenDesc: String,
+                          feeOp: Option[Address] = None)
 
   case class UninitializedPool(poolMade: Boolean, emissionsMade: Option[Boolean], template: PoolTemplate)
   val STANDARD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Smart Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
@@ -22,17 +24,18 @@ object PoolTemplates {
     PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
     "anetaBTC Smart Pool",
     "anetaBTC Smart Pool identification token")
-  val COMET_POOL: PoolTemplate = PoolTemplate("COMET Smart Pool", 0, 100, PaymentType.PPLNS_WINDOW,
+  val COMET_POOL: PoolTemplate = PoolTemplate("COMET Smart Pool", 0.01, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.ProportionalEmissions, PoolInformation.CURR_ERG_COMET, 5L, 10L,
     "COMET Smart Pool",
-    "COMET Smart Pool identification token")
+    "COMET Smart Pool identification token",
+    Some(Address.create("9h6Ao31CVSsYisf4pWTM43jv6k3BaXV3jovGfaRj9PrqfYms6Rf")))
 
 
   val templates: Array[UninitializedPool] = Array(
     UninitializedPool(poolMade = false, None, STANDARD_POOL),
     UninitializedPool(poolMade = false, None, SOLO_POOL),
 
-    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
+    //UninitializedPool(poolMade = false, Some(false), NETA_POOL),
     UninitializedPool(poolMade = false, Some(false), COMET_POOL)
     )
 

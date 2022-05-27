@@ -99,7 +99,10 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
         else
           currencyValue(subpool.paymentMap(nextDistValue._1)) - lastInfo.get._2.getStored
       }else{
-        nextDistValue._2.getStored
+        if(nextDistValue._2.getStored > 0)
+          nextDistValue._2.getStored
+        else
+          currencyValue(subpool.paymentMap(nextDistValue._1))
       }
     }else{
       if(nextDistValue._2.getStored > 0)

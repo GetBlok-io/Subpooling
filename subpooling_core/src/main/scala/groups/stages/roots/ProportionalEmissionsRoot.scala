@@ -39,6 +39,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         // Paranoid checks, root transaction is handed off maximum amount of emission currency for the group
         // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
         // max selection
+        logger.info(s"Input box length: ${initialInputs.map(_.size).toString}")
         if(inputBoxes.isDefined) {
           initialInputs = Some(Seq())
           val totalAmountNeeded = totalTxFees + blockReward
@@ -53,9 +54,9 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
             }
           }
         }
+        logger.info(s"Filtered input box length: ${initialInputs.map(_.size).toString}")
 
-
-        val boxesToSpend = inputBoxes.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
         val interOutBox = ctx.newTxBuilder().outBoxBuilder().value(blockReward).contract(wallet.contract).build()
         val interFeeOutBox = ctx.newTxBuilder().outBoxBuilder().value(primaryTxFees).contract(wallet.contract).build()
         val unsignedInterTx = ctx.newTxBuilder()
@@ -72,7 +73,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         logger.info(s"Intermediary Fee Box: ${io.getblok.subpooling_core.global.Helpers.nanoErgToErg(interFeeBox.getValue.toLong)}")
         logger.info(inputBoxes.map(_.map(_.getValue.toLong).sum).toString)
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
-        var outputIndex: Int = 2
+        var outputIndex: Int = 1
         val rewardAfterFees = interBox.getValue - ((emissionsBox.poolFee.value * interBox.getValue.toLong) / PoolFees.POOL_FEE_CONST)
         val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox, rewardAfterFees)
         logger.info(s"Total output tokens: ${emissionCycle.tokensForHolding}")

@@ -59,15 +59,10 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
       (accum, poolFeeVal) => accum - poolFeeVal._2
     })
 
-    val totalValAfterFees = {
-      if(accumFees != totalRewards){
-        accumFees - currentTxFee
-      }else{
-        accumFees
-      }
-    }
+    val totalValAfterFees = accumFees - currentTxFee
     val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
-
+    val tokenRate = BigDecimal(holdingBoxes.head.getTokens.get(0).getValue) / holdingBoxes.head.getValue
+    logger.info(s"Current token rate, (tokens per nanoErg): ${tokenRate}")
     var shareScoreLeft = 0L
     val updatedConsensus = currentDistribution.dist.map{
       consVal =>
@@ -136,7 +131,8 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
           accum
     }
     logger.info("Total Value Held: " + TOTAL_HOLDED_VALUE)
-
+    val tokenRate = BigDecimal(holdingBoxes.head.getTokens.get(0).getValue) / holdingBoxes.head.getValue
+    logger.info(s"Current token rate, (tokens per nanoErg): ${tokenRate}")
     val lastConsensus = metadataBox.shareDistribution
     val currentConsensus = commandBox.shareDistribution
     val currentPoolFees = metadataBox.poolFees
@@ -159,13 +155,7 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
       (accum, poolFeeVal) => accum - poolFeeVal._2
     })
 
-    val totalValAfterFees = {
-      if(accumFees != totalRewards){
-        accumFees - currentTxFee
-      }else{
-        accumFees
-      }
-    }
+    val totalValAfterFees = accumFees - currentTxFee
     logger.info(s"Total Value After Fees: $totalValAfterFees")
     val totalShares = currentConsensus.dist.map(c => c._2.getScore).sum
 
@@ -226,10 +216,10 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
 
         logger.info(s" Value from shares for address ${addr}: ${c._2}")
         if(c._2 > 0) {
-          logger.info(s"Expected token amount: ${(c._2 * totalTokens) / totalValAfterFees}")
+          logger.info(s"Expected token amount: ${(c._2 * tokenRate).toLong}")
           val outB = distributionTx.asUnsignedTxB.outBoxBuilder()
           val holdingBuilder = new HoldingSetBuilder(outB)
-          val tokensToAdd = ((c._2 * totalTokens) / totalValAfterFees)
+          val tokensToAdd = (c._2 * tokenRate).toLong
           val setBuilder = holdingBuilder.value(c._2).contract(new ErgoTreeContract(addr.getErgoAddress.script, addr.getNetworkType))
             .tokens(new ErgoToken(holdingBoxes.head.getTokens.get(0).getId, tokensToAdd))
             .forMiner(true)
@@ -237,6 +227,8 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
           holdingBuilders = holdingBuilders++Array(setBuilder)
         }
     }
+    logger.info(s"Total tokens used: ${tokensUsed}")
+    logger.info(s"Total tokens at start: ${totalTokens}")
     feeAddresses.foreach{
       (addr: Address) =>
         val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
@@ -251,9 +243,12 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
 
     if(changeValue > 0) {
       val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
+      val tokensToAdd = totalTokens - tokensUsed
+      logger.info(s"Tokens left for change: ${tokensToAdd}")
+      logger.info(s"Tokens expected by rate: ${(changeValue * tokenRate).toLong}")
       val holdingBuilder = outB.value(changeValue)
         .contract(new ErgoTreeContract(holdingAddress.getErgoAddress.script, holdingAddress.getNetworkType))
-        .tokens(new ErgoToken(holdingBoxes.head.getTokens.get(0).getId, totalTokens - tokensUsed))
+        .tokens(new ErgoToken(holdingBoxes.head.getTokens.get(0).getId, tokensToAdd))
       holdingBuilders = holdingBuilders++Array(holdingBuilder)
     }
     new HoldingOutputBuilder(holdingBuilders)

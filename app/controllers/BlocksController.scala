@@ -49,12 +49,29 @@ class BlocksController @Inject()(@Named("group-handler") groupRequestHandler: Ac
     db.run(Tables.PoolBlocksTable.filter(_.status === status).drop(page.get * pageSize.get).take(pageSize.get).result).map(okJSON(_))
   }
 
-  def allBlocks(poolTag: Option[String], page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10)): Action[AnyContent] = Action.async {
+  def allBlocks(page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10), poolTag: Option[String] = None): Action[AnyContent] = Action.async {
     poolTag match {
       case Some(tag) =>
-        db.run(Tables.PoolBlocksTable.filter(_.poolTag === tag).drop(page.get * pageSize.get).take(pageSize.get).result).map(okJSON(_))
+        db.run(Tables.PoolBlocksTable.filter(_.poolTag === tag).sortBy(_.created.desc)
+          .drop(page.get * pageSize.get)
+          .take(pageSize.get)
+          .result).map(okJSON(_))
       case None =>
-        db.run(Tables.PoolBlocksTable.drop(page.get * pageSize.get).take(pageSize.get).result).map(okJSON(_))
+        db.run(Tables.PoolBlocksTable.sortBy(_.created.desc).drop(page.get * pageSize.get).take(pageSize.get)
+          .result).map(okJSON(_))
+    }
+
+  }
+  def blocksPage(page: Int, pageSize: Int, poolTag: Option[String] = None): Action[AnyContent] = Action.async {
+    poolTag match {
+      case Some(tag) =>
+        db.run(Tables.PoolBlocksTable.filter(_.poolTag === tag).sortBy(_.created.desc)
+          .drop(page * pageSize)
+          .take(pageSize)
+          .result).map(okJSON(_))
+      case None =>
+        db.run(Tables.PoolBlocksTable.sortBy(_.created.desc).drop(page * pageSize).take(pageSize)
+          .result).map(okJSON(_))
     }
 
   }

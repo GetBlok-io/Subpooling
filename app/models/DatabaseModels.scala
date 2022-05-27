@@ -1,5 +1,7 @@
 package models
 
+import org.ergoplatform.appkit.Parameters
+
 import java.time.LocalDateTime
 
 object DatabaseModels {
@@ -21,4 +23,8 @@ object DatabaseModels {
 
   case class SMinerSettings(address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
                            subpool: Option[String])
+  case class SPoolBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: Option[String],
+                       miner: String, reward: Double, hash: Option[String], created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime){
+    def getNanoErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
+  }
 }

@@ -10,6 +10,7 @@ import io.getblok.subpooling_core.groups.entities.Subpool
 import io.getblok.subpooling_core.groups.models.GroupBuilder
 import io.getblok.subpooling_core.groups.selectors.{SelectionParameters, StandardSelector}
 import io.getblok.subpooling_core.registers.PropBytes
+import org.ergoplatform.appkit.Parameters
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
@@ -75,7 +76,7 @@ class AdditiveDistributionSuite extends AnyFunSuite {
         assert(asMember.get.shareScore == d._2.getScore, "Share scores not equal")
         assert(asMember.get.minPay == d._2.getMinPay, "Min Pays changed")
         assert(d._2.getEpochsMined == 1, "Epoch mined not increased")
-        val memberBoxValue = AdditiveHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees)
+        val memberBoxValue = AdditiveHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees - initSingleMembers.length * Parameters.MinFee)
         if (memberBoxValue < d._2.getMinPay)
           assert(d._2.getStored == memberBoxValue, "Stored value incorrect")
         else
@@ -104,35 +105,35 @@ class AdditiveDistributionSuite extends AnyFunSuite {
     assert(manager.completedGroups.contains(subPool))
   }
 
-//  test("Subpool has fee box in outputs") {
-//    assert(manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray.exists {
-//      i =>
-//          i.getTokens.size() > 0 && (i.getTokens.get(0).getValue == holdingValue / 100) && (PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == PropBytes.ofAddress(creatorAddress)(AppParameters.networkType))
-//    })
-//    logger.info(s"tx Cost: ${manager.completedGroups(subPool).getCost}")
-//  }
-//
-//  test("Subpool has paid members in outputs") {
-//    val outputArray = manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray
-//    subPool.nextDist.dist.foreach{
-//      d =>
-//        if(d._2.getStored == 0){
-//          assert(outputArray.exists(i => PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == d._1
-//            && i.getValue == AdditiveHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees)))
-//        }else{
-//          assert(!outputArray.exists(i => PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == d._1
-//            && i.getValue == AdditiveHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees)))
-//        }
-//    }
-//  }
-//
-//  test("Subpool has payment map filled"){
-//    val outputArray = manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray
-//    subPool.paymentMap.foreach{
-//      p =>
-//        assert(subPool.nextDist.dist.contains(p._1), s"Subpool does not contain propbytes of ${p._1.address} in payment map")
-//        assert(subPool.nextDist.dist(p._1).getStored == 0, "Member is in payment map but does not have stored value of 0")
-//        assert(outputArray.exists(i => i.getId == p._2.getId))
-//    }
-//  }
+  test("Subpool has fee box in outputs") {
+    assert(manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray.exists {
+      i =>
+        (i.getValue == holdingValue / 100) && (PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == PropBytes.ofAddress(creatorAddress)(AppParameters.networkType))
+    })
+    logger.info(s"tx Cost: ${manager.completedGroups(subPool).getCost}")
+  }
+
+  test("Subpool has paid members in outputs") {
+    val outputArray = manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray
+    subPool.nextDist.dist.foreach{
+      d =>
+        if(d._2.getStored == 0){
+          assert(outputArray.exists(i => PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == d._1
+            && i.getValue == AdditiveHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees - initSingleMembers.length * Parameters.MinFee)))
+        }else{
+          assert(!outputArray.exists(i => PropBytes.ofErgoTree(i.getErgoTree)(AppParameters.networkType) == d._1
+            && i.getValue == AdditiveHoldingContract.getBoxValue(d._2.getScore, subPool.nextTotalScore, initValueAfterFees - initSingleMembers.length * Parameters.MinFee)))
+        }
+    }
+  }
+
+  test("Subpool has payment map filled"){
+    val outputArray = manager.completedGroups(subPool).getOutputsToSpend.asScala.toArray
+    subPool.paymentMap.foreach{
+      p =>
+        assert(subPool.nextDist.dist.contains(p._1), s"Subpool does not contain propbytes of ${p._1.address} in payment map")
+        assert(subPool.nextDist.dist(p._1).getStored == 0, "Member is in payment map but does not have stored value of 0")
+        assert(outputArray.exists(i => i.getId == p._2.getId))
+    }
+  }
 }

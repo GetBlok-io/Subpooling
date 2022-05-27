@@ -52,13 +52,7 @@
             val accumFees = ((feeList.fold(totalRewards, {
               (accum: Long, poolFeeVal: (Coll[Byte], Long)) => accum - poolFeeVal._2
             })) )
-            val totalValAfterFees = {
-              if(accumFees != totalRewards){
-                accumFees - currentTxFee
-              }else{
-                accumFees
-              }
-            }
+            val totalValAfterFees = accumFees - currentTxFee
             val totalShares = currentConsensus.fold(0L, {(accum: Long, consVal: (Coll[Byte], Coll[Long])) => accum + consVal._2(0)})
 
             // Returns some value that is a percentage of the total rewards after the fees.

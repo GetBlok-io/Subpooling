@@ -117,9 +117,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                     logger.warn("Using default contracts during group execution!")
 
                     val metadataContract = MetadataContract.generateMetadataContract(ctx)
-                    // TODO: Parameterize holding and command contracts
 
-
+                    var tokenName: Option[String] = None
                     val holdingContract: HoldingContract =
                       poolInformation.currency match {
                         case PoolInformation.CURR_ERG =>
@@ -132,6 +131,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                           TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
                         case PoolInformation.CURR_ERG_COMET =>
                           logger.info("Using ERG+COMET for currency!")
+                          tokenName = Some("COMET")
                           AdditiveHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
                         case _ =>
                           SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
@@ -142,7 +142,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                     val selector = new LoadingSelector(placements.toArray)
                     val builder = new DistributionBuilder(holdingMap, storageMap)
-                    val group = new DistributionGroup(pool, ctx, wallet, commandContract, holdingContract)
+                    val group = new DistributionGroup(pool, ctx, wallet, commandContract, holdingContract, tokenName)
 
                     val groupManager = new GroupManager(group, builder, selector)
                     sender ! DistributionComponents(groupManager, selector, builder, group, poolTag, block, placedStates)

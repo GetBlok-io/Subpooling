@@ -22,12 +22,15 @@ GET   /pools/:tag/subpools/:id/members/byEpoch      controllers.PoolController.g
 GET   /pools/:tag/subpools/:id/members/byGEpoch      controllers.PoolController.getSubPoolMembersAtGEpoch(tag: String, id: Long, gEpoch: Long)
 GET   /pools/:tag/subpools/:id/members/byBlock      controllers.PoolController.getSubPoolMembersAtBlock(tag: String, id: Long, block: Long)
 
-GET   /blocks                            controllers.BlocksController.allBlocks(poolTag: Option[String], page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10))
+GET   /blocks                            controllers.BlocksController.allBlocks(page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10), poolTag: Option[String] = None)
+GET   /blocks/page/:page                 controllers.BlocksController.blocksPage(page: Int, pageSize: Int, poolTag: Option[String] = None)
 GET   /blocks/:blockHeight               controllers.BlocksController.getBlock(blockHeight: Long)
 GET   /blocks/byId/:id                   controllers.BlocksController.getBlockById(id: Long)
 GET   /blocks/byStatus/:status           controllers.BlocksController.getBlocksByStatus(status: String, page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10))
 
 GET /miners/:address                     controllers.MinerController.getMiner(address: String)
+GET /miners/:address/pool                controllers.MinerController.getPoolInfo(address: String)
+GET /miners/:address/poolStats           controllers.MinerController.getPoolStats(address: String)
 GET /miners/:address/payments            controllers.MinerController.getPayments(address: String)
 GET /miners/:address/rewards             controllers.MinerController.getRewards(address: String)
 GET /miners/:address/earnings/:i         controllers.MinerController.getEarnings(address: String, i: String)

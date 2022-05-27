@@ -9,12 +9,12 @@ import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.groups.models.TransactionStage
 import io.getblok.subpooling_core.transactions.GenerateMultipleTx
-import org.ergoplatform.appkit.BlockchainContext
+import org.ergoplatform.appkit.{Address, BlockchainContext}
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.util.Try
 
-class GenesisStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, metadataVal: Long, feeValue: Int = 1000)
+class GenesisStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, metadataVal: Long, feeValue: Int = 1000, feeOp: Option[Address] = None)
   extends TransactionStage[MetadataInputBox](pool, ctx, wallet) {
   override val stageName: String = "GenesisStage"
 
@@ -33,6 +33,7 @@ class GenesisStage(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, metad
           .tokenInputBox(pool.rootTx.getOutputsToSpend.get(0))
           .smartPoolToken(poolToken)
           .feeAmount(feeValue)
+          .feeOp(feeOp)
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))

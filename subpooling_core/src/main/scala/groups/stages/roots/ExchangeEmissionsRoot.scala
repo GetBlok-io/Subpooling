@@ -55,7 +55,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         }
 
 
-        val boxesToSpend = inputBoxes.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
         val interOutBox = ctx.newTxBuilder().outBoxBuilder().value(blockReward).contract(wallet.contract).build()
         val interFeeOutBox = ctx.newTxBuilder().outBoxBuilder().value(primaryTxFees).contract(wallet.contract).build()
         val unsignedInterTx = ctx.newTxBuilder()
@@ -114,7 +114,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
           .fee(primaryTxFees)
           .outputs((emissionCycle.outputs ++ outputBoxes): _*)
           .withDataInputs(Seq(emissionCycle.lpBox).asJava)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
+          .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))

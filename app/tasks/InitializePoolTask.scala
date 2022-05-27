@@ -143,7 +143,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         val empty   = new EmptySelector
         val builder = new GenesisBuilder(template.numSubpools, Helpers.MinFee, Some(template.tokenName), Some(template.tokenDesc))
         val pool    = new Pool(ArrayBuffer.empty[Subpool])
-        val group   = new GenesisGroup(pool, ctx, wallet, Helpers.MinFee, (template.fee * PoolFees.POOL_FEE_CONST).toInt)
+        val group   = new GenesisGroup(pool, ctx, wallet, Helpers.MinFee, (template.fee * PoolFees.POOL_FEE_CONST).toInt, template.feeOp)
 
         val groupManager = new GroupManager(group, builder, empty)
         groupManager.initiate()
@@ -152,7 +152,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
           val currentTime = LocalDateTime.now()
           val poolStates = for(subPool <- group.newPools)
             yield PoolState(subPool.token.toString, subPool.id, template.title, subPool.box.getId.toString, group.completedGroups.values.head.getId,
-              0L, 0L, subPool.box.genesis, ctx.getHeight.toLong, PoolState.CONFIRMED, 0, 0L, creator, "none", 0L,
+              0L, 0L, subPool.box.genesis, ctx.getHeight.toLong, PoolState.CONFIRMED, 0, 0L, template.feeOp.map(_.toString).getOrElse(creator), "none", 0L,
               currentTime, currentTime)
           logger.info("Creating new pool with tag " + poolStates.head.subpool)
 
@@ -160,7 +160,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
 
           val infoInsert = Tables.PoolInfoTable += PoolInformation(group.newPools.head.token.toString, 0L, template.numSubpools, 0L, 0L, 0L, 0L,
             template.currency, PoolTemplates.getPaymentStr(template.paymentType), (template.fee * PoolFees.POOL_FEE_CONST).toLong, official = true,
-            template.epochKick, template.maxMembers, template.title, creator, LocalDateTime.now(), LocalDateTime.now(), PoolInformation.NoEmissions,
+            template.epochKick, template.maxMembers, template.title, template.feeOp.map(_.toString).getOrElse(creator), LocalDateTime.now(), LocalDateTime.now(), PoolInformation.NoEmissions,
             template.emissionsType)
           val stateInserts = Tables.PoolStatesTable ++= poolStates
           val infoRows = db.run(infoInsert)

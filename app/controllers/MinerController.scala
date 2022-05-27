@@ -10,7 +10,7 @@ import akka.util.Timeout
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.emissions.EmissionsContract
 import io.getblok.subpooling_core.contracts.holding.TokenHoldingContract
-import io.getblok.subpooling_core.global.Helpers
+import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.groups.builders.GenesisBuilder
 import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
@@ -19,6 +19,7 @@ import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.persistence.models.Models._
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.BalanceChange
+import models.InvalidIntervalException
 import models.ResponseModels.Intervals.{DAILY, MONTHLY, YEARLY}
 import models.ResponseModels.{writesMinerResponse, _}
 import org.ergoplatform.appkit._
@@ -37,7 +38,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 @Api(value = "/miners", description = "Miner Operations")
 @Singleton
@@ -83,6 +84,66 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
     val rewards = db.run(Tables.BalanceChanges.filter(_.address === address).sortBy(_.created.desc).result)
     rewards.map(okJSON(_))
   }
+  def getPoolInfo(address: String): Action[AnyContent] = Action.async{
+    val poolSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
+    val minerPool = poolSettings.map{
+      s =>
+        if(s.isDefined){
+          db.run(Tables.PoolInfoTable.filter(_.poolTag === s.get.subpool).result.head)
+        }else{
+          db.run(Tables.PoolInfoTable.filter(_.poolTag === paramsConfig.defaultPoolTag).result.head)
+        }
+    }.flatten
+    minerPool.map(okJSON(_))
+  }
+
+  def getPoolStats(address: String): Action[AnyContent] = Action.async{
+
+    val poolSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
+    val response = poolSettings.map{
+      settings =>
+        val tag: String = settings.flatMap(_.subpool).getOrElse(paramsConfig.defaultPoolTag)
+
+        val fSettings = (query ? MinersByAssignedPool(tag)).mapTo[Seq[MinerSettings]]
+        val fInfo = (query ? QueryPoolInfo(tag)).mapTo[PoolInformation]
+        val fEffortDiff = fInfo.map{
+          info =>
+            db.run(Tables.PoolSharesTable.getEffortDiff(tag, paramsConfig.defaultPoolTag, info.last_block))
+        }.flatten
+        val fStats = db.run(Tables.MinerStats.sortBy(_.created.desc)
+          .filter(_.created > LocalDateTime.now().minusHours(1))
+          .result)
+
+        fStats.transformWith{
+          case Success(stats) =>
+            val fPoolStats = for{
+              settings <- fSettings
+              effortDiff <- fEffortDiff
+            } yield {
+              val filteredStats = stats.filter(s => settings.exists(st => st.address == s.miner))
+              if(filteredStats.nonEmpty) {
+                val avgHash = filteredStats.groupBy(s => s.miner)
+                  .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.hashrate)).sum / filteredStats.size).values.sum
+                val avgShares = filteredStats.groupBy(s => s.miner)
+                  .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.sharespersecond)).sum / filteredStats.size).values.sum
+                val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
+                PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, effort.toDouble)
+              }else{
+                val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
+                PoolStatistics(tag, 0.0, 0.0, effort.toDouble)
+              }
+            }
+            fPoolStats.map(okJSON(_))
+          case Failure(ex: InvalidIntervalException) =>
+            Future(InternalServerError(ex.getMessage))
+          case Failure(ex: Exception) =>
+            Future(InternalServerError("There was an unknown error while serving your request:\n"+ ex.getMessage))
+      }
+
+    }.flatten
+    response
+
+  }
 
   def getEarnings(address: String, i: String = DAILY): Action[AnyContent] = Action.async{
     val rewards = db.run(Tables.BalanceChanges.filter(_.address === address).sortBy(_.created.desc).result)
@@ -91,7 +152,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
         i match {
           case DAILY =>
             val earningsList = rewardList.map(rl =>
-              rl.copy(created = rl.created.truncatedTo(ChronoUnit.DAYS))).groupBy(_.created)
+              rl.copy(created = rl.created.withHour(0).truncatedTo(ChronoUnit.DAYS))).groupBy(_.created)
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq

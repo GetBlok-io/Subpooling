@@ -37,8 +37,25 @@ class DistributionRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, i
           outputMap = outputMap + (subPool -> (outBox -> outputIndex))
           outputIndex = outputIndex + 1
         }
+        var initialInputs = inputBoxes
+        // Paranoid checks, root transaction is handed off maximum amount of emission currency for the group
+        // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
+        // max selection
+        if(inputBoxes.isDefined) {
+          initialInputs = Some(Seq())
+          val totalAmountNeeded = totalFees + totalOutputs
+          val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
 
-        val boxesToSpend = inputBoxes.getOrElse(ctx.getWallet.getUnspentBoxes(totalFees + totalOutputs).get().asScala.toSeq)
+          var initialSum: Long = 0L
+          while(initialSum < totalAmountNeeded){
+            if(sortedInputs.hasNext) {
+              val nextBox = sortedInputs.next()
+              initialInputs = initialInputs.map(_ ++ Seq(nextBox))
+              initialSum = initialSum + nextBox.getValue.toLong
+            }
+          }
+        }
+        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalFees + totalOutputs).get().asScala.toSeq)
         val txB = ctx.newTxBuilder()
 
         val unsignedTx = txB
