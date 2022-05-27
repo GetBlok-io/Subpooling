@@ -37,7 +37,7 @@ object EmissionTemplates {
   def getCOMETTemplate(networkType: NetworkType): ProportionalTemplate = {
     networkType match {
       case NetworkType.MAINNET =>
-        COMET_TESTNET // TODO: CHANGE THIS
+        COMET_MAINNET
       case NetworkType.TESTNET =>
         COMET_TESTNET
     }

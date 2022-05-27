@@ -116,7 +116,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
           .boxesToSpend((Seq(emissionsBox.asInput, interBox).asJava))
           .fee(primaryTxFees)
           .outputs((emissionCycle.outputs ++ outputBoxes): _*)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
+          .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))

@@ -12,10 +12,12 @@ object PoolTemplates {
   case class UninitializedPool(poolMade: Boolean, emissionsMade: Option[Boolean], template: PoolTemplate)
   val STANDARD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Smart Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 5L, 10L,
-    "GetBlok.io Default Smart Pool", "This token represents the default Smart Pool on GetBlok.io")
+    "GetBlok.io Default Smart Pool", "This token represents the default Smart Pool on GetBlok.io",
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
   val SOLO_POOL: PoolTemplate = PoolTemplate("GetBlok.io Smart Pool SOLO", 0.01, 100,PaymentType.SOLO_SHARES,
     PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 10L, 10L,
-    "GetBlok.io SOLO Pool", "Identification token for GetBlok.io's smart contract based SOLO pool")
+    "GetBlok.io SOLO Pool", "Identification token for GetBlok.io's smart contract based SOLO pool",
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
   val TEST_TOKEN_POOL: PoolTemplate = PoolTemplate("Testing Token Pool", 0.005, 10, PaymentType.PPLNS_WINDOW,
     PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_TEST_TOKENS, 3L, 5L,
     "GetBlok.io Token Test Pool",
