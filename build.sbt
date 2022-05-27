@@ -1,7 +1,7 @@
 
 name := "subpooling_service"
 organization := "io.getblok"
-version := "0.0.1"
+version := "1.0"
 maintainer := "ksingh@getblok.io"
 scalaVersion := "2.12.10"
 
@@ -32,5 +32,5 @@ import com.typesafe.sbt.packager.docker.DockerChmodType
 import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 dockerChmodType := DockerChmodType.UserGroupWriteExecute
 dockerPermissionStrategy := DockerPermissionStrategy.CopyChown
-dockerEntrypoint := Seq("/opt/docker/bin/subpooling_service", "-Dconfig.file=/opt/docker/conf/test.conf")
+dockerEntrypoint := Seq("/opt/docker/bin/subpooling_service", "-Dconfig.file=/opt/docker/conf/mainnet.conf")
 
