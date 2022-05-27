@@ -21,7 +21,7 @@ object DatabaseModels {
   case class MinerStats(id: Long, poolId: String, miner: String, worker: String, hashrate: Double, sharespersecond: Double,
                         created: LocalDateTime)
 
-  case class SMinerSettings(address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
+  case class SMinerSettings(poolId: String, address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
                            subpool: Option[String])
   case class SPoolBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: Option[String],
                        miner: String, reward: Double, hash: Option[String], created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime){

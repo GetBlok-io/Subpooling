@@ -35,5 +35,7 @@ GET /miners/:address/payments            controllers.MinerController.getPayments
 GET /miners/:address/rewards             controllers.MinerController.getRewards(address: String)
 GET /miners/:address/earnings/:i         controllers.MinerController.getEarnings(address: String, i: String)
 
+POST /miners/:address/setPay             controllers.MinerController.setPaySettings(address: String)
+POST /miners/:address/setPool            controllers.MinerController.setPoolSettings(address: String)
 
 GET   /swagger.json            controllers.Assets.at(path="/public", file="swagger.json")

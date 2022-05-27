@@ -2,7 +2,7 @@ package models
 
 import actors.GroupRequestHandler.DistributionResponse
 import io.getblok.subpooling_core.global.Helpers
-import play.api.libs.json.{JsObject, JsValue, Json, Writes}
+import play.api.libs.json.{JsObject, JsResult, JsSuccess, JsValue, Json, Reads, Writes}
 import io.getblok.subpooling_core.persistence.models.Models._
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{BalanceChange, ChangeKeys, Payment, SPoolBlock}
@@ -263,6 +263,24 @@ object ResponseModels {
       )
     }
   }
+  case class PayoutSettings(ip: String, minPay: Double)
+  implicit val readsSettingsReq: Reads[PayoutSettings] = new Reads[PayoutSettings] {
+    override   def reads(json: JsValue): JsResult[PayoutSettings] = {
+      val ip = (json \ "IpAddress").as[String]
+      val minPay = (json \ "MinPay").as[Double]
+      JsSuccess(PayoutSettings(ip, minPay))
+    }
+  }
+
+  case class SubPoolSettings(ip: String, subPool: String)
+  implicit val readsSubPoolSettingsReq: Reads[SubPoolSettings] = new Reads[SubPoolSettings] {
+    override   def reads(json: JsValue): JsResult[SubPoolSettings] = {
+      val ip = (json \ "IpAddress").as[String]
+      val subpool = (json \ "SubPool").as[String]
+      JsSuccess(SubPoolSettings(ip, subpool))
+    }
+  }
+
 
   object Paginate {
     def apply[T](writeable: Seq[T], pageSize: Option[Int])(implicit write: Writes[T]): PagedResponse ={

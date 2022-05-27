@@ -18,7 +18,7 @@ import io.getblok.subpooling_core.groups.{GenesisGroup, GroupManager}
 import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.persistence.models.Models._
 import io.getblok.subpooling_core.registers.PoolFees
-import models.DatabaseModels.BalanceChange
+import models.DatabaseModels.{BalanceChange, SMinerSettings}
 import models.InvalidIntervalException
 import models.ResponseModels.Intervals.{DAILY, MONTHLY, YEARLY}
 import models.ResponseModels.{writesMinerResponse, _}
@@ -54,7 +54,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
   import dbConfig.profile.api._
 
   def getMiner(address: String): Action[AnyContent] = Action.async{
-    val currentSettings = (query ? SettingsForMiner(address)).mapTo[MinerSettings]
+    val currentSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
     val owedBalance = db.run(Tables.Balances.filter(_.address === address).result)
     val pendingBalance = (query ? QueryMinerPending("any", address)).mapTo[Long] // ugly code, pool tag is ignored by this call to allow parallelization
     val changes = db.run(Tables.BalanceChanges.filter(_.address === address).sortBy(_.created.desc).take(10).map(_.amount).avg.result)
@@ -67,7 +67,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
         avgDelta <- changes
         member <- memberInfo
       } yield {
-        MinerResponse(settings.subpool, settings.paymentthreshold, Helpers.nanoErgToErg(pending), owed.map(_.amount).head, avgDelta.getOrElse(0.0), member.head)
+        MinerResponse(settings.flatMap(_.subpool).getOrElse(paramsConfig.defaultPoolTag), settings.map(_.paymentthreshold).getOrElse(0.01), Helpers.nanoErgToErg(pending), owed.map(_.amount).head, avgDelta.getOrElse(0.0), member.head)
       }
     }
     minerResponse.map(okJSON(_))
@@ -175,6 +175,66 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
             InternalServerError("An invalid interval was passed in!")
         }
     }
+  }
+
+  def setPaySettings(address: String): Action[AnyContent] = Action.async{
+    implicit req =>
+      val json = req.body.asJson.get
+      val pay  = json.as[PayoutSettings]
+      val minerShares = db.run(Tables.PoolSharesTable.take(50000).filter(s => s.miner === address).result)
+      val sharesExist = minerShares.map(_.exists(_.ipaddress.split(':').contains(pay.ip)))
+      val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
+      for{
+        exist <- sharesExist
+        settings <- currSettings
+      } yield {
+          if(exist){
+            val payToUse = Math.max(pay.minPay, 0.01)
+            if(settings.isDefined) {
+              val q = for {s <- Tables.MinerSettingsTable if s.address === address} yield s.paymentThreshold
+
+              db.run(q.update(payToUse))
+              Ok
+            }else{
+              db.run(Tables.MinerSettingsTable += SMinerSettings(AppParameters.mcPoolId, address, payToUse, LocalDateTime.now(),
+                LocalDateTime.now(), Some(paramsConfig.defaultPoolTag)))
+              Ok
+            }
+          }else{
+            InternalServerError("Miner not found")
+          }
+      }
+  }
+
+  def setPoolSettings(address: String): Action[AnyContent] = Action.async{
+    implicit req =>
+      val json = req.body.asJson.get
+      val sub  = json.as[SubPoolSettings]
+      val isValid = db.run(Tables.PoolInfoTable.filter(_.poolTag === sub.subPool).result.headOption)
+      val minerShares = db.run(Tables.PoolSharesTable.take(50000).filter(s => s.miner === address).result)
+      val sharesExist = minerShares.map(_.exists(_.ipaddress.split(':').contains(sub.ip)))
+      val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
+      for{
+        v <- isValid
+        settings <- currSettings
+        exist <- sharesExist
+      } yield {
+        if(v.isDefined && exist){
+
+          if(settings.isDefined) {
+            val q = for {s <- Tables.MinerSettingsTable if s.address === address} yield s.subpool
+
+            db.run(q.update(Some(sub.subPool)))
+            Ok
+          }else{
+            db.run(Tables.MinerSettingsTable += SMinerSettings(AppParameters.mcPoolId, address, 0.01, LocalDateTime.now(),
+              LocalDateTime.now(), Some(sub.subPool)))
+            Ok
+          }
+        }else{
+          InternalServerError("Subpool not found or ip was incorrect")
+        }
+      }
   }
 
 }
