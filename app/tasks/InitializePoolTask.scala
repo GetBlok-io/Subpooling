@@ -99,6 +99,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       if (nextEmissions.nonEmpty) {
         logger.info("Now creating next emissions!")
         val info = db.run(Tables.PoolInfoTable.filter(_.title === nextEmissions.head.template.title).map(_.poolTag).result.head)
+        info.map(i => logger.info(s"Found pool without emissions: $i"))
         info.map(i => createEmissions(i, nextEmissions.head.template.currency))
       } else {
         val nextPool = incomplete.head
@@ -188,6 +189,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         val emMintBox = makeTokenTx(1L, "NETA Emission Box NFT", "Token representing the NETA Emission Box", 0, Helpers.MinFee*2)
         EmissionsTransactions.makeNetaEmissionTx(tag, emMintBox)
       case PoolInformation.CURR_ERG_COMET =>
+        logger.info("Making emissions for COMET pool")
         val emMintBox = makeTokenTx(1L, "COMET Emission Box NFT", "Token representing the COMET Emission Box", 0, Helpers.MinFee*2)
         EmissionsTransactions.makeCometEmissionTx(tag, emMintBox)
        // makeTokenTx(1000000000000L, "tCOMET", "Testnet Comet", 0, Helpers.MinFee * 2)
@@ -291,8 +293,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
           logger.info("Emissions Contract generated")
 
           val totalDistributionToken = new ErgoToken(template.distToken, template.totalEmissions)
-          val tokenInputs = ctx.getCoveringBoxesFor(wallet.p2pk, 0L, Seq(totalDistributionToken).asJava).getBoxes
-            .asScala.toSeq.filter(i => i.getTokens.size() > 0).filter(i => i.getTokens.get(0).getId == template.distToken)
+          val tokenInputs = ctx.getBoxesById("fbdeaacba434569f0412ae7a1b82b6f05e827847ce1e8fca8735d5f0bd740470")
           logger.info("Token input boxes grabbed from chain")
           val emissionsOutBox = ProportionalEmissionsContract.buildGenesisBox(ctx, emissionsContract,
             template.initProportion, template.initFee, emTokenMintBox.getTokens.get(0).getId, totalDistributionToken)
@@ -329,9 +330,11 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
   def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long): InputBox = {
     client.execute{
       ctx =>
+        logger.info("Making NFT for comet emissions box")
         val inputBoxes     = ctx.getCoveringBoxesFor(wallet.p2pk, outVal + Helpers.MinFee, Seq().asJava).getBoxes
+        logger.info("Found boxes for NFT")
         val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
-
+        logger.info("Building NFT minting transaction")
         val outBox = ctx.newTxBuilder().outBoxBuilder()
           .value(outVal)
           .tokens(newToken)
@@ -344,8 +347,9 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
           .fee(Helpers.MinFee)
           .sendChangeTo(wallet.p2pk.getErgoAddress)
           .build()
-
+        logger.info("Emissions NFT transaction built, now signing")
         val signed = wallet.prover.sign(unsignedTx)
+        logger.info("Transaction signed, now sending.")
         val txId = ctx.sendTransaction(signed)
         logger.info("Now returning box as input")
         outBox.convertToInputWith(txId.replace("\"", ""), 0)

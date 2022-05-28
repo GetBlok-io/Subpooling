@@ -89,7 +89,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
     val minerPool = poolSettings.map{
       s =>
         if(s.isDefined){
-          db.run(Tables.PoolInfoTable.filter(_.poolTag === s.get.subpool).result.head)
+          db.run(Tables.PoolInfoTable.filter(_.poolTag === s.get.subpool.getOrElse(paramsConfig.defaultPoolTag)).result.head)
         }else{
           db.run(Tables.PoolInfoTable.filter(_.poolTag === paramsConfig.defaultPoolTag).result.head)
         }
