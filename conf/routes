@@ -21,6 +21,7 @@ GET   /pools/:tag/subpools/:id/placements   controllers.PoolController.getSubPoo
 GET   /pools/:tag/subpools/:id/members/byEpoch      controllers.PoolController.getSubPoolMembers(tag: String, id: Long, epoch: Long)
 GET   /pools/:tag/subpools/:id/members/byGEpoch      controllers.PoolController.getSubPoolMembersAtGEpoch(tag: String, id: Long, gEpoch: Long)
 GET   /pools/:tag/subpools/:id/members/byBlock      controllers.PoolController.getSubPoolMembersAtBlock(tag: String, id: Long, block: Long)
+GET   /pools/:tag/members/last      controllers.PoolController.getLastMembers(tag: String)
 
 GET   /blocks                            controllers.BlocksController.allBlocks(page: Option[Int] = Some(0), pageSize: Option[Int] = Some(10), poolTag: Option[String] = None)
 GET   /blocks/page/:page                 controllers.BlocksController.blocksPage(page: Int, pageSize: Int, poolTag: Option[String] = None)
