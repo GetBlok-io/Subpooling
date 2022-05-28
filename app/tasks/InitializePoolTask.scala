@@ -331,7 +331,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
     client.execute{
       ctx =>
         logger.info("Making NFT for comet emissions box")
-        val inputBoxes     = ctx.getCoveringBoxesFor(wallet.p2pk, outVal + Helpers.MinFee, Seq().asJava).getBoxes
+        val inputBoxes     = ctx.getWallet.getUnspentBoxes(outVal + Helpers.MinFee).get()
         logger.info("Found boxes for NFT")
         val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
         logger.info("Building NFT minting transaction")
