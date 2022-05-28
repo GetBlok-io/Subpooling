@@ -80,7 +80,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         }
         incompleteTemps.recoverWith{
           case ex =>
-            logger.error("There was a critical error while checking processing blocks!", ex)
+            logger.error("There was a critical error while checking incomplete pool templates!", ex)
             Failure(ex)
         }
         if(incompleteTemps.isSuccess) {
