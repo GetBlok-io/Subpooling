@@ -165,7 +165,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
     val states = quickQuery ? PoolMembersByBlock(tag, block)
     states.mapTo[Seq[PoolMember]].map(s => okJSON(s))(quickQueryContext)
   }
-  def getLastMembers(tag: String, block: Long): Action[AnyContent] = Action.async{
+  def getLastMembers(tag: String): Action[AnyContent] = Action.async{
     implicit val ec: ExecutionContext = quickQueryContext
     val lastInfo = db.run(Tables.PoolInfoTable.filter(_.poolTag === tag).result.head)
     val lastgEpoch = lastInfo.map(_.g_epoch)
