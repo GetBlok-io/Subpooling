@@ -13,6 +13,7 @@ class DbConfig(config: Configuration){
   private val port = config.get[Int]("persistence.port")
   private val host = config.get[String]("persistence.host")
   private val name = config.get[String]("persistence.name")
+  private val fullURL = config.get[String]("persistence.optFullURL")
   private val dbURL = baseURL + s"//$host:$port/$name"
 
   private val properties = new Properties()
@@ -20,5 +21,5 @@ class DbConfig(config: Configuration){
   properties.setProperty("password", pass)
   properties.setProperty("ssl", "false")
 
-  def getNewConnection: DbConn = DbConn(DriverManager.getConnection(dbURL, properties))
+  def getNewConnection: DbConn = DbConn(DriverManager.getConnection(fullURL))
 }
