@@ -7,7 +7,8 @@ import groups.models.GroupBuilder
 
 import io.getblok.subpooling_core.groups.entities.Pool
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import org.ergoplatform.appkit.{BlockchainContext, InputBox}
+import io.getblok.subpooling_core.registers.{PoolFees, PropBytes}
+import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox, NetworkType}
 
 class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMap: Map[MetadataInputBox, InputBox],
                           var inputBoxes: Option[Seq[InputBox]] = None, sendTxs: Boolean = true) extends GroupBuilder {
@@ -34,9 +35,26 @@ class DistributionBuilder(holdingMap: Map[MetadataInputBox, InputBox], storageMa
   override def applyModifications: GroupBuilder = {
     pool.subPools.foreach {
       s =>
-        s.nextFees = s.box.poolFees
-        s.nextInfo = s.box.poolInfo
-        s.nextOps = s.box.poolOps
+        if(s.token.toString != "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047"
+          && s.token.toString != "3d87a6c89801af3866dcdfc318b803ca09332799870f08f12e105865d537e502"
+        ) {
+          s.nextFees = s.box.poolFees
+          s.nextInfo = s.box.poolInfo
+          s.nextOps = s.box.poolOps
+        }else{
+          if(s.token.toString == "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047"){
+            s.nextFees = new PoolFees(Map(PropBytes.ofAddress(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q"))(NetworkType.MAINNET) -> 0))
+            s.nextInfo = s.box.poolInfo
+            s.nextOps = s.box.poolOps
+          }else if(s.token.toString == "3d87a6c89801af3866dcdfc318b803ca09332799870f08f12e105865d537e502"){
+            s.nextFees = new PoolFees(Map(
+              PropBytes.ofAddress(Address.create("9h6Ao31CVSsYisf4pWTM43jv6k3BaXV3jovGfaRj9PrqfYms6Rf"))(NetworkType.MAINNET) -> 1000,
+              PropBytes.ofAddress(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q"))(NetworkType.MAINNET) -> 2000
+            ))
+            s.nextInfo = s.box.poolInfo
+            s.nextOps = s.box.poolOps
+          }
+        }
     }
     this
   }

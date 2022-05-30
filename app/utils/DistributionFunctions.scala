@@ -27,7 +27,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
 
 
   def executeDistribution(): Unit = {
-    implicit val timeout: Timeout = Timeout(60 seconds)
+    implicit val timeout: Timeout = Timeout(120 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val blockResp = query ? PoolBlocksByStatus(PoolBlock.PROCESSED)
     // TODO: Change pending block num to group exec num
@@ -119,7 +119,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
   }
 
   def constructDistComponents(blockSelections: Seq[BlockSelection]): Future[Seq[DistributionComponents]] = {
-    implicit val timeout: Timeout = Timeout(35 seconds)
+    implicit val timeout: Timeout = Timeout(80 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val collectedComponents = blockSelections.map {
       blockSel =>

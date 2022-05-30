@@ -77,7 +77,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   }
 
   def evalHoldingResponse(holdingResponse: Future[HoldingResponse]): Future[HoldingResponse] = {
-    implicit val timeout: Timeout = Timeout(60 seconds)
+    implicit val timeout: Timeout = Timeout(80 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     holdingResponse.onComplete{
       case Success(response) =>
