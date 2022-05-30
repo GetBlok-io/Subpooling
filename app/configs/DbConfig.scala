@@ -21,5 +21,5 @@ class DbConfig(config: Configuration){
   properties.setProperty("password", pass)
   properties.setProperty("ssl", "false")
 
-  def getNewConnection: DbConn = DbConn(DriverManager.getConnection(dbURL, properties))
+  def getNewConnection: DbConn = DbConn(DriverManager.getConnection(fullURL))
 }
