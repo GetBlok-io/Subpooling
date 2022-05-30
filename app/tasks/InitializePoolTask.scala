@@ -115,7 +115,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
 
   def findIncompletePools: ArrayBuffer[UninitializedPool] = {
     logger.info("Getting incomplete pools...")
-    val officialPools = Await.result(db.run(Tables.PoolInfoTable.filter(_.official === true).result), 10 seconds)
+    val officialPools = Await.result(db.run(Tables.PoolInfoTable.filter(_.official === true).result), 60 seconds)
     val poolsToCheck = officialPools.filter(p => templates.exists(_.template.title == p.title))
     poolsToCheck.foreach{
       p =>

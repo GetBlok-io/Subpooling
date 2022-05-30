@@ -30,7 +30,7 @@ class BlocksController @Inject()(@Named("group-handler") groupRequestHandler: Ac
   val groupContext: ExecutionContext      = system.dispatchers.lookup("subpool-contexts.group-dispatcher")
 
 
-  implicit val timeOut: Timeout = Timeout(20 seconds)
+  implicit val timeOut: Timeout = Timeout(40 seconds)
   private val logger: Logger    = Logger("BlocksController")
   import dbConfig.profile.api._
 

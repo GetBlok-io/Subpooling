@@ -52,7 +52,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
   val log: Logger = Logger("PoolController")
   val quickQueryContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.quick-query-dispatcher")
   val slowWriteContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.blocking-io-dispatcher")
-  implicit val timeOut: Timeout = Timeout(15 seconds)
+  implicit val timeOut: Timeout = Timeout(45 seconds)
   import dbConfig.profile.api._
 
   log.info("Initiating pool controller")

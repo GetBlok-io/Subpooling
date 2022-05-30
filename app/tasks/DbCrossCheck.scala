@@ -75,7 +75,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def checkProcessingBlocks: Future[Unit] = {
-    implicit val timeout: Timeout = Timeout(15 seconds)
+    implicit val timeout: Timeout = Timeout(60 seconds)
     val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.PROCESSING)).mapTo[Seq[PoolBlock]]
     for{
       blocks <- queryBlocks
@@ -95,7 +95,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
   def verifyHoldingBoxes(block: PoolBlock, holdingId: String): Unit = {
-    implicit val timeout: Timeout = Timeout(10 seconds)
+    implicit val timeout: Timeout = Timeout(60 seconds)
 
     val boxFromExp = (expReq ? BoxesById(ErgoId.create(holdingId)))
     boxFromExp.onComplete {
@@ -143,7 +143,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def checkDistributions: Unit = {
-    implicit val timeout: Timeout = Timeout(15 seconds)
+    implicit val timeout: Timeout = Timeout(60 seconds)
     val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.INITIATED)).mapTo[Seq[PoolBlock]]
     for(blocks <- queryBlocks){
       blocks.foreach{
@@ -176,7 +176,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def validateDistStates(block: PoolBlock, queryPoolStates: Future[Seq[PoolState]]): Future[Unit] = {
-    implicit val timeout: Timeout = Timeout(20 seconds)
+    implicit val timeout: Timeout = Timeout(80 seconds)
     queryPoolStates.map {
       poolStates =>
         if(!poolStates.forall(s => s.status == PoolState.CONFIRMED)) {
@@ -286,7 +286,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def handleUnconfirmedStates(block: PoolBlock, poolStates: Seq[PoolState]): Unit = {
-    implicit val timeout: Timeout = Timeout(20 seconds)
+    implicit val timeout: Timeout = Timeout(60 seconds)
     val modifiedPoolStates = {
       val statesToCheck = poolStates.filter(s => s.status == PoolState.SUCCESS)
       val nextStates = Future.sequence(statesToCheck.map {

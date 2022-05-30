@@ -33,7 +33,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     val blockResp = query ? PoolBlocksByStatus(PoolBlock.CONFIRMED)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with confirmed status")
-    val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 10 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 100 seconds).take(params.pendingBlockNum * 2)
     if(blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = !params.parallelPoolPlacements)
       val blockBoxMap = collectHoldingInputs(selectedBlocks)
@@ -77,7 +77,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   }
 
   def evalHoldingResponse(holdingResponse: Future[HoldingResponse]): Future[HoldingResponse] = {
-    implicit val timeout: Timeout = Timeout(80 seconds)
+    implicit val timeout: Timeout = Timeout(100 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     holdingResponse.onComplete{
       case Success(response) =>
@@ -154,7 +154,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   }
 
   def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[MinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
-    implicit val timeout: Timeout = Timeout(15 seconds)
+    implicit val timeout: Timeout = Timeout(100 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
 
     //collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == ms.))

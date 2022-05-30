@@ -63,7 +63,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def evaluateNewBlocks(): Unit = {
     logger.info("Now evaluating pending blocks with confirmationNum 0")
-    implicit val timeout: Timeout = Timeout(30 seconds)
+    implicit val timeout: Timeout = Timeout(60 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val validatingBlocksResult = query ? PoolBlocksByStatus(PoolBlock.VALIDATING)
     val validatingBlocks = Await.result(validatingBlocksResult, timeout.duration).asInstanceOf[Seq[PoolBlock]]
@@ -82,7 +82,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def evalConfirmingBlocks(): Unit = {
     logger.info("Now evaluating confirming blocks")
-    implicit val timeout: Timeout = Timeout(15 seconds)
+    implicit val timeout: Timeout = Timeout(80 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val initBlocksResult = query ? PoolBlocksByStatus(PoolBlock.CONFIRMING)
     val initBlocks = Await.result(initBlocksResult, timeout.duration).asInstanceOf[Seq[PoolBlock]].sortBy(b => b.blockheight)
@@ -121,7 +121,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
   def evalNullEffortBlocks = {
     logger.info("Now evaluating blocks with null effort")
     implicit val ec: ExecutionContext = contexts.taskContext
-    implicit val timeout: Timeout = Timeout(10 seconds)
+    implicit val timeout: Timeout = Timeout(70 seconds)
     val allBlocks = (query ? QueryBlocks(None)).mapTo[Seq[PoolBlock]]
     allBlocks.map{
       blocks =>
@@ -131,7 +131,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def updateBlockEffort(allBlocks: Seq[PoolBlock]) = {
     implicit val ec: ExecutionContext = contexts.taskContext
-    implicit val timeout: Timeout = Timeout(10 seconds)
+    implicit val timeout: Timeout = Timeout(70 seconds)
     val blocksGrouped = allBlocks.groupBy(_.poolTag)
     var blocksUpdated = 0
     blocksGrouped.foreach{
@@ -212,12 +212,12 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
 
 
   def validateBlockAsync(blockHeight: Long): Future[Option[NodeHandler.PartialBlockInfo]] = {
-    implicit val timeout: Timeout = Timeout(30 seconds)
+    implicit val timeout: Timeout = Timeout(70 seconds)
     (explorerReqBus ? ValidateBlockByHeight(blockHeight)).mapTo[Option[NodeHandler.PartialBlockInfo]]
   }
 
   def executeInitBlockValidation(blockHeight: Long, validation: Future[Option[NodeHandler.PartialBlockInfo]]): Unit = {
-    implicit val timeout: Timeout = Timeout(30 seconds)
+    implicit val timeout: Timeout = Timeout(70 seconds)
     validation.onComplete{
       case Success(value) =>
         value match {

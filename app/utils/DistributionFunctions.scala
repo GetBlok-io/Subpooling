@@ -32,7 +32,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     val blockResp = query ? PoolBlocksByStatus(PoolBlock.PROCESSED)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with processing status")
-    val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 10 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 100 seconds).take(params.pendingBlockNum * 2)
     if(blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = true)
       val blockBoxMap = collectDistributionInputs(selectedBlocks)
@@ -57,7 +57,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
   }
   // TODO: MUST CHANGE
   def evalDistributionResponse(distResponse: Future[DistributionResponse]): Future[DistributionResponse] = {
-    implicit val timeout: Timeout = Timeout(60 seconds)
+    implicit val timeout: Timeout = Timeout(80 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     distResponse.onComplete {
       case Success(dr) =>
@@ -119,7 +119,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
   }
 
   def constructDistComponents(blockSelections: Seq[BlockSelection]): Future[Seq[DistributionComponents]] = {
-    implicit val timeout: Timeout = Timeout(80 seconds)
+    implicit val timeout: Timeout = Timeout(100 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val collectedComponents = blockSelections.map {
       blockSel =>

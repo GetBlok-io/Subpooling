@@ -49,7 +49,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
                                 {
   val log: Logger = Logger("MinerController")
   implicit val quickQueryContext: ExecutionContext = system.dispatchers.lookup("subpool-contexts.quick-query-dispatcher")
-  implicit val timeOut: Timeout = Timeout(15 seconds)
+  implicit val timeOut: Timeout = Timeout(45 seconds)
 
   import dbConfig.profile.api._
 

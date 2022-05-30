@@ -48,7 +48,7 @@ class PoolBlockListener @Inject()(system: ActorSystem, config: Configuration,
       logger.info("PoolBlockListener has begun execution, now initiating block evaluation")
         val tryEvaluate = Try
         {
-          implicit val timeout: Timeout = Timeout(10 seconds)
+          implicit val timeout: Timeout = Timeout(60 seconds)
           implicit val ec: ExecutionContext = contexts.taskContext
           val pendingBlocks = (query ? QueryPending(params.numToValidate)).mapTo[Seq[Block]]
           pendingBlocks.map{
