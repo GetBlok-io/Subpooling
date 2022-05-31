@@ -6,6 +6,7 @@ import node.NodeHandler.PartialBlockInfo
 import persistence.models.Models.{DbConn, PoolBlock}
 
 import io.getblok.subpooling_core.persistence.models.DataTable
+import org.slf4j.{Logger, LoggerFactory}
 
 import java.sql.PreparedStatement
 import java.time.LocalDateTime
@@ -154,8 +155,12 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
   def queryByStatus(status: String): Seq[PoolBlock] = {
     implicit val ps: PreparedStatement = state(select, all, fromTable, where, fieldOf("status"), eq, param,
       order, by, fieldOf("created"))
+    val logger: Logger = LoggerFactory.getLogger("PoolBlocksTable")
+    logger.info("Build query for blocks by status")
     setStr(1, status)
+    logger.info("Executing query for blocks by status")
     val rs = execQuery
+    logger.info("Query complete for blocks by status, returning to DbReader")
     buildSeq(rs, PoolBlock.fromResultSet)
   }
 

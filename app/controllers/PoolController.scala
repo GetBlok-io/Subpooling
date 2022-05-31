@@ -187,7 +187,15 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
     val fInfo = (quickQuery ? QueryPoolInfo(tag)).mapTo[PoolInformation]
     val fEffortDiff = fInfo.map{
       info =>
-        db.run(Tables.PoolSharesTable.getEffortDiff(tag, paramsConfig.defaultPoolTag, info.last_block))
+        val fShares = db.run(Tables.PoolSharesTable.getEffortDiff(tag, paramsConfig.defaultPoolTag, info.last_block))
+        val fMiners = db.run(Tables.PoolSharesTable.queryPoolMiners(tag, paramsConfig.defaultPoolTag))
+
+        for{
+          shares <- fShares
+          miners <- fMiners
+        } yield {
+          Some(shares.filter(s => miners.exists(s.miner == _.address)).map(s => s.difficulty / BigDecimal(s.networkdifficulty)).sum.toDouble)
+        }
     }.flatten
     val fStats = db.run(Tables.MinerStats.sortBy(_.created.desc)
               .filter(_.created > LocalDateTime.now().minusHours(1))

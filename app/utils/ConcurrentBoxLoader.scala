@@ -6,6 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation}
+import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoToken, InputBox}
 import org.ergoplatform.wallet.boxes.BoxSelector
@@ -31,13 +32,13 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
 
 
-  def selectBlocks(blocks: Seq[PoolBlock], distinctOnly: Boolean): Seq[BlockSelection] = {
+  def selectBlocks(blocks: Seq[SPoolBlock], distinctOnly: Boolean): Seq[BlockSelection] = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now selecting blocks with unique pool tags")
 
     if(distinctOnly) {
-      val distinctBlocks = ArrayBuffer.empty[PoolBlock]
+      val distinctBlocks = ArrayBuffer.empty[SPoolBlock]
       for (block <- blocks.sortBy(b => b.gEpoch)) {
         if (!distinctBlocks.exists(b => block.poolTag == b.poolTag)) {
           logger.info(s"Unique pool tag ${block.poolTag} was added to selection!")
@@ -112,6 +113,6 @@ object ConcurrentBoxLoader {
 
 
 
-  case class PartialBlockSelection(block: PoolBlock, poolTag: String)
-  case class BlockSelection(block: PoolBlock, poolInformation: PoolInformation)
+  case class PartialBlockSelection(block: SPoolBlock, poolTag: String)
+  case class BlockSelection(block: SPoolBlock, poolInformation: PoolInformation)
 }

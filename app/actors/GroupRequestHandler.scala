@@ -17,6 +17,7 @@ import io.getblok.subpooling_core.groups.models.{GroupBuilder, GroupSelector, Tr
 import io.getblok.subpooling_core.groups.selectors.{LoadingSelector, SelectionParameters, StandardSelector}
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
+import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoClientException, ErgoId, ErgoToken, InputBox, NetworkType, Parameters, RestApiErgoClient}
 import play.api.libs.json.Json
 import play.api.{Configuration, Logger}
@@ -40,7 +41,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
     case groupRequest: GroupRequest =>
         Try {
           groupRequest match {
-            case ExecuteDistribution(distributionComponents: DistributionComponents, block: PoolBlock) =>
+            case ExecuteDistribution(distributionComponents: DistributionComponents, block: SPoolBlock) =>
               Try {
                 val poolTag = distributionComponents.poolTag
                 logger.info(s"Received distribution request for pool with tag $poolTag for block ${block.blockheight}")
@@ -55,7 +56,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                     manager.initiate()
                     if (manager.isSuccess) {
                       logger.info("Group execution completed successfully")
-                      val poolMembers = group.getNextPoolMembers(block)
+                      val poolMembers = group.getNextPoolMembers(PoolBlock(block.id, block.blockheight, block.netDiff, block.status, block.confirmation, block.effort,
+                        block.txConfirmation.get, block.miner, block.reward, block.hash.get, block.created, block.poolTag, block.gEpoch, block.updated))
                       logger.info(s"Returning ${poolMembers.length} PoolMembers at global epoch ${poolMembers.head.g_epoch} for pool $poolTag")
 
                       // Make initial states, then convert them to failed and success
@@ -272,7 +274,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
     PoolData(pool, subPools.toArray, metadataBoxes.toArray)
   }
 
-  def setupHolding(poolTag: String, poolStates: Seq[PoolState], membersWithMinPay: Array[Member], optLastPlacements: Option[Seq[PoolPlacement]], block: PoolBlock): HoldingSetup = {
+  def setupHolding(poolTag: String, poolStates: Seq[PoolState], membersWithMinPay: Array[Member], optLastPlacements: Option[Seq[PoolPlacement]], block: SPoolBlock): HoldingSetup = {
     ergoClient.execute{
       ctx =>
         // Create pool
@@ -338,27 +340,27 @@ object GroupRequestHandler {
   case class PoolData(pool: Pool, subPools: Array[Subpool], metadata: Array[MetadataInputBox])
 
   // Received Messages
-  case class ExecuteDistribution(distributionComponents: DistributionComponents, block: PoolBlock) extends GroupRequest
+  case class ExecuteDistribution(distributionComponents: DistributionComponents, block: SPoolBlock) extends GroupRequest
   case class ExecuteHolding(holdingComponents: HoldingComponents) extends GroupRequest
   case class ConstructDistribution(poolTag: String, poolStates: Seq[PoolState], placements: Seq[PoolPlacement],
-                                   poolInformation: PoolInformation, block: PoolBlock) extends GroupRequest
+                                   poolInformation: PoolInformation, block: SPoolBlock) extends GroupRequest
   case class ConstructHolding(poolTag: String, poolStates: Seq[PoolState], membersWithMinPay: Array[Member],
-                              optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, block: PoolBlock) extends GroupRequest
+                              optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, block: SPoolBlock) extends GroupRequest
   // Responses
-  case class DistributionResponse(nextMembers: Array[PoolMember], nextStates: Array[PoolState], block: PoolBlock)
-  case class HoldingResponse(nextPlacements: Array[PoolPlacement], block: PoolBlock)
+  case class DistributionResponse(nextMembers: Array[PoolMember], nextStates: Array[PoolState], block: SPoolBlock)
+  case class HoldingResponse(nextPlacements: Array[PoolPlacement], block: SPoolBlock)
 
   case class HoldingSetup(modifiedPool: Pool, modifiedMembers: Array[Member])
   class GroupComponents(manager: GroupManager, selector: GroupSelector, builder: GroupBuilder, group: TransactionGroup, poolTag: String)
 
   case class DistributionComponents(manager: GroupManager, selector: LoadingSelector, builder: DistributionBuilder,
-                                    group: DistributionGroup, poolTag: String, block: PoolBlock, placedStates: Seq[PoolState])
+                                    group: DistributionGroup, poolTag: String, block: SPoolBlock, placedStates: Seq[PoolState])
     extends GroupComponents(manager, selector, builder, group, poolTag)
 
-  case class FailedPlacements(block: PoolBlock)
+  case class FailedPlacements(block: SPoolBlock)
 
   case class HoldingComponents(manager: GroupManager, selector: StandardSelector, builder: HoldingBuilder, root: TransactionStage[InputBox],
-                               group: HoldingGroup, poolTag: String, block: PoolBlock) extends GroupComponents(manager, selector, builder, group, poolTag)
+                               group: HoldingGroup, poolTag: String, block: SPoolBlock) extends GroupComponents(manager, selector, builder, group, poolTag)
 
   case class PoolParameters(poolCurrency: String, poolTokenId: String, poolTokenBox: InputBox)
 

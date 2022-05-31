@@ -4,6 +4,7 @@ import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.SharesTable
 import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, PoolBlock}
+import models.DatabaseModels.SPoolBlock
 import org.slf4j.LoggerFactory
 import persistence.{PoolSharesTable, Tables}
 import slick.jdbc.PostgresProfile
@@ -17,17 +18,19 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
   private val logger = LoggerFactory.getLogger("ShareHandler")
   final val SHARE_LIMIT = 50000
   logger.info(s"ShareHandler is using payment type ${paymentType.toString}")
-  def queryToWindow(block: PoolBlock, defaultTag: String): ShareCollector = {
+  def queryToWindow(block: SPoolBlock, defaultTag: String): ShareCollector = {
     logger.info(s"Share handler querying to window for block ${block.blockheight}")
     var offset = 0
+    val miners = Await.result(db.run(Tables.PoolSharesTable.queryPoolMiners(block.poolTag, defaultTag)), 60 seconds).map(m => m.address -> m.subpool).toMap
     while(collector.totalScore < AppParameters.pplnsWindow && offset != -1){
-      val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate(block.poolTag, defaultTag, block.created, offset, SHARE_LIMIT))
-      val shares = Await.result(fShares, 20 seconds).map(s => PartialShare(s._1, s._2, s._3, s._4))
+      val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
+      val shares = Await.result(fShares, 20 seconds).filter(sh => miners.contains(sh.miner))
       logger.info(s"${shares.size} shares were queried")
       shares.foreach{
         s =>
+          val ps = PartialShare(s.miner, s.difficulty, s.networkdifficulty, miners(s.miner))
           if(collector.totalScore < AppParameters.pplnsWindow){
-            collector.addToMap(s)
+            collector.addToMap(ps)
           }
       }
       logger.info(s"Total collector score: ${collector.totalScore}")

@@ -66,7 +66,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           boxLoader.preLoadInputBoxes(params.amountToPreCollect)
         }
         if(tryPreCollection.isSuccess) {
-          val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader)
+          val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val tryPlacement = Try {
             placementFunctions.executePlacement()

@@ -18,31 +18,32 @@ object Tables {
 
     def getEffortDiff(tag: String, defaultTag: String, lastBlock: Long) = {
       import slick.jdbc.PostgresProfile.api._
-      val joined = for {
-        (shares, settings) <- this.filter(_.blockHeight > lastBlock) joinLeft Tables.MinerSettingsTable on (_.miner === _.address)
-      } yield (shares.miner, shares.difficulty, shares.networkDifficulty, settings.map(_.subpool).flatten)
-      if(tag != defaultTag)
-        joined.filter(_._4.isDefined).filter(j => j._4.map(_ === tag)).map(j => j._2 / j._3).sum.result
-      else
-        joined.filter(j => (j._4.isDefined && j._4.map(_ === tag)) || j._4.isEmpty).map(j => j._2 / j._3).sum.result
+        this.filter(_.blockHeight > lastBlock).result
     }
 
-    def queryBeforeDate(tag: String, defaultTag: String, startDate: LocalDateTime, offset: Long, limit: Long) = {
+    def queryPoolMiners(tag: String, defaultTag: String) = {
       import slick.jdbc.PostgresProfile.api._
-      val joined = for {
-        (shares, settings) <- this.filter(s => s.created <= startDate).drop(offset).take(limit) joinLeft Tables.MinerSettingsTable on (_.miner === _.address)
-      } yield (shares.miner, shares.difficulty, shares.networkDifficulty, settings.map(_.subpool).flatten)
-      if(tag != defaultTag)
-        joined.filter(j => j._4.isDefined).filter(j => j._4.map(_ === tag)).result
-      else
-        joined.filter(j => j._4.isEmpty || (j._4.isDefined && j._4.map(_ === tag))).result
+      if(tag != defaultTag) {
+        Tables.MinerSettingsTable.filter(_.subpool.isDefined).filter(_.subpool === tag).result
+      }else{
+        Tables.MinerSettingsTable.filter(ms => (ms.subpool.isDefined && ms.subpool === tag) || ms.subpool.isEmpty).result
+      }
     }
+
+    def queryBeforeDate(startDate: LocalDateTime, offset: Long, limit: Long) = {
+      import slick.jdbc.PostgresProfile.api._
+
+      this.filter(s => s.created <= startDate).drop(offset).take(limit).result
+    }
+
+
 
   }
   object MinerSettingsTable extends TableQuery(new MinerSettingsTable(_))
   object SharesArchiveTable extends TableQuery(new SharesArchiveTable(_))
   object MinerStatsArchiveTable extends TableQuery(new MinerStatsArchiveTable(_))
   object PoolInfoTable extends TableQuery(new PoolInfoTable(_))
+  object PoolPlacementsTable extends TableQuery(new PoolPlacementsTable(_))
   object PoolStatesTable extends TableQuery(new PoolStatesTable(_)) {
 /*    def apply(poolTag: String) = {
       TableQuery(new PoolStatesTable(_, "subpool_states_"+poolTag))

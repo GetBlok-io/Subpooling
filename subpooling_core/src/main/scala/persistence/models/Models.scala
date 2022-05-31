@@ -158,7 +158,8 @@ object Models {
     }
   }
 
-  object PoolPlacement extends DatabaseConversion[PoolPlacement] {
+  object PoolPlacement extends DatabaseConversion[PoolPlacement]
+    with Function12[String, Long, Long, String, Long, String, Long, Long, Long, Long, Long, Long, PoolPlacement] {
     override def fromResultSet(rs: ResultSet): PoolPlacement = {
       implicit val resultSet: ResultSet = rs
       PoolPlacement(str(1), long(2), long(3), str(4), long(5), str(6), long(7),

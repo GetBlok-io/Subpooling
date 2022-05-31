@@ -76,6 +76,29 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
               membersRemoved += lostMember
             }
           }
+        } else if((!members.exists(_.address == oldMember.address))){
+          if(oldMember.epochsMined > EPOCH_MINED_LIMIT){
+            val epochsMined = if (oldMember.epochsMined > 0) 0 else oldMember.epochsMined - 1
+            val copiedOldMember = oldMember.copy(memberInfo
+            = oldMember.memberInfo
+                .withEpochs(epochsMined)
+                .withScore(0)
+            )
+            distMap = distMap + copiedOldMember.toDistributionValue
+            membersAdded += copiedOldMember
+          }else if(oldMember.epochsMined == EPOCH_MINED_LIMIT){
+            val epochsMined = if (oldMember.epochsMined > 0) 0 else oldMember.epochsMined - 1
+            val copiedOldMember = oldMember.copy(memberInfo
+            = oldMember.memberInfo
+                .withEpochs(epochsMined)
+                .withScore(0)
+                .withMinPay(KICKED_PAYMENT_THRESHOLD)
+            )
+            distMap = distMap + copiedOldMember.toDistributionValue
+            membersAdded += copiedOldMember
+          }else{
+            membersRemoved += oldMember
+          }
         }
       }
       val nextDist = new ShareDistribution(distMap)

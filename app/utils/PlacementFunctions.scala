@@ -8,15 +8,19 @@ import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.Models._
+import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.ergoplatform.appkit.{InputBox, Parameters}
 import org.slf4j.{Logger, LoggerFactory}
+import persistence.Tables
 import persistence.shares.{ShareCollector, ShareHandler}
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader.BlockSelection
 
+import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -26,14 +30,15 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
                          contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
                          boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
   val logger: Logger = LoggerFactory.getLogger("PlacementFunctions")
-
+  import slick.jdbc.PostgresProfile.api._
   def executePlacement(): Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    val blockResp = query ? PoolBlocksByStatus(PoolBlock.CONFIRMED)
+
+    val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.CONFIRMED).sortBy(_.created).result)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with confirmed status")
-    val blocks = Await.result(blockResp.mapTo[Seq[PoolBlock]], 100 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 100 seconds).take(params.pendingBlockNum * 2)
     if(blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = !params.parallelPoolPlacements)
       val blockBoxMap = collectHoldingInputs(selectedBlocks)
@@ -84,9 +89,10 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         if(response.nextPlacements.nonEmpty) {
           logger.info(s"Holding execution was success for block ${response.block.blockheight} and pool ${response.nextPlacements.head}")
           logger.info("Now updating block to processing status and inserting placements into placements table")
-          val blockUpdate = (write ? UpdatePoolBlockStatus(PoolBlock.PROCESSING, response.block.blockheight)).mapTo[Long]
+          val blockUpdate = (db.run(Tables.PoolBlocksTable.filter(_.blockHeight === response.block.blockheight).map(b => b.status -> b.updated)
+            .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
 
-          val placeInsertion = (write ? InsertPlacements(response.nextPlacements.head.subpool, response.nextPlacements)).mapTo[Long]
+          val placeInsertion = db.run(Tables.PoolPlacementsTable ++= response.nextPlacements.toSeq)
           val rowsUpdated = for{
             blockRowsUpdated <- blockUpdate
             placeRowsInserted <- placeInsertion
@@ -95,7 +101,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
               logger.info(s"${blockRowsUpdated} rows were updated for block ${response.block.blockheight}")
             else
               logger.error(s"No rows were updated for block ${response.block.blockheight}!")
-            if(placeRowsInserted > 0)
+            if(placeRowsInserted.getOrElse(0) > 0)
               logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${response.nextPlacements.head.subpool}")
             else
               logger.error(s"No placements were inserted for pool ${response.nextPlacements.head.subpool}")
@@ -115,11 +121,12 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       blockSel =>
         val poolTag = blockSel.poolInformation.poolTag
         val block = blockSel.block
-
+        logger.info(s"Now querying shares, pool states, and miner settings for block ${block.blockheight}" +
+          s" and pool ${block.poolTag}")
         val shareHandler = getShareHandler(blockSel.block, blockSel.poolInformation)
         val fCollector = Future(shareHandler.queryToWindow(block, params.defaultPoolTag))
-        val poolStateResp = (query ? QueryAllSubPools(poolTag)).mapTo[Seq[PoolState]]
-        val poolMinersResp = (query ? MinersByAssignedPool(poolTag)).mapTo[Seq[MinerSettings]]
+        val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
+        val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
 
         val holdingComponents = for{
           poolStates <- poolStateResp
@@ -153,7 +160,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     blockBoxMap
   }
 
-  def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[MinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
+  def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[SMinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
 
@@ -171,18 +178,19 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         if(blockSel.poolInformation.payment_type != PoolInformation.PAY_SOLO){
           m.copy( memberInfo =
           m.memberInfo.withMinPay(
-            (minPay.getOrElse(0.01) * BigDecimal(Parameters.OneErg)).longValue()
+            (minPay.getOrElse(0.01) * BigDecimal(Helpers.OneErg)).longValue()
           ))
         }else{
           m.copy(
-            memberInfo = m.memberInfo.withMinPay((0.001 * BigDecimal(Parameters.OneErg)).longValue())
+            memberInfo = m.memberInfo.withMinPay((0.001 * BigDecimal(Helpers.OneErg)).longValue())
           )
         }
     }
     val poolTag = blockSel.poolInformation.poolTag
     val poolInformation = blockSel.poolInformation
     logger.info("Num members: " + members.length)
-    val lastPlacementResp = (query ? PlacementsByGEpoch(blockSel.block.poolTag, blockSel.block.gEpoch-1)).mapTo[Seq[PoolPlacement]]
+    val lastPlacementResp = db.run(Tables.PoolPlacementsTable.filter(p => p.gEpoch === blockSel.block.gEpoch - 1 && p.subpool === poolTag).result)
+      .mapTo[Seq[PoolPlacement]]
     lastPlacementResp.flatMap {
       placements =>
         if(placements.nonEmpty) {
@@ -197,7 +205,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     }
   }
 
-  def getShareHandler(block: PoolBlock, information: PoolInformation): ShareHandler = {
+  def getShareHandler(block: SPoolBlock, information: PoolInformation): ShareHandler = {
     information.payment_type match {
       case PoolInformation.PAY_PPLNS =>
         new ShareHandler(PaymentType.PPLNS_WINDOW, block.miner, db)
