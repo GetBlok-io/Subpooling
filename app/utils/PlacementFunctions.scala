@@ -32,13 +32,13 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   val logger: Logger = LoggerFactory.getLogger("PlacementFunctions")
   import slick.jdbc.PostgresProfile.api._
   def executePlacement(): Unit = {
-    implicit val timeout: Timeout = Timeout(60 seconds)
+    implicit val timeout: Timeout = Timeout(500 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
 
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.CONFIRMED).sortBy(_.created).result)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with confirmed status")
-    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 100 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 500 seconds).take(params.pendingBlockNum * 2)
     if(blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = !params.parallelPoolPlacements)
       val blockBoxMap = collectHoldingInputs(selectedBlocks)
@@ -82,7 +82,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   }
 
   def evalHoldingResponse(holdingResponse: Future[HoldingResponse]): Future[HoldingResponse] = {
-    implicit val timeout: Timeout = Timeout(100 seconds)
+    implicit val timeout: Timeout = Timeout(500 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     holdingResponse.onComplete{
       case Success(response) =>
@@ -115,7 +115,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   }
 
   def constructHoldingComponents(blockSelections: Seq[BlockSelection]): Future[Seq[HoldingComponents]] = {
-    implicit val timeout: Timeout = Timeout(120 seconds)
+    implicit val timeout: Timeout = Timeout(500 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val collectedComponents = blockSelections.map {
       blockSel =>
@@ -161,7 +161,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   }
 
   def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[SMinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
-    implicit val timeout: Timeout = Timeout(100 seconds)
+    implicit val timeout: Timeout = Timeout(500 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
 
     //collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == ms.))
