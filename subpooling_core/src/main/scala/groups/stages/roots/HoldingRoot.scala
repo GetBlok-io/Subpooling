@@ -29,7 +29,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         log.info(s"Pool size: ${pool.subPools.size}")
         log.info(s"Total Tx fees: $totalTxFees, Total Base fees: $totalBaseFees, Total outputs: $totalOutputs")
         var initialInputs = inputBoxes
-
+        log.info("Re-checking input boxes for correct values")
         // Paranoid checks, root transaction is handed off maximum amount of emission currency for the group
         // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
         // max selection
@@ -37,20 +37,25 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
           initialInputs = Some(Seq())
           val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputs
           val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
-
+          log.info(s"Total amount needed for tx: ${totalAmountNeeded}")
+          log.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
+          log.info(s"Total number of inputs ${sortedInputs.length}")
           var initialSum: Long = 0L
+          log.info("Now pruning input boxes")
           while(initialSum < totalAmountNeeded){
             if(sortedInputs.hasNext) {
               val nextBox = sortedInputs.next()
               initialInputs = initialInputs.map(_ ++ Seq(nextBox))
               initialSum = initialSum + nextBox.getValue.toLong
+              log.info(s"Current sum: ${initialSum}")
             }
           }
         }
 
-
+        log.info("Checks complete, now building transaction")
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
         var outputIndex: Int = 0
+        log.info("Adding subpool outputs")
         for (subPool <- pool.subPools) {
 
           val outB = ctx.newTxBuilder().outBoxBuilder()
@@ -63,6 +68,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
           outputMap = outputMap + (subPool -> (outBox -> outputIndex))
           outputIndex = outputIndex + 1
         }
+        log.info(s"Adding fee outputs for baseFeeMap: ${baseFeeMap}")
         val feeOutputs = ArrayBuffer.empty[OutBox]
         for (fee <- baseFeeMap) {
           val outB = ctx.newTxBuilder().outBoxBuilder()
@@ -76,7 +82,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
           outputIndex = outputIndex + 1
         }
 
-
+        log.info("Setting boxes to spend")
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs).get().asScala.toSeq)
 
