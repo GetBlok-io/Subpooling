@@ -33,7 +33,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
   def executeDistribution(): Unit = {
     implicit val timeout: Timeout = Timeout(120 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    logger.info("Now querying processed blocks")
+    logger.info("Now querying processed blocks for distribution")
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).result)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with processed status")
