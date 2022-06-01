@@ -16,6 +16,9 @@ import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInf
 import play.api.{Configuration, Logger}
 import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, Share}
 import org.ergoplatform.appkit.ErgoId
+import persistence.Tables
+import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import slick.jdbc.PostgresProfile
 
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -25,7 +28,10 @@ import scala.util.{Failure, Success, Try}
 @Singleton
 class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
                                  @Named("quick-db-reader") query: ActorRef, @Named("blocking-db-writer") write: ActorRef,
-                                 @Named("explorer-req-bus") explorerReqBus: ActorRef, @Named("push-msg-notifier") push: ActorRef) {
+                                 @Named("explorer-req-bus") explorerReqBus: ActorRef, @Named("push-msg-notifier") push: ActorRef,
+                                  protected val dbConfigProvider: DatabaseConfigProvider)
+                                    extends HasDatabaseConfigProvider[PostgresProfile]{
+  import dbConfig.profile.api._
   val logger: Logger = Logger("BlockStatusCheck")
   val taskConfig: TaskConfiguration = new TasksConfig(config).blockCheckConfig
   val nodeConfig: NodeConfig        = new NodeConfig(config)
@@ -132,7 +138,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
   def updateBlockEffort(allBlocks: Seq[PoolBlock]) = {
     implicit val ec: ExecutionContext = contexts.taskContext
     implicit val timeout: Timeout = Timeout(70 seconds)
-    val blocksGrouped = allBlocks.sortBy(_.blockheight).take(2).groupBy(_.poolTag)
+    val blocksGrouped = allBlocks.sortBy(_.blockheight).take(1).groupBy(_.poolTag)
     var blocksUpdated = 0
     logger.info("Evaluating effort for first 2 blocks!")
     blocksGrouped.foreach{
@@ -146,11 +152,15 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               val lastBlock = ordered.find(b => b.gEpoch == block.gEpoch - 1).get
               val start = lastBlock.created
               val end = block.created
-              val sharesBetween = (query ? QuerySharesBetween(start, end)).mapTo[Seq[Share]]
+              logger.info(s"Querying shares between last block ${lastBlock.blockheight} and current block ${block.blockheight}")
+              val sharesBetween = db.run(Tables.PoolSharesTable.filter(_.created >= start).filter(_.created <= end).result)
+              logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
               sharesBetween.map(s => writeEffortForBlock(block, s))
             }else{
+              logger.info(s"gEpoch is 1 for block ${block.blockheight}, querying all shares made before it.")
               val date = block.created
-              val sharesBefore = (query ? QuerySharesBefore(date)).mapTo[Seq[Share]]
+              val sharesBefore = db.run(Tables.PoolSharesTable.filter(_.created <= date).result)
+              logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
               sharesBefore.map(s => writeEffortForBlock(block, s))
             }
         }
@@ -252,7 +262,9 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def writeEffortForBlock(currentBlock: PoolBlock, shares: Seq[Share]): Unit = {
+    logger.info(s"Writing effort for current block ${currentBlock.blockheight}")
     val accumulatedDiff = shares.map(s => BigDecimal(s.difficulty)).sum * AppParameters.shareConst
+    logger.info(s"Accumulated effort calculated: ${accumulatedDiff}")
     val totalEffort = accumulatedDiff / currentBlock.netDiff
     logger.info(s"Now updating block effort for block ${currentBlock} and poolTag ${currentBlock}")
     logger.info(s"Effort: ${(totalEffort * 100).toDouble}% ")
