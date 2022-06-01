@@ -138,7 +138,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
   def updateBlockEffort(allBlocks: Seq[PoolBlock]) = {
     implicit val ec: ExecutionContext = contexts.taskContext
     implicit val timeout: Timeout = Timeout(70 seconds)
-    val blocksGrouped = allBlocks.filter(_.gEpoch != 1).sortBy(_.blockheight).take(1).groupBy(_.poolTag)
+    val blocksGrouped = allBlocks.groupBy(_.poolTag)
     var blocksUpdated = 0
     logger.info("Evaluating effort for blocks!")
     blocksGrouped.foreach{
@@ -146,7 +146,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         val ordered = bg._2.filter(_.gEpoch != -1).sortBy(_.gEpoch)
         val orderedNoEffort = ordered.filter(_.effort.isEmpty)
         logger.info(s"Pool ${bg._1} has ${orderedNoEffort.length} blocks with null effort values!")
-        orderedNoEffort.foreach{
+        orderedNoEffort.take(2).foreach{
           block =>
             if(block.gEpoch != 1){
               val lastBlock = ordered.find(b => b.gEpoch == block.gEpoch - 1).get
