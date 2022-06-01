@@ -40,20 +40,20 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
         // max selection
         logger.info(s"Input box length: ${initialInputs.map(_.size).toString}")
-        if(inputBoxes.isDefined) {
-          initialInputs = Some(Seq())
-          val totalAmountNeeded = totalTxFees + blockReward
-          val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
-
-          var initialSum: Long = 0L
-          while(initialSum < totalAmountNeeded){
-            if(sortedInputs.hasNext) {
-              val nextBox = sortedInputs.next()
-              initialInputs = initialInputs.map(_ ++ Seq(nextBox))
-              initialSum = initialSum + nextBox.getValue.toLong
-            }
-          }
-        }
+//        if(inputBoxes.isDefined) {
+//          initialInputs = Some(Seq())
+//          val totalAmountNeeded = totalTxFees + blockReward
+//          val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
+//
+//          var initialSum: Long = 0L
+//          while(initialSum < totalAmountNeeded){
+//            if(sortedInputs.hasNext) {
+//              val nextBox = sortedInputs.next()
+//              initialInputs = initialInputs.map(_ ++ Seq(nextBox))
+//              initialSum = initialSum + nextBox.getValue.toLong
+//            }
+//          }
+//        }
         logger.info(s"Filtered input box length: ${initialInputs.map(_.size).toString}")
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
