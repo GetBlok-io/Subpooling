@@ -132,8 +132,9 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
   def updateBlockEffort(allBlocks: Seq[PoolBlock]) = {
     implicit val ec: ExecutionContext = contexts.taskContext
     implicit val timeout: Timeout = Timeout(70 seconds)
-    val blocksGrouped = allBlocks.groupBy(_.poolTag)
+    val blocksGrouped = allBlocks.sortBy(_.blockheight).take(3).groupBy(_.poolTag)
     var blocksUpdated = 0
+    logger.info("Evaluating effort for first 3 blocks!")
     blocksGrouped.foreach{
       bg =>
         val ordered = bg._2.filter(_.gEpoch != -1).sortBy(_.gEpoch)
