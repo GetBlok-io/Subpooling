@@ -31,7 +31,7 @@ object AppParameters {
   var scoreAdjustmentCoeff: Long = 10000000L
   var defaultMiningPK = "" // default miner pk to use in case query request does not work
   var numMinConfirmations = 20
-  var feeAddress = "3WwF1KHM9LJyF6T7RVeXgwvbCEsxpho7EMsmtKYBb3KrFs1vRowN"
+  var feeAddress = "9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q"
   var feePerc    = 1.0
   var baseFeePerc = Map(Address.create(feeAddress) -> feePerc)
 
