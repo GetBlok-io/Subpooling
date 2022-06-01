@@ -157,11 +157,11 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
               sharesBetween.map(s => writeEffortForBlock(block, s))
             }else{
-              logger.info(s"gEpoch is 1 for block ${block.blockheight}, querying all shares made before it.")
-              val date = block.created
-              val sharesBefore = db.run(Tables.PoolSharesTable.filter(_.created <= date).result)
-              logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
-              sharesBefore.map(s => writeEffortForBlock(block, s))
+              logger.info(s"gEpoch is 1 for block ${block.blockheight}, Not writing effort for block")
+//              val date = block.created
+//              val sharesBefore = db.run(Tables.PoolSharesTable.filter(_.created <= date).result)
+//              logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
+//              sharesBefore.map(s => writeEffortForBlock(block, s))
             }
         }
         blocksUpdated = blocksUpdated + orderedNoEffort.length
