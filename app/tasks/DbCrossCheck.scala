@@ -104,7 +104,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           val outputs = Await.result(Future.sequence(states.map(s => (expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]])), 1000 seconds)
           logger.info("Finished querying outputs, now querying transactions!")
           val spentOutputs = outputs.filter(_.isDefined).filter(_.get.spendingTxId.isDefined).map(_.get)
-          val spendingTxs = Await.result(Future.sequence(states.map(so => (expReq ? TxById(ErgoId.create(so.tx))).mapTo[Option[TransactionData]])), 1000 seconds)
+          val spendingTxs = Await.result(Future.sequence(states.filter(_.epoch > 0).map(so => (expReq ? TxById(ErgoId.create(so.tx))).mapTo[Option[TransactionData]])), 1000 seconds)
             .filter(_.isDefined).map(_.get)
           logger.info("Finished querying spending txs from chain!")
           val totalPoolScore = placements.map(_.score).sum
