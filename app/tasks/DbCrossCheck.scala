@@ -95,16 +95,19 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === block.get.poolTag).result), 1000 seconds)
           val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === block.get.poolTag && p.block === block.get.blockheight).result),
             1000 seconds)
-          val outputs = states.map(s => Await.result((expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]], 1000 seconds))
+          logger.info("Querying outputs from chain")
+          val outputs = Await.result(Future.sequence(states.map(s => (expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]])), 1000 seconds)
+          logger.info("Finished querying outputs, now querying transactions!")
           val spentOutputs = outputs.filter(_.isDefined).filter(_.get.spendingTxId.isDefined).map(_.get)
-          val spendingTxs = spentOutputs.map(so => Await.result((expReq ? TxById(so.spendingTxId.get)).mapTo[Option[TransactionData]], 1000 seconds))
+          val spendingTxs = Await.result(Future.sequence(spentOutputs.map(so => (expReq ? TxById(so.spendingTxId.get)).mapTo[Option[TransactionData]])), 1000 seconds)
             .filter(_.isDefined).map(_.get)
+          logger.info("Finished querying spending txs from chain!")
           val totalPoolScore = placements.map(_.score).sum
           spendingTxs.foreach{
             tx =>
               val inState = tx.inputs.head
               val outState = tx.outputs.head
-
+              logger.info("Getting box from chain")
               val metadataBox = ergoClient.execute{ctx => new MetadataInputBox(ctx.getBoxesById(outState.id.toString)(0), ErgoId.create(block.get.poolTag))}
 
               val oldState = states.find(ps => ps.subpool_id == metadataBox.subpool)
