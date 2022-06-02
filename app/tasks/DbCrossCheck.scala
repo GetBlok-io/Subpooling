@@ -115,7 +115,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               val oldState = states.find(ps => ps.subpool_id == metadataBox.subpool)
               logger.info(s"Found old state ${oldState}")
               val samePlacements = placements.filter(_.subpool_id == metadataBox.subpool)
-              logger.info(s"Found ${placements.length} placements")
+              logger.info(s"Found ${placements.length} placements. Using ${samePlacements.length} placements for" +
+                s" subpool ${metadataBox.subpool}")
               val currTxId = tx.id.toString
               logger.info("Getting block")
               val currBlock = block.get
@@ -124,15 +125,24 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   height = metadataBox.epochHeight, status = PoolState.SUCCESS, members = metadataBox.shareDistribution.size,
                   block = block.get.blockheight, updated = LocalDateTime.now())
               logger.info(s"New state: ${newState.toString}")
+              logger.info("Now making next members")
               val nextMembers = samePlacements.map{
                 p =>
+                  logger.info(s"Evaluating miner ${p.miner}")
                   val sharePerc = (BigDecimal(p.score) / totalPoolScore).toDouble
+                  logger.info(s"sharePercent: ${sharePerc}")
                   val shareNum  = ((p.score * currBlock.netDiff) / AppParameters.scoreAdjustmentCoeff).toLong
+                  logger.info(s"shareNum: ${shareNum}")
+                  logger.info("Now finding miner in shareDist")
                   val distValue = metadataBox.shareDistribution.dist(PropBytes.ofAddress(Address.create(p.miner))(NetworkType.MAINNET))
+                  logger.info("Miner found, now checking if miner had a payment in outputs")
                   val optPaid = tx.outputs.find(_.address.toString == p.miner).map(_.value)
+                  logger.info(s"Miner payment: ${optPaid}")
+                  logger.info(s"Now making new pool member for miner ${p.miner}")
                   val member = PoolMember(currBlock.poolTag, metadataBox.subpool, currTxId, metadataBox.getId.toString, currBlock.gEpoch,
                     metadataBox.epoch, metadataBox.epochHeight, p.miner, p.score, shareNum, sharePerc, p.minpay, distValue.getStored,
                     optPaid.getOrElse(0L), p.amount, p.epochs_mined, "none", 0, currBlock.blockheight, LocalDateTime.now())
+                  logger.info("Finished making miner!")
                   member
               }
 
