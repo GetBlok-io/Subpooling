@@ -128,13 +128,13 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               logger.info("Now making next members")
               val nextMembers = samePlacements.map{
                 p =>
-                  logger.info(s"Evaluating miner ${p.miner}")
+                  logger.info(s"Evaluating miner ${p.miner} with placement ${p}")
                   val sharePerc = (BigDecimal(p.score) / totalPoolScore).toDouble
                   logger.info(s"sharePercent: ${sharePerc}")
                   val shareNum  = ((p.score * currBlock.netDiff) / AppParameters.scoreAdjustmentCoeff).toLong
                   logger.info(s"shareNum: ${shareNum}")
                   logger.info("Now finding miner in shareDist")
-                  val distValue = metadataBox.shareDistribution.dist(PropBytes.ofAddress(Address.create(p.miner))(NetworkType.MAINNET))
+                  val distValue = metadataBox.shareDistribution.dist.find(_._1.address.toString == p.miner).get
                   logger.info("Miner found, now checking if miner had a payment in outputs")
                   val optPaid = tx.outputs.find(_.address.toString == p.miner).map(_.value)
                   logger.info(s"Miner payment: ${optPaid}")
