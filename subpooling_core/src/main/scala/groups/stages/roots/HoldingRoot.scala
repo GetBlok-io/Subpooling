@@ -97,7 +97,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
           .boxesToSpend(boxesToSpend.asJava)
           .fee(totalTxFees)
           .outputs((outputBoxes ++ feeOutputs): _*)
-          .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
+          .sendChangeTo(wallet.p2pk.getErgoAddress)
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))
