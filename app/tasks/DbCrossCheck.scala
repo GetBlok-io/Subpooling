@@ -93,10 +93,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
 
-    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.gEpoch === 6L).sortBy(_.created).take(1).result.headOption)
+    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).take(1).result.headOption)
     qBlock.map{
       block =>
-        if(block.isDefined) {
+        if(block.isDefined && false) {
           val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === block.get.poolTag).result), 1000 seconds)
           val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === block.get.poolTag && p.block === block.get.blockheight).result),
             1000 seconds)
@@ -104,7 +104,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           val outputs = Await.result(Future.sequence(states.map(s => (expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]])), 1000 seconds)
           logger.info("Finished querying outputs, now querying transactions!")
           val spentOutputs = outputs.filter(_.isDefined).filter(_.get.spendingTxId.isDefined).map(_.get)
-          val spendingTxs = Await.result(Future.sequence(states.filter(_.epoch > 0).map(so => (expReq ? TxById(ErgoId.create(so.tx))).mapTo[Option[TransactionData]])), 1000 seconds)
+          val spendingTxs = Await.result(Future.sequence(spentOutputs.map(so => (expReq ? TxById(so.spendingTxId.get)).mapTo[Option[TransactionData]])), 1000 seconds)
             .filter(_.isDefined).map(_.get)
           logger.info("Finished querying spending txs from chain!")
           val totalPoolScore = placements.map(_.score).sum
