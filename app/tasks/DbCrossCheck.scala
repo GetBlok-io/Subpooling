@@ -127,6 +127,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               val newState = oldState.get.copy(tx = currTxId, box = metadataBox.getId.toString, g_epoch = currBlock.gEpoch, epoch = metadataBox.epoch,
                   height = metadataBox.epochHeight, status = PoolState.SUCCESS, members = metadataBox.shareDistribution.size,
                   block = block.get.blockheight, updated = LocalDateTime.now())
+
+              logger.info("Now updating state!")
+              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag && p.subpool_id === metadataBox.subpool)
+                .map(s => (s.tx, s.box, s.gEpoch, s.epoch, s.height, s.status, s.members, s.block, s.updated))
+                .update((currTxId, metadataBox.getId.toString, currBlock.gEpoch, metadataBox.epoch, metadataBox.epochHeight,
+                  PoolState.SUCCESS, metadataBox.shareDistribution.size, block.get.blockheight, LocalDateTime.now())))
+
+
               logger.info(s"New state: ${newState.toString}")
               logger.info("Now making next members")
               val nextMembers = samePlacements.map{
@@ -156,19 +164,18 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                 m =>
                   logger.info(m.toString)
               }
-              logger.info("Now updating state!")
-              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag && p.subpool_id === metadataBox.subpool).update(newState))
+
               logger.info("Now updating state!")
               db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag).map(_.gEpoch).update(currBlock.gEpoch))
-              logger.info("Now adding next members")
-              db.run(Tables.SubPoolMembers ++= nextMembers)
-              logger.info("Now updating gEpoch for all states")
-              db.run(Tables.PoolInfoTable.filter(_.poolTag === currBlock.poolTag).map(i => i.gEpoch -> i.updated)
-                .update(currBlock.gEpoch -> LocalDateTime.now()))
-              logger.info("Now setting block to initiated status")
-              db.run(Tables.PoolBlocksTable.filter(_.blockHeight === currBlock.blockheight).map(b => b.status -> b.updated)
-                .update(PoolBlock.INITIATED -> LocalDateTime.now()))
-              logger.info("Finished db updates!")
+//              logger.info("Now adding next members")
+//              db.run(Tables.SubPoolMembers ++= nextMembers)
+//              logger.info("Now updating gEpoch for all states")
+//              db.run(Tables.PoolInfoTable.filter(_.poolTag === currBlock.poolTag).map(i => i.gEpoch -> i.updated)
+//                .update(currBlock.gEpoch -> LocalDateTime.now()))
+//              logger.info("Now setting block to initiated status")
+//              db.run(Tables.PoolBlocksTable.filter(_.blockHeight === currBlock.blockheight).map(b => b.status -> b.updated)
+//                .update(PoolBlock.INITIATED -> LocalDateTime.now()))
+//              logger.info("Finished db updates!")
           }
         }
     }
