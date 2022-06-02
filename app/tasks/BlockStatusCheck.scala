@@ -4,7 +4,7 @@ import actors.BlockingDbWriter.{UpdateBlockEffort, UpdatePoolBlockConf, UpdatePo
 import actors.ExplorerRequestBus.ExplorerRequests.{BlockByHash, GetCurrentHeight, ValidateBlockByHeight}
 import actors.PushMessageNotifier.BlockMessage
 import actors.QuickDbReader.{BlockAtGEpoch, PoolBlocksByStatus, QueryBlocks, QueryPoolInfo, QuerySharesBefore, QuerySharesBetween}
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, actorRef2Scala}
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
@@ -20,6 +20,7 @@ import persistence.Tables
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import slick.jdbc.PostgresProfile
 
+import java.time.LocalDateTime
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
@@ -153,9 +154,9 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               val start = lastBlock.created
               val end = block.created
               logger.info(s"Querying shares between last block ${lastBlock.blockheight} and current block ${block.blockheight}")
-              val sharesBetween = db.run(Tables.PoolSharesTable.filter(_.created >= start).filter(_.created <= end).result)
+              val accumDiff = calculateEffort(start, end)
               logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
-              sharesBetween.map(s => writeEffortForBlock(block, s))
+              writeEffortForBlock(block, accumDiff)
             }else{
               logger.info(s"gEpoch is 1 for block ${block.blockheight}, Not writing effort for block")
 //              val date = block.created
@@ -261,11 +262,31 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     }(contexts.taskContext)
   }
 
-  def writeEffortForBlock(currentBlock: PoolBlock, shares: Seq[Share]): Unit = {
+  def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime) = {
+    var offset = 0
+    var limit = 25000
+    var accumDiff = BigDecimal(0)
+    logger.info(s"Querying shares for effort between ${startDate} and ${endDate}")
+    while(offset != -1){
+      logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
+      val shares = Await.result(db.run(Tables.PoolSharesTable.queryBetweenDate(startDate, endDate, offset, limit)), 1000 seconds)
+      accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
+      logger.info(s"Current accumulated difficulty: ${accumDiff}")
+      if(shares.nonEmpty)
+        offset = offset + limit
+      else
+        offset = -1
+    }
+    logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
+    accumDiff
+  }
+
+
+  def writeEffortForBlock(currentBlock: PoolBlock, accumDiff: BigDecimal): Unit = {
     logger.info(s"Writing effort for current block ${currentBlock.blockheight}")
-    val accumulatedDiff = shares.map(s => BigDecimal(s.difficulty)).sum * AppParameters.shareConst
-    logger.info(s"Accumulated effort calculated: ${accumulatedDiff}")
-    val totalEffort = accumulatedDiff / currentBlock.netDiff
+
+    logger.info(s"Accumulated effort calculated: ${accumDiff}")
+    val totalEffort = accumDiff / currentBlock.netDiff
     logger.info(s"Now updating block effort for block ${currentBlock} and poolTag ${currentBlock}")
     logger.info(s"Effort: ${(totalEffort * 100).toDouble}% ")
     write ! UpdateBlockEffort(currentBlock.poolTag, totalEffort.toDouble, currentBlock.blockheight)

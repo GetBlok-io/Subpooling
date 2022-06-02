@@ -36,6 +36,12 @@ object Tables {
       this.filter(s => s.created <= startDate).sortBy(s => s.created.desc).drop(offset).take(limit).result
     }
 
+    def queryBetweenDate(startDate: LocalDateTime, endDate: LocalDateTime, offset: Long, limit: Long) = {
+      import slick.jdbc.PostgresProfile.api._
+
+      this.filter(s => s.created >= startDate).filter(s => s.created <= endDate).sortBy(s => s.created.desc).drop(offset).take(limit).result
+    }
+
 
 
   }

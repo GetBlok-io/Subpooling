@@ -18,6 +18,7 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
   private val logger = LoggerFactory.getLogger("ShareHandler")
   final val SHARE_LIMIT = 50000
   logger.info(s"ShareHandler is using payment type ${paymentType.toString}")
+
   def queryToWindow(block: SPoolBlock, defaultTag: String): ShareCollector = {
     logger.info(s"Share handler querying to window for block ${block.blockheight} with creation date ${block.created}")
     var offset = 0
