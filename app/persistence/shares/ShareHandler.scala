@@ -28,7 +28,6 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
       logger.info(s"${shares.size} shares were queried")
       logger.info(s"Share batch start: ${shares.head.created}")
       logger.info(s"Share batch end: ${shares.last.created}")
-      logger.info(s"Share contains: ${shares.count(_.miner == "9faXjKXBSgQVwnH3TMpRaRC5mv39kr3SLdKZzEkBk9CRCkCEzjx")}")
       logger.info(s"Current offset: ${offset}")
       shares.foreach{
         s =>
