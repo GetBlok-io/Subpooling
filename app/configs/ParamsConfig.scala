@@ -32,7 +32,7 @@ class ParamsConfig(config: Configuration){
   val keepMinerStatsWindowInWeeks: Int = config.get[Int]("params.keepMinerStatsWindow")
   val currentFeeAddress: String = config.get[String]("params.feeAddress")
   val currentFeePerc: Double    = config.get[Double]("params.feePercent")
-
+  val regenFromChain: Boolean   = config.get[Boolean]("params.regenFromChain")
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff
   AppParameters.defaultMiningPK = defaultPK

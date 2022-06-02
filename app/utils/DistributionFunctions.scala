@@ -84,8 +84,8 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
           val stateUpdates = nextStates.map{
             ns =>
               db.run(Tables.PoolStatesTable.filter(s => s.subpool === dr.block.poolTag && s.subpool_id === ns.subpool_id).map{
-                s => (s.box, s.tx, s.epoch, s.height, s.status, s.members, s.block, s.storedId, s.storedVal, s.updated)
-              }.update(ns.box, ns.tx, ns.epoch, ns.height, ns.status, ns.members, ns.block, ns.stored_id, ns.stored_val, LocalDateTime.now()))
+                s => (s.tx, s.epoch, s.height, s.status, s.members, s.block, s.updated)
+              }.update(ns.tx, ns.epoch, ns.height, ns.status, ns.members, ns.block, LocalDateTime.now()))
           }.toSeq
 
           Future.sequence(stateUpdates).onComplete {
