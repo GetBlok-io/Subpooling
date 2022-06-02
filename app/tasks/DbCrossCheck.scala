@@ -140,7 +140,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   logger.info(s"Miner payment: ${optPaid}")
                   logger.info(s"Now making new pool member for miner ${p.miner}")
                   val member = PoolMember(currBlock.poolTag, metadataBox.subpool, currTxId, metadataBox.getId.toString, currBlock.gEpoch,
-                    metadataBox.epoch, metadataBox.epochHeight, p.miner, p.score, shareNum, sharePerc, p.minpay, distValue.getStored,
+                    metadataBox.epoch, metadataBox.epochHeight, p.miner, p.score, shareNum, sharePerc, p.minpay, distValue._2.getStored,
                     optPaid.getOrElse(0L), p.amount, p.epochs_mined, "none", 0, currBlock.blockheight, LocalDateTime.now())
                   logger.info("Finished making miner!")
                   member
