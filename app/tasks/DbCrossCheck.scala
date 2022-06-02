@@ -107,9 +107,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             tx =>
               val inState = tx.inputs.head
               val outState = tx.outputs.head
-              logger.info("Getting box from chain")
+              logger.info(s"Getting box with id ${outState.id} from chain for tx ${inState.id}")
               val metadataBox = ergoClient.execute{ctx => new MetadataInputBox(ctx.getBoxesById(outState.id.toString)(0), ErgoId.create(block.get.poolTag))}
-
+              logger.info("Finished querying box from chain!")
               val oldState = states.find(ps => ps.subpool_id == metadataBox.subpool)
               val samePlacements = placements.filter(_.subpool_id == metadataBox.subpool)
 
