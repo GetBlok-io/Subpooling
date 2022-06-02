@@ -1,20 +1,22 @@
 package tasks
 
 import actors.BlockingDbWriter._
-import actors.ExplorerRequestBus.ExplorerRequests.{BoxesById, FatalExplorerError, TimeoutError, TxById}
+import actors.ExplorerRequestBus.ExplorerRequests.{BoxesById, BoxesByTokenId, FatalExplorerError, TimeoutError, TxById}
 import actors.QuickDbReader.{PaidAtGEpoch, PlacementsByBlock, PoolBlocksByStatus, PoolMembersByGEpoch, QueryAllSubPools, QueryPoolInfo}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
-import io.getblok.subpooling_core.explorer.Models.{Output, TransactionData}
+import io.getblok.subpooling_core.boxes.MetadataInputBox
+import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, TransactionData}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
+import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment}
 import models.ResponseModels.writesChangeKeys
-import org.ergoplatform.appkit.{ErgoClient, ErgoId}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, NetworkType}
 import persistence.Tables
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.Json
@@ -27,7 +29,7 @@ import java.time.{Instant, LocalDateTime, ZoneOffset}
 import javax.inject.{Inject, Named, Singleton}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.{higherKinds, postfixOps}
 import scala.util.{Failure, Success, Try}
 
@@ -71,7 +73,71 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             logger.error("There was a critical error while checking distributions!", ex)
             Failure(ex)
         }
+        Try(regenerateDB).recoverWith{
+          case ex =>
+            logger.error("There was a critical error while re-generating dbs!", ex)
+            Failure(ex)
+        }
     })(contexts.taskContext)
+  }
+  def parseReg(reg: RegisterData, idx: Int) = {
+    reg.renderedValue.replace("[", "").replace("]", "").split(",")(idx).toLong
+  }
+  def regSeq(reg: RegisterData) = {
+    reg.renderedValue.replace("[", "").replace("]", "").split(",")
+  }
+  def regenerateDB = {
+    implicit val timeout: Timeout = Timeout(100 seconds)
+    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).take(1).result.headOption)
+    qBlock.map{
+      block =>
+        if(block.isDefined) {
+          val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === block.get.poolTag).result), 1000 seconds)
+          val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === block.get.poolTag && p.block === block.get.blockheight).result),
+            1000 seconds)
+          val outputs = states.map(s => Await.result((expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]], 1000 seconds))
+          val spentOutputs = outputs.filter(_.isDefined).filter(_.get.spendingTxId.isDefined).map(_.get)
+          val spendingTxs = spentOutputs.map(so => Await.result((expReq ? TxById(so.spendingTxId.get)).mapTo[Option[TransactionData]], 1000 seconds))
+            .filter(_.isDefined).map(_.get)
+          val totalPoolScore = placements.map(_.score).sum
+          spendingTxs.foreach{
+            tx =>
+              val inState = tx.inputs.head
+              val outState = tx.outputs.head
+
+              val metadataBox = ergoClient.execute{ctx => new MetadataInputBox(ctx.getBoxesById(outState.id.toString)(0), ErgoId.create(block.get.poolTag))}
+
+              val oldState = states.find(ps => ps.subpool_id == metadataBox.subpool)
+              val samePlacements = placements.filter(_.subpool_id == metadataBox.subpool)
+
+              val currTxId = tx.id.toString
+              val currBlock = block.get
+
+              val newState = oldState.get.copy(tx = currTxId, box = metadataBox.getId.toString, epoch = metadataBox.epoch,
+                  height = metadataBox.epochHeight, status = PoolState.SUCCESS, members = metadataBox.shareDistribution.size,
+                  block = block.get.blockheight, updated = LocalDateTime.now())
+              val nextMembers = samePlacements.map{
+                p =>
+                  val sharePerc = (BigDecimal(p.score) / totalPoolScore).toDouble
+                  val shareNum  = ((p.score * currBlock.netDiff) / AppParameters.scoreAdjustmentCoeff).toLong
+                  val distValue = metadataBox.shareDistribution.dist(PropBytes.ofAddress(Address.create(p.miner))(NetworkType.MAINNET))
+                  val optPaid = tx.outputs.find(_.address.toString == p.miner).map(_.value)
+                  val member = PoolMember(currBlock.poolTag, metadataBox.subpool, currTxId, metadataBox.getId.toString, currBlock.gEpoch,
+                    metadataBox.epoch, metadataBox.epochHeight, p.miner, p.score, shareNum, sharePerc, p.minpay, distValue.getStored,
+                    optPaid.getOrElse(0L), p.amount, p.epochs_mined, "none", 0, currBlock.blockheight, LocalDateTime.now())
+                  member
+              }
+
+              logger.info("Next State: ")
+              logger.info(newState.toString)
+              logger.info(s"Next Members for ${newState.subpool_id}: ")
+              nextMembers.foreach{
+                m =>
+                  logger.info(m.toString)
+              }
+          }
+        }
+    }
   }
 
   def checkProcessingBlocks: Future[Unit] = {
