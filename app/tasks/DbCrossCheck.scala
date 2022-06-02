@@ -92,10 +92,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
+    db.run(Tables.PoolStatesTable.filter(p => p.subpool === "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047").map(_.gEpoch).update(6))
     val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.INITIATED).sortBy(_.created).take(1).result.headOption)
     qBlock.map{
       block =>
-        if(block.isDefined) {
+        if(block.isDefined && false) {
           val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === block.get.poolTag).result), 1000 seconds)
           val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === block.get.poolTag && p.block === block.get.blockheight).result),
             1000 seconds)
