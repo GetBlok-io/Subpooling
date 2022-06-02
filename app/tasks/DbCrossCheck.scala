@@ -129,10 +129,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   block = block.get.blockheight, updated = LocalDateTime.now())
 
               logger.info("Now updating state!")
-              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag && p.subpool_id === metadataBox.subpool)
-                .map(s => (s.tx, s.box, s.gEpoch, s.epoch, s.height, s.status, s.members, s.block, s.updated))
-                .update((currTxId, metadataBox.getId.toString, currBlock.gEpoch, metadataBox.epoch, metadataBox.epochHeight,
-                  PoolState.SUCCESS, metadataBox.shareDistribution.size, block.get.blockheight, LocalDateTime.now())))
+//              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag && p.subpool_id === metadataBox.subpool)
+//                .map(s => (s.tx, s.box, s.gEpoch, s.epoch, s.height, s.status, s.members, s.block, s.updated))
+//                .update((currTxId, metadataBox.getId.toString, currBlock.gEpoch, metadataBox.epoch, metadataBox.epochHeight,
+//                  PoolState.SUCCESS, metadataBox.shareDistribution.size, block.get.blockheight, LocalDateTime.now())))
 
 
               logger.info(s"New state: ${newState.toString}")
@@ -166,7 +166,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               }
 
               logger.info("Now updating state!")
-              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag).map(_.gEpoch).update(currBlock.gEpoch))
+              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag).map(_.gEpoch).update(6))
 //              logger.info("Now adding next members")
 //              db.run(Tables.SubPoolMembers ++= nextMembers)
 //              logger.info("Now updating gEpoch for all states")
