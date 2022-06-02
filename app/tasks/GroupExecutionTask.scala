@@ -51,7 +51,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
 
   val contexts: Contexts = new Contexts(system)
   val params: ParamsConfig = new ParamsConfig(config)
-  var currentRun = 1
+  var currentRun = 0
 
   if(taskConfig.enabled) {
     logger.info(s"GroupExecution Task will initiate in ${taskConfig.startup.toString()} with an interval of" +

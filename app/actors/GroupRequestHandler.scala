@@ -73,7 +73,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                 }
               }.recoverWith {
                 case ex =>
-                  logger.error("There was a critical error while evaluating distributions!")
+                  logger.error("There was a critical error while evaluating distributions!", ex)
                   Failure(ex)
               }
             case ExecuteHolding(holdingComponents) =>
