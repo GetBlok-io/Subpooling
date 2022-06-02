@@ -75,8 +75,10 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
             tryPlacement match {
               case Success(value) =>
                 logger.info("Synchronous placement functions executed successfully!")
+                currentRun = currentRun + 1
               case Failure(exception) =>
                 logger.error("There was a fatal error thrown during synchronous placement execution", exception)
+                currentRun = currentRun + 1
             }
           }else{
             val tryDist = Try {
@@ -85,8 +87,10 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
             tryDist match {
               case Success(value) =>
                 logger.info("Synchronous distribution functions executed successfully!")
+                currentRun = currentRun + 1
               case Failure(exception) =>
                 logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
+                currentRun = currentRun + 1
             }
           }
 
