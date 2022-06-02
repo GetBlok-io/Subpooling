@@ -185,18 +185,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
     implicit val ec: ExecutionContext = quickQueryContext
     val fSettings = (quickQuery ? MinersByAssignedPool(tag)).mapTo[Seq[MinerSettings]]
     val fInfo = (quickQuery ? QueryPoolInfo(tag)).mapTo[PoolInformation]
-    val fEffortDiff = fInfo.map{
-      info =>
-        val fShares = db.run(Tables.PoolSharesTable.getEffortDiff(tag, paramsConfig.defaultPoolTag, info.last_block))
-        val fMiners = db.run(Tables.PoolSharesTable.queryPoolMiners(tag, paramsConfig.defaultPoolTag))
 
-        for{
-          shares <- fShares
-          miners <- fMiners
-        } yield {
-          Some(shares.filter(s => miners.exists(s.miner == _.address)).map(s => s.difficulty / BigDecimal(s.networkdifficulty)).sum.toDouble)
-        }
-    }.flatten
     val fStats = db.run(Tables.MinerStats.sortBy(_.created.desc)
               .filter(_.created > LocalDateTime.now().minusHours(1))
               .result)
@@ -205,7 +194,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
       case Success(stats) =>
         val fPoolStats = for{
           settings <- fSettings
-          effortDiff <- fEffortDiff
+
         } yield {
           val filteredStats = stats.filter(s => settings.exists(st => st.address == s.miner))
           if(filteredStats.nonEmpty) {
@@ -213,11 +202,11 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
               .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.hashrate)).sum / filteredStats.size).values.sum
             val avgShares = filteredStats.groupBy(s => s.miner)
               .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.sharespersecond)).sum / filteredStats.size).values.sum
-            val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
-            PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, effort.toDouble)
+
+            PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, None)
           }else{
-            val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
-            PoolStatistics(tag, 0.0, 0.0, effort.toDouble)
+
+            PoolStatistics(tag, 0.0, 0.0, None)
           }
         }
         fPoolStats.map(okJSON(_))

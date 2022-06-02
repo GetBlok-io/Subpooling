@@ -27,4 +27,12 @@ object DatabaseModels {
                        miner: String, reward: Double, hash: Option[String], created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime){
     def getNanoErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
   }
+  case class SBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: Option[String],
+                        miner: String, reward: Double, hash: Option[String], created: LocalDateTime){
+    def getNanoErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
+
+    def asPoolBlock: SPoolBlock = {
+      SPoolBlock(id, blockheight, netDiff, status, confirmation, effort, txConfirmation, miner, reward, hash, created, "c6b75f607ff08d76ae1acb78564e5b928ccd96b8b4dbcad161d6206db7e608c0", -1, created)
+    }
+  }
 }

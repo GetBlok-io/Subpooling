@@ -194,7 +194,7 @@ object ResponseModels {
     }
   }
 
-  case class MinerResponse(poolTag: String, minPay: Double, pending: Double, owed: Double, avg: Double, lastMemberInfo: PoolMember)
+  case class MinerResponse(poolTag: String, minPay: Double, pending: Double, owed: Double, avg: Double, lastMemberInfo: Option[PoolMember])
 
   implicit val writesMinerResponse: Writes[MinerResponse] = new Writes[MinerResponse] {
     override def writes(o: MinerResponse): JsValue = {
@@ -252,7 +252,7 @@ object ResponseModels {
     }
   }
 
-  case class PoolStatistics(poolTag: String, hashrate: Double, sharesPerSecond: Double, effort: Double)
+  case class PoolStatistics(poolTag: String, hashrate: Double, sharesPerSecond: Double, effort: Option[Double])
   implicit val writesPoolStats: Writes[PoolStatistics] = new Writes[PoolStatistics] {
     override def writes(o: PoolStatistics): JsValue = {
       Json.obj( fields =

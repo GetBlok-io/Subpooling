@@ -56,7 +56,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
   def getMiner(address: String): Action[AnyContent] = Action.async{
     val currentSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
     val owedBalance = db.run(Tables.Balances.filter(_.address === address).result)
-    val pendingBalance = (query ? QueryMinerPending("any", address)).mapTo[Long] // ugly code, pool tag is ignored by this call to allow parallelization
+    val pendingBalance = db.run(Tables.PoolPlacementsTable.filter(_.miner === address).map(_.amount).sum.result)
     val changes = db.run(Tables.BalanceChanges.filter(_.address === address).sortBy(_.created.desc).take(10).map(_.amount).avg.result)
     val memberInfo = db.run(Tables.SubPoolMembers.filter(_.miner === address).sortBy(_.created.desc).take(1).result)
     val minerResponse = {
@@ -67,7 +67,8 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
         avgDelta <- changes
         member <- memberInfo
       } yield {
-        MinerResponse(settings.flatMap(_.subpool).getOrElse(paramsConfig.defaultPoolTag), settings.map(_.paymentthreshold).getOrElse(0.01), Helpers.nanoErgToErg(pending), owed.map(_.amount).head, avgDelta.getOrElse(0.0), member.head)
+        MinerResponse(settings.flatMap(s => s.subpool).getOrElse(paramsConfig.defaultPoolTag), settings.map(s => s.paymentthreshold).getOrElse(0.01), Helpers.nanoErgToErg(pending.getOrElse(0L)),
+          owed.map(o => o.amount).headOption.getOrElse(0.0), avgDelta.getOrElse(0.0), member.headOption)
       }
     }
     minerResponse.map(okJSON(_))
@@ -106,18 +107,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
 
         val fSettings = (query ? MinersByAssignedPool(tag)).mapTo[Seq[MinerSettings]]
         val fInfo = (query ? QueryPoolInfo(tag)).mapTo[PoolInformation]
-        val fEffortDiff = fInfo.map{
-          info =>
-            val fShares = db.run(Tables.PoolSharesTable.getEffortDiff(tag, paramsConfig.defaultPoolTag, info.last_block))
-            val fMiners = db.run(Tables.PoolSharesTable.queryPoolMiners(tag, paramsConfig.defaultPoolTag))
 
-            for{
-              shares <- fShares
-              miners <- fMiners
-            } yield {
-              Some(shares.filter(s => miners.exists(s.miner == _.address)).map(s => s.difficulty / BigDecimal(s.networkdifficulty)).sum.toDouble)
-            }
-        }.flatten
         val fStats = db.run(Tables.MinerStats.sortBy(_.created.desc)
           .filter(_.created > LocalDateTime.now().minusHours(1))
           .result)
@@ -126,7 +116,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
           case Success(stats) =>
             val fPoolStats = for{
               settings <- fSettings
-              effortDiff <- fEffortDiff
+
             } yield {
               val filteredStats = stats.filter(s => settings.exists(st => st.address == s.miner))
               if(filteredStats.nonEmpty) {
@@ -134,11 +124,10 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
                   .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.hashrate)).sum / filteredStats.size).values.sum
                 val avgShares = filteredStats.groupBy(s => s.miner)
                   .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.sharespersecond)).sum / filteredStats.size).values.sum
-                val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
-                PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, effort.toDouble)
+
+                PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, None)
               }else{
-                val effort = (effortDiff.getOrElse(0.0) * AppParameters.shareConst)
-                PoolStatistics(tag, 0.0, 0.0, effort.toDouble)
+                PoolStatistics(tag, 0.0, 0.0, None)
               }
             }
             fPoolStats.map(okJSON(_))
