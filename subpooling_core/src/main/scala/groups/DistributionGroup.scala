@@ -74,7 +74,7 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
               val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
                 p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
                 p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
-                currencyValue(p.paymentMap(d._1)), change, d._2.getEpochsMined, tokenName.getOrElse("none"), p.paymentMap(d._1).getTokens.asScala.headOption.map(_.getValue.toLong).getOrElse(0L),
+                currencyValue(p.paymentMap.get(d._1)), change, d._2.getEpochsMined, tokenName.getOrElse("none"), p.paymentMap(d._1).getTokens.asScala.headOption.map(_.getValue.toLong).getOrElse(0L),
                 block.blockheight, LocalDateTime.now())
               poolMembers += poolMember
             }else{
@@ -97,18 +97,18 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
         if(nextDistValue._2.getStored > 0)
           nextDistValue._2.getStored - lastInfo.get._2.getStored
         else
-          currencyValue(subpool.paymentMap(nextDistValue._1)) - lastInfo.get._2.getStored
+          currencyValue(subpool.paymentMap.get(nextDistValue._1)) - lastInfo.get._2.getStored
       }else{
         if(nextDistValue._2.getStored > 0)
           nextDistValue._2.getStored
         else
-          currencyValue(subpool.paymentMap(nextDistValue._1))
+          currencyValue(subpool.paymentMap.get(nextDistValue._1))
       }
     }else{
       if(nextDistValue._2.getStored > 0)
         nextDistValue._2.getStored
       else
-        currencyValue(subpool.paymentMap(nextDistValue._1))
+        currencyValue(subpool.paymentMap.get(nextDistValue._1))
     }
 
   }
@@ -121,14 +121,14 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
     }.toArray
   }
 
-  def currencyValue(inputBox: InputBox): Long = {
+  def currencyValue(inputBox: Option[InputBox]): Long = {
     holdingContract match {
       case contract: SimpleHoldingContract =>
-        inputBox.getValue.toLong
+        inputBox.map(_.getValue.toLong).getOrElse(0)
       case contract: TokenHoldingContract =>
-        inputBox.getTokens.get(0).getValue.toLong
+        inputBox.map(_.getTokens.get(0).getValue.toLong).getOrElse(0)
       case contract: AdditiveHoldingContract =>
-        inputBox.getValue.toLong
+        inputBox.map(_.getValue.toLong).getOrElse(0)
     }
   }
 
