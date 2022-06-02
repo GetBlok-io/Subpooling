@@ -91,7 +91,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
-    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).take(1).result.headOption)
+    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.INITIATED).sortBy(_.created).take(1).result.headOption)
     qBlock.map{
       block =>
         if(block.isDefined) {
@@ -166,7 +166,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               }
 
               logger.info("Now updating state!")
-              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag).map(_.gEpoch).update(6))
+              db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag).map(_.gEpoch).update(currBlock.gEpoch))
 //              logger.info("Now adding next members")
 //              db.run(Tables.SubPoolMembers ++= nextMembers)
 //              logger.info("Now updating gEpoch for all states")
