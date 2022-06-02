@@ -51,7 +51,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
 
   val contexts: Contexts = new Contexts(system)
   val params: ParamsConfig = new ParamsConfig(config)
-
+  var currentRun = 0
 
   if(taskConfig.enabled) {
     logger.info(s"GroupExecution Task will initiate in ${taskConfig.startup.toString()} with an interval of" +
@@ -68,26 +68,32 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
         if(tryPreCollection.isSuccess) {
           val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
-          val tryPlacement = Try {
-            placementFunctions.executePlacement()
-          }
-          val tryDist = Try {
-            distributionFunctions.executeDistribution()
+          if(currentRun % 2 == 0) {
+            val tryPlacement = Try {
+              placementFunctions.executePlacement()
+            }
+            tryPlacement match {
+              case Success(value) =>
+                logger.info("Synchronous placement functions executed successfully!")
+              case Failure(exception) =>
+                logger.error("There was a fatal error thrown during synchronous placement execution", exception)
+            }
+          }else{
+            val tryDist = Try {
+              distributionFunctions.executeDistribution()
+            }
+            tryDist match {
+              case Success(value) =>
+                logger.info("Synchronous distribution functions executed successfully!")
+              case Failure(exception) =>
+                logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
+            }
           }
 
-          tryPlacement match {
-            case Success(value) =>
-              logger.info("Synchronous placement functions executed successfully!")
-            case Failure(exception) =>
-              logger.error("There was a fatal error thrown during synchronous placement execution", exception)
-          }
 
-          tryDist match {
-            case Success(value) =>
-              logger.info("Synchronous distribution functions executed successfully!")
-            case Failure(exception) =>
-              logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
-          }
+
+
+
 
 
         }else{

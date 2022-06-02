@@ -49,7 +49,9 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
             dc =>
               val inputBoxes = blockBoxMap(dc.block.blockheight)
               dc.builder.inputBoxes = Some(inputBoxes)
+              logger.info("Now sending dist req")
               val distResponse = (groupHandler ? ExecuteDistribution(dc, dc.block)).mapTo[DistributionResponse]
+              logger.info("Waiting to eval dist response")
               evalDistributionResponse(distResponse)
           })
 
@@ -66,6 +68,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     implicit val taskContext: ExecutionContext = contexts.taskContext
     distResponse.onComplete {
       case Success(dr) =>
+        logger.info("Now evaluating dist response")
         if (dr.nextStates.isEmpty || dr.nextMembers.isEmpty) {
           logger.error("There was a fatal error during distribution execution, response returned empty")
           logger.error("No updates being made")
