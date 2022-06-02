@@ -91,6 +91,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
+    // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
     val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.INITIATED).sortBy(_.created).take(1).result.headOption)
     qBlock.map{
       block =>
