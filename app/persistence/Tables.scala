@@ -33,7 +33,7 @@ object Tables {
     def queryBeforeDate(startDate: LocalDateTime, offset: Long, limit: Long) = {
       import slick.jdbc.PostgresProfile.api._
 
-      this.filter(s => s.created <= startDate).drop(offset).take(limit).result
+      this.filter(s => s.created <= startDate).sortBy(s => s.created.desc).drop(offset).take(limit).result
     }
 
 
