@@ -42,7 +42,7 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
       logger.info(s"Current offset: ${offset}")
       shares.foreach{
         s =>
-          val ps = PartialShare(s.miner, s.difficulty, s.networkdifficulty, miners(s.miner))
+          val ps = PartialShare(s.miner, s.difficulty, s.networkdifficulty, Some(miners.get(s.miner).flatten.getOrElse(defaultTag)))
           if(collector.totalScore < AppParameters.pplnsWindow){
             collector.addToMap(ps)
           }
