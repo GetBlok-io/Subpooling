@@ -30,6 +30,11 @@ object Tables {
       }
     }
 
+    def queryMinerPools = {
+      import slick.jdbc.PostgresProfile.api._
+      Tables.MinerSettingsTable.map(ms => ms.address -> ms.subpool).result
+    }
+
     def queryBeforeDate(startDate: LocalDateTime, offset: Long, limit: Long) = {
       import slick.jdbc.PostgresProfile.api._
 

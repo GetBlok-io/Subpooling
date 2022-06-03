@@ -20,12 +20,22 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
   logger.info(s"ShareHandler is using payment type ${paymentType.toString}")
 
   def queryToWindow(block: SPoolBlock, defaultTag: String): ShareCollector = {
+
     logger.info(s"Share handler querying to window for block ${block.blockheight} with creation date ${block.created}")
     var offset = 0
-    val miners = Await.result(db.run(Tables.PoolSharesTable.queryPoolMiners(block.poolTag, defaultTag)), 60 seconds).map(m => m.address -> m.subpool).toMap
+    val miners = Await.result(db.run(Tables.PoolSharesTable.queryMinerPools), 100 seconds).toMap
+
     while(collector.totalScore < AppParameters.pplnsWindow && offset != -1){
+
       val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
-      val shares = Await.result(fShares, 400 seconds).filter(sh => miners.contains(sh.miner))
+      val shares = Await.result(fShares, 400 seconds).filter{
+        sh =>
+          if(block.poolTag != defaultTag) {
+            miners.get(sh.miner).flatten.getOrElse(defaultTag) == block.poolTag
+          }else{
+            miners.get(sh.miner).flatten.getOrElse(defaultTag) == defaultTag
+          }
+      }
       logger.info(s"${shares.size} shares were queried")
       logger.info(s"Share batch start: ${shares.head.created}")
       logger.info(s"Share batch end: ${shares.last.created}")
