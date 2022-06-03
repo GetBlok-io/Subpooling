@@ -58,7 +58,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
         val interOutBox = ctx.newTxBuilder().outBoxBuilder().value(blockReward).contract(wallet.contract).build()
-        val interFeeOutBox = ctx.newTxBuilder().outBoxBuilder().value(primaryTxFees).contract(wallet.contract).build()
+        val interFeeOutBox = ctx.newTxBuilder().outBoxBuilder().value(primaryTxFees).contract(PK(AppParameters.getFeeAddress).contract).build()
         val unsignedInterTx = ctx.newTxBuilder()
           .boxesToSpend(boxesToSpend.asJava)
           .outputs(interOutBox, interFeeOutBox)
