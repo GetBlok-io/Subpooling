@@ -177,8 +177,6 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
   def setPaySettings(address: String): Action[AnyContent] = Action.async{
     implicit req =>
       val text = req.body.asText.get
-      log.info(text)
-
       val split = text.split('|')
       val pay  = PayoutSettings(split(0), split(1).toDouble)
       val minerShares = db.run(Tables.PoolSharesTable.take(50000).filter(s => s.miner === address).result)
@@ -208,8 +206,9 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
 
   def setPoolSettings(address: String): Action[AnyContent] = Action.async{
     implicit req =>
-      val json = req.body.asJson.get
-      val sub  = json.as[SubPoolSettings]
+      val text = req.body.asText.get
+      val split = text.split('|')
+      val sub  = SubPoolSettings(split(0), split(1))
       val isValid = db.run(Tables.PoolInfoTable.filter(_.poolTag === sub.subPool).result.headOption)
       val minerShares = db.run(Tables.PoolSharesTable.take(50000).filter(s => s.miner === address).result)
       val sharesExist = minerShares.map(_.exists(_.ipaddress.split(':').contains(sub.ip)))
