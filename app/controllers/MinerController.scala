@@ -176,8 +176,11 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
 
   def setPaySettings(address: String): Action[AnyContent] = Action.async{
     implicit req =>
-      val json = req.body.asJson.get
-      val pay  = json.as[PayoutSettings]
+      val text = req.body.asText.get
+      log.info(text)
+
+      val split = text.split('|')
+      val pay  = PayoutSettings(split(0), split(1).toDouble)
       val minerShares = db.run(Tables.PoolSharesTable.take(50000).filter(s => s.miner === address).result)
       val sharesExist = minerShares.map(_.exists(_.ipaddress.split(':').contains(pay.ip)))
       val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
