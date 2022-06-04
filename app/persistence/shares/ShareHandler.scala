@@ -57,5 +57,33 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
     collector
   }
 
+  def queryForSOLO(block: SPoolBlock, defaultTag: String): ShareCollector = {
+
+    logger.info(s"Share handler querying for SOLO on block ${block.blockheight} with creation date ${block.created}")
+    var offset = 0
+
+    val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
+    val shares = Await.result(fShares, 400 seconds).filter{
+      sh =>
+        sh.miner == blockMiner
+    }
+    logger.info(s"${shares.size} shares were queried")
+    logger.info(s"Share batch start: ${shares.head.created}")
+    logger.info(s"Share batch end: ${shares.last.created}")
+    logger.info(s"Current offset: ${offset}")
+    shares.foreach{
+      s =>
+        val ps = PartialShare(s.miner, s.difficulty, s.networkdifficulty, Some(block.poolTag))
+        if(collector.totalScore < AppParameters.pplnsWindow){
+          collector.addToMap(ps)
+        }
+    }
+    logger.info(s"Total collector score: ${collector.totalScore}")
+    logger.info(s"Total shares: ${collector.totalShares}")
+    logger.info(s"Total iterations: ${collector.totalIterations}")
+    logger.info(s"Total adjusted score: ${collector.totalAdjustedScore}")
+    collector
+  }
+
 
 }

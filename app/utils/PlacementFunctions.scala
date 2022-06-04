@@ -124,7 +124,15 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         logger.info(s"Now querying shares, pool states, and miner settings for block ${block.blockheight}" +
           s" and pool ${block.poolTag}")
         val shareHandler = getShareHandler(blockSel.block, blockSel.poolInformation)
-        val fCollector = Future(shareHandler.queryToWindow(block, params.defaultPoolTag))
+        val fCollector = {
+          if(blockSel.poolInformation.payment_type != PoolInformation.PAY_SOLO)
+            Future(shareHandler.queryToWindow(block, params.defaultPoolTag))
+          else {
+            logger.info(s"Performing SOLO query for block ${block.blockheight} with poolTag ${block.poolTag}" +
+              s" and miner ${block.miner}")
+            Future(shareHandler.queryForSOLO(block, params.defaultPoolTag))
+          }
+        }
         val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
         val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
 
