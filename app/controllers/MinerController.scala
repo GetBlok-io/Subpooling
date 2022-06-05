@@ -178,9 +178,13 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
     implicit req =>
       val text = req.body.asText.get
       val split = text.split('|')
+      log.info(s"Getting settings change req: ${text} for address: ${address}")
       val pay  = PayoutSettings(split(0), split(1).toDouble)
+      log.info(s"Splitting into the following: ${pay.ip} and ${pay.minPay}")
       val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
-      val sharesExist = minerShares.map(_.exists(_.ipaddress.split(':').contains(pay.ip)))
+      val sharesExist = minerShares.map(fS => fS.exists(s => s.ipaddress.split(':').contains(pay.ip)))
+      minerShares.map(ms => log.info(s"Miner shares head: ${ms.head.ipaddress} and ${ms.head.miner}"))
+      minerShares.map(ms => log.info(s"Miner shares split: ${ms.head.ipaddress.split(':').mkString("Array(", ", ", ")")} "))
       val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
       for{
         exist <- sharesExist
