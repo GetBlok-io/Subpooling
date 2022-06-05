@@ -9,11 +9,12 @@ import io.getblok.subpooling_core.groups.models.{GroupBuilder, TransactionStage}
 import io.getblok.subpooling_core.groups.stages.roots.HoldingRoot
 import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
 import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox}
+import org.slf4j.{Logger, LoggerFactory}
 
 class HoldingBuilder(rewardPaid: Long, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long], rootStage: TransactionStage[InputBox],
                      var inputBoxes: Option[Seq[InputBox]] = None) extends GroupBuilder {
   var poolShareScore: Long = 0
-
+  private val logger: Logger = LoggerFactory.getLogger("HoldingBuilder")
   /**
    * Collect information that already exists about this Transaction Group and assign it to each subPool
    */
@@ -47,6 +48,10 @@ class HoldingBuilder(rewardPaid: Long, holdingContract: HoldingContract, baseFee
         s.nextHoldingShare = s.nextTotalScore
 
     }
+    val poolsToRemove = pool.subPools.filter(s => s.nextHoldingValue == 0)
+    logger.info(s"Current number of pools after modification: ${pool.subPools.length} \n " +
+      s"Now removing ${poolsToRemove.length} pools with a holding value equal to 0")
+    pool.subPools --= poolsToRemove
     this
   }
 
