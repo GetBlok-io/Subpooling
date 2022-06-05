@@ -117,6 +117,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
           logger.info(s"==============Evaluating Confirming Blocks for Pool ${poolInfo.poolTag}==============")
           val blocksOrdered = bg._2.sortBy(b => b.blockheight)
           updateBlockEpochs(blocksOrdered, poolInfo)
+          // TODO: UNCOMMENT
           // updateBlockConfirmations(blocksOrdered, poolInfo, height)
           // Finally, blocks are posted
           logger.info(s"==============Finished evaluating confirming blocks for pool ${bg._1}==============")

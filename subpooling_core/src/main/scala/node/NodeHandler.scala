@@ -83,8 +83,10 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
           }
           if (attemptBlockValidation.isSuccess)
             attemptBlockValidation.get
-          else
+          else {
+            logger.error("There was a critical error in block validation", attemptBlockValidation.failed.get)
             None
+          }
         } else {
           None
         }
