@@ -56,7 +56,8 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
             val rewardAddress = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getErgoTree
             val txReward = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue
             var fullReward = txReward
-            if(fullBlock.get.getBlockTransactions.getSize > 1) {
+            logger.info(s"Current number of transactions for fullBlock: ${fullBlock.get.getBlockTransactions.getTransactions.size()}")
+            if(fullBlock.get.getBlockTransactions.getTransactions.size() > 1) {
               val txFee = fullBlock.get.getBlockTransactions.getTransactions.asScala.filter(_.getOutputs.size() == 1)
                 .filter(_.getOutputs.get(0).getErgoTree == rewardAddress)
                 .head.getOutputs.get(0).getValue
