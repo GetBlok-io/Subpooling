@@ -186,8 +186,8 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
       minerShares.transformWith{
         case Success(ms) =>
           val sharesExist = minerShares.map(fS => fS.exists(s => s.ipaddress.split(':').contains(pay.ip)))
-          log.info(s"Miner shares head: ${ms.head.ipaddress} and ${ms.head.miner}")
-          log.info(s"Miner shares split: ${ms.head.ipaddress.split(':').mkString("Array(", ", ", ")")} ")
+          log.info(s"Miner shares head: ${ms.headOption.map(i => i.ipaddress)} and ${ms.headOption.map(i => i.miner)}")
+          log.info(s"Miner shares split: ${ms.headOption.map(i => i.ipaddress.split(':').mkString("Array(", ", ", ")"))} ")
           val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
           for{
             exist <- sharesExist
