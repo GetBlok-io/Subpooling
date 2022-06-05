@@ -53,6 +53,8 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
       offset = offset + 50000
       if(shares.isEmpty)
         offset = -1
+      if(offset >= 500000)
+        offset = -1
     }
     collector
   }
