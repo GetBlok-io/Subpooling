@@ -182,30 +182,38 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
       val pay  = PayoutSettings(split(0), split(1).toDouble)
       log.info(s"Splitting into the following: ${pay.ip} and ${pay.minPay}")
       val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
-      val sharesExist = minerShares.map(fS => fS.exists(s => s.ipaddress.split(':').contains(pay.ip)))
-      minerShares.map(ms => log.info(s"Miner shares head: ${ms.head.ipaddress} and ${ms.head.miner}"))
-      minerShares.map(ms => log.info(s"Miner shares split: ${ms.head.ipaddress.split(':').mkString("Array(", ", ", ")")} "))
-      val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
-      for{
-        exist <- sharesExist
-        settings <- currSettings
-      } yield {
-          if(exist){
-            val payToUse = Math.max(pay.minPay, 0.01)
-            if(settings.isDefined) {
-              val q = for {s <- Tables.MinerSettingsTable if s.address === address} yield s.paymentThreshold
 
-              db.run(q.update(payToUse))
-              Ok
+      minerShares.transformWith{
+        case Success(ms) =>
+          val sharesExist = minerShares.map(fS => fS.exists(s => s.ipaddress.split(':').contains(pay.ip)))
+          log.info(s"Miner shares head: ${ms.head.ipaddress} and ${ms.head.miner}")
+          log.info(s"Miner shares split: ${ms.head.ipaddress.split(':').mkString("Array(", ", ", ")")} ")
+          val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
+          for{
+            exist <- sharesExist
+            settings <- currSettings
+          } yield {
+            if(exist){
+              val payToUse = Math.max(pay.minPay, 0.01)
+              if(settings.isDefined) {
+                val q = for {s <- Tables.MinerSettingsTable if s.address === address} yield s.paymentThreshold
+
+                db.run(q.update(payToUse))
+                Ok
+              }else{
+                db.run(Tables.MinerSettingsTable += SMinerSettings(AppParameters.mcPoolId, address, payToUse, LocalDateTime.now(),
+                  LocalDateTime.now(), Some(paramsConfig.defaultPoolTag)))
+                Ok
+              }
             }else{
-              db.run(Tables.MinerSettingsTable += SMinerSettings(AppParameters.mcPoolId, address, payToUse, LocalDateTime.now(),
-                LocalDateTime.now(), Some(paramsConfig.defaultPoolTag)))
-              Ok
+              InternalServerError("Miner not found")
             }
-          }else{
-            InternalServerError("Miner not found")
           }
+        case Failure(exception) =>
+          log.error(s"There was an error while changing settings for ${address} with given ip ${pay.ip}", exception)
+          Future(InternalServerError("An error occurred while validating your settings"))
       }
+
   }
 
   def setPoolSettings(address: String): Action[AnyContent] = Action.async{
