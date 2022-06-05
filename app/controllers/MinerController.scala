@@ -178,16 +178,13 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
     implicit req =>
       val text = req.body.asText.get
       val split = text.split('|')
-      log.info(s"Getting settings change req: ${text} for address: ${address}")
       val pay  = PayoutSettings(split(0), split(1).toDouble)
-      log.info(s"Splitting into the following: ${pay.ip} and ${pay.minPay}")
-      val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(75000).filter(s => s.miner === address).result)
+      val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
 
       minerShares.transformWith{
         case Success(ms) =>
           val sharesExist = minerShares.map(fS => fS.exists(s => s.ipaddress.split(':').contains(pay.ip)))
-          log.info(s"Miner shares head: ${ms.headOption.map(i => i.ipaddress)} and ${ms.headOption.map(i => i.miner)}")
-          log.info(s"Miner shares split: ${ms.headOption.map(i => i.ipaddress.split(':').mkString("Array(", ", ", ")"))} ")
+
           val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
           for{
             exist <- sharesExist
@@ -211,7 +208,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
           }
         case Failure(exception) =>
           log.error(s"There was an error while changing settings for ${address} with given ip ${pay.ip}", exception)
-          Future(InternalServerError("An error occurred while validating your settings"))
+          Future(InternalServerError("Could not validate miner shares"))
       }
 
   }
@@ -221,31 +218,43 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
       val text = req.body.asText.get
       val split = text.split('|')
       val sub  = SubPoolSettings(split(0), split(1))
-      val isValid = db.run(Tables.PoolInfoTable.filter(_.poolTag === sub.subPool).result.headOption)
+
       val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
-      val sharesExist = minerShares.map(_.exists(_.ipaddress.split(':').contains(sub.ip)))
-      val currSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
-      for{
-        v <- isValid
-        settings <- currSettings
-        exist <- sharesExist
-      } yield {
-        if(v.isDefined && exist){
 
-          if(settings.isDefined) {
-            val q = for {s <- Tables.MinerSettingsTable if s.address === address} yield s.subpool
+      minerShares.transformWith{
+        case Success(value) =>
+          val isValid = db.run(Tables.PoolInfoTable.filter(i => i.poolTag === sub.subPool).result.headOption)
+          val sharesExist = minerShares.map(ms => ms.exists(s => s.ipaddress.split(':').contains(sub.ip)))
+          val currSettings = db.run(Tables.MinerSettingsTable.filter(ms => ms.address === address).result.headOption)
+          for{
+            v <- isValid
+            settings <- currSettings
+            exist <- sharesExist
+          } yield {
+            if(v.isDefined && exist){
 
-            db.run(q.update(Some(sub.subPool)))
-            Ok
-          }else{
-            db.run(Tables.MinerSettingsTable += SMinerSettings(AppParameters.mcPoolId, address, 0.01, LocalDateTime.now(),
-              LocalDateTime.now(), Some(sub.subPool)))
-            Ok
+              if(settings.isDefined) {
+                val q = for {s <- Tables.MinerSettingsTable if s.address === address} yield s.subpool
+
+                db.run(q.update(Some(sub.subPool)))
+                Ok
+              }else{
+                db.run(Tables.MinerSettingsTable += SMinerSettings(AppParameters.mcPoolId, address, 0.01, LocalDateTime.now(),
+                  LocalDateTime.now(), Some(sub.subPool)))
+                Ok
+              }
+            }else{
+              if(v.isEmpty)
+                InternalServerError("Subpool not found")
+              else
+                InternalServerError("Miner shares not found, are you currently mining?")
+            }
           }
-        }else{
-          InternalServerError("Subpool not found or ip was incorrect")
-        }
+        case Failure(exception) =>
+          log.error(s"There was an error while getting shares to change miner settings for ${address}", exception)
+          Future(InternalServerError("Could not validate miner shares"))
       }
+
   }
 
 }
