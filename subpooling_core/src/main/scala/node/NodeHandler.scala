@@ -55,9 +55,13 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
             val coinbaseTx = fullBlock.get.getBlockTransactions.getTransactions.get(0)
             val rewardAddress = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getErgoTree
             val txReward = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue
-            val txFee = fullBlock.get.getBlockTransactions.getTransactions.asScala.filter(_.getOutputs.size() == 1)
-              .filter(_.getOutputs.get(0).getErgoTree == rewardAddress)
-              .head.getOutputs.get(0).getValue
+            var fullReward = txReward
+            if(fullBlock.get.getBlockTransactions.getSize > 1) {
+              val txFee = fullBlock.get.getBlockTransactions.getTransactions.asScala.filter(_.getOutputs.size() == 1)
+                .filter(_.getOutputs.get(0).getErgoTree == rewardAddress)
+                .head.getOutputs.get(0).getValue
+              fullReward = fullReward + txFee
+            }
             var nodePK = getMinerPK
             if (nodePK == null) {
               logger.info("NodePK was null, setting to app params value: " + AppParameters.defaultMiningPK)
@@ -73,7 +77,7 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
                 logger.info("No reward existed for transaction, classifying as empty block!")
                 Some(OrphanBlock(0.0, "none", "none"))
               } else {
-                Some(ValidBlock(Helpers.nanoErgToErg(txReward + txFee), blockNonce, blockHash.get.head))
+                Some(ValidBlock(Helpers.nanoErgToErg(fullReward), blockNonce, blockHash.get.head))
               }
             }
           }
