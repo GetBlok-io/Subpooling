@@ -181,7 +181,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
       log.info(s"Getting settings change req: ${text} for address: ${address}")
       val pay  = PayoutSettings(split(0), split(1).toDouble)
       log.info(s"Splitting into the following: ${pay.ip} and ${pay.minPay}")
-      val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
+      val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(75000).filter(s => s.miner === address).result)
 
       minerShares.transformWith{
         case Success(ms) =>
