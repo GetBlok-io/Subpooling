@@ -117,8 +117,8 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
           logger.info(s"==============Evaluating Confirming Blocks for Pool ${poolInfo.poolTag}==============")
           val blocksOrdered = bg._2.sortBy(b => b.blockheight)
           updateBlockEpochs(blocksOrdered, poolInfo)
-          // TODO: UNCOMMENT
-          // updateBlockConfirmations(blocksOrdered, poolInfo, height)
+
+          updateBlockConfirmations(blocksOrdered, poolInfo, height)
           // Finally, blocks are posted
           logger.info(s"==============Finished evaluating confirming blocks for pool ${bg._1}==============")
 
@@ -172,45 +172,28 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def updateBlockEpochs(orderedBlocks: Seq[PoolBlock], poolInfo: PoolInformation) = {
-    implicit val taskContext: ExecutionContext = contexts.taskContext
-    logger.info(s"Now updating block epochs for pool ${poolInfo.poolTag}. Pool currently has ${poolInfo.blocksFound} blocks found.")
-    logger.info(s"There ${orderedBlocks.length} blocks being evaluated for the pool.")
-    val start = poolInfo.blocksFound
-    val blocksToEval = orderedBlocks.filter(_.gEpoch == -1).sortBy(_.blockheight)
-    blocksToEval.zipWithIndex.foreach{
-      blockZip =>
-        write ! UpdatePoolBlockConf(blockZip._1.status, blockZip._1.confirmation, blockZip._1.blockheight, Some(start + blockZip._2 + 1))
-    }
-    logger.info(s"Finished adding gEpochs to all blocks for pool ${poolInfo.poolTag}.")
-    logger.info(s"New blocks found for pool ${poolInfo.poolTag}:")
-    logger.info(s"NewBlocksFound: ${poolInfo.blocksFound + blocksToEval.length}")
-    write ! UpdatePoolBlocksFound(poolInfo.poolTag, poolInfo.blocksFound + blocksToEval.length)
 
-    logger.info("Now checking gEpochs to ensure correct ordering")
-    val blocksToConfirm = Await.result(db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.CONFIRMING || b.status === PoolBlock.VALIDATING)
-    .sortBy(_.blockHeight).result), 20 seconds)
+    val blocksToValidate = Await.result(db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.VALIDATING)
+      .sortBy(_.blockHeight).result), 20 seconds)
+    logger.info("Verifying that no previous validating blocks exist before updating block gEpochs.")
+    logger.info(s"There are ${blocksToValidate.length} blocks to validate, and ${orderedBlocks.length} blocks to be ordered")
+    if(!(blocksToValidate.exists(b => b.blockheight < orderedBlocks.last.blockheight))) {
+      logger.info("None of the currently validating blocks were invalid, now starting epoch evaluation.")
 
-    if(blocksToConfirm.nonEmpty){
-
-      val blocksConfirming = blocksToConfirm.filter(b => b.status == PoolBlock.CONFIRMING && b.gEpoch > 0).sortBy(_.blockheight)
-      if(blocksToConfirm.exists(b => (b.status == PoolBlock.CONFIRMING || b.status == PoolBlock.VALIDATING)
-        && b.gEpoch == -1 && b.blockheight < blocksConfirming.last.blockheight)) {
-        logger.warn("There is a critical error in gEpoch ordering.")
-        val updateBlockEpochs = Tables.PoolBlocksTable
-          .filter(b => b.status === PoolBlock.CONFIRMING)
-          .filter(b => b.blockHeight >= blocksConfirming.head.blockheight)
-          .filter(b => b.gEpoch > 0L)
-          .map(b => b.gEpoch)
-        db.run(updateBlockEpochs.update(-1L))
-        logger.info(s"Removed gEpochs from misplaced blocks, now removing ${blocksConfirming.length} blocks from blocksFound on pool info" +
-          s" for pool ${poolInfo.poolTag}")
-        val currentInfo = db.run(Tables.PoolInfoTable.filter(i => i.poolTag === poolInfo.poolTag).result)
-        currentInfo.map {
-          cInfo =>
-            db.run(Tables.PoolInfoTable.filter(i => i.poolTag === poolInfo.poolTag).map(i => i.blocksFound).update(cInfo.head.blocksFound - blocksConfirming.length))
-        }
+      logger.info(s"Now updating block epochs for pool ${poolInfo.poolTag}. Pool currently has ${poolInfo.blocksFound} blocks found.")
+      logger.info(s"There ${orderedBlocks.length} blocks being evaluated for the pool.")
+      val start = poolInfo.blocksFound
+      val blocksToEval = orderedBlocks.filter(_.gEpoch == -1).sortBy(_.blockheight)
+      blocksToEval.zipWithIndex.foreach {
+        blockZip =>
+          write ! UpdatePoolBlockConf(blockZip._1.status, blockZip._1.confirmation, blockZip._1.blockheight, Some(start + blockZip._2 + 1))
       }
+      logger.info(s"Finished adding gEpochs to all blocks for pool ${poolInfo.poolTag}.")
+      logger.info(s"New blocks found for pool ${poolInfo.poolTag}:")
+      logger.info(s"NewBlocksFound: ${poolInfo.blocksFound + blocksToEval.length}")
+      write ! UpdatePoolBlocksFound(poolInfo.poolTag, poolInfo.blocksFound + blocksToEval.length)
     }
+    // verifyBlockEpochs(poolInfo)
 
   }
   def updateBlockConfirmations(orderedBlocks: Seq[PoolBlock], poolInfo: PoolInformation, height: Long) = {
@@ -249,7 +232,36 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     logger.info(s"The pool has ${confirmed} confirmed blocks and ${confirming} confirming blocks after evaluation.")
   }
 
+  def verifyBlockEpochs(poolInfo: PoolInformation): Unit = {
+    implicit val taskContext: ExecutionContext = contexts.taskContext
 
+    logger.info("Now checking gEpochs to ensure correct ordering")
+    val blocksToConfirm = Await.result(db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.CONFIRMING || b.status === PoolBlock.VALIDATING)
+      .sortBy(_.blockHeight).result), 20 seconds)
+
+    if(blocksToConfirm.nonEmpty){
+
+      val blocksConfirming = blocksToConfirm.filter(b => b.status == PoolBlock.CONFIRMING && b.gEpoch > 0).sortBy(_.blockheight)
+      if(blocksToConfirm.exists(b => (b.status == PoolBlock.CONFIRMING || b.status == PoolBlock.VALIDATING)
+        && b.gEpoch == -1 && b.blockheight < blocksConfirming.last.blockheight)) {
+        logger.warn("There is a critical error in gEpoch ordering.")
+        val updateBlockEpochs = Tables.PoolBlocksTable
+          .filter(b => b.status === PoolBlock.CONFIRMING)
+          .filter(b => b.blockHeight >= blocksConfirming.head.blockheight)
+          .filter(b => b.gEpoch > 0L)
+          .map(b => b.gEpoch)
+        db.run(updateBlockEpochs.update(-1L))
+        logger.info(s"Removed gEpochs from misplaced blocks, now removing ${blocksConfirming.length} blocks from blocksFound on pool info" +
+          s" for pool ${poolInfo.poolTag}")
+        val currentInfo = db.run(Tables.PoolInfoTable.filter(i => i.poolTag === poolInfo.poolTag).result)
+        currentInfo.map {
+          cInfo =>
+            db.run(Tables.PoolInfoTable.filter(i => i.poolTag === poolInfo.poolTag).map(i => i.blocksFound).update(cInfo.head.blocksFound - blocksConfirming.length))
+        }
+      }
+    }
+    ()
+  }
 
 
   def validateBlockAsync(blockHeight: Long): Future[Option[NodeHandler.PartialBlockInfo]] = {
