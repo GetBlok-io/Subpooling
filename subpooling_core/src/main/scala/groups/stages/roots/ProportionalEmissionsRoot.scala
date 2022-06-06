@@ -84,10 +84,21 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox, rewardAfterFees)
         logger.info(s"Total output tokens: ${emissionCycle.tokensForHolding}")
         totalTokensDistributed = emissionCycle.tokensForHolding
+        var tokensInHolding = 0L
         for (subPool <- pool.subPools) {
 
           val outB = ctx.newTxBuilder().outBoxBuilder()
-          val amntDistToken = ((subPool.nextHoldingShare * BigInt(emissionCycle.tokensForHolding)) / totalHoldingShare).toLong
+          var amntDistToken = ((subPool.nextHoldingShare * BigInt(emissionCycle.tokensForHolding)) / totalHoldingShare).toLong
+          tokensInHolding = tokensInHolding + amntDistToken
+          if(outputIndex == pool.subPools.length){
+            val difference = emissionCycle.tokensForHolding - tokensInHolding
+            logger.info(s"Amount taken out of emissions: ${emissionCycle.tokensForHolding}")
+            logger.info(s"Amount present in holding contracts: ${tokensInHolding}")
+            logger.info(s"Current token difference in emissions vs holding contracts: ${difference}")
+            if(difference > 0){
+              amntDistToken = amntDistToken + difference
+            }
+          }
           logger.info(s"amntDistToken for subpool ${subPool.id}: ${amntDistToken}")
           subPool.nextHoldingValue = BoxHelpers.removeDust(((subPool.nextHoldingShare * BigInt(rewardAfterFees)) / totalHoldingShare).toLong)
           logger.info(s"nextHoldingValue for subpool ${subPool.id}: ${Helpers.nanoErgToErg(subPool.nextHoldingValue)}")
