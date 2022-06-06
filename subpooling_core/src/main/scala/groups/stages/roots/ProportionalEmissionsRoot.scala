@@ -3,13 +3,13 @@ package groups.stages.roots
 
 import boxes.{BoxHelpers, ExchangeEmissionsBox, ProportionalEmissionsBox}
 import contracts.holding.HoldingContract
-import global.AppParameters
+import global.{AppParameters, Helpers}
 import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
 import registers.PoolFees
 
-import org.ergoplatform.appkit._
+import org.ergoplatform.appkit.{Address, BlockchainContext, ErgoToken, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
@@ -33,6 +33,11 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         val totalOutputErg    = pool.subPools.map(_.nextHoldingValue).sum
         logger.info(s"Pool size: ${pool.subPools.size}")
         logger.info(s"Block reward: $blockReward")
+        logger.info(s"Block reward trunc: ${BoxHelpers.removeDust(blockReward)}")
+        logger.info(s"Emissions Box params:")
+        logger.info(s"Pool Fee: ${emissionsBox.poolFee}")
+        logger.info(s"Proportion: ${emissionsBox.proportion}")
+        logger.info(s"Decimal places: 1000000")
         logger.info(s"Total Tx fees: $totalTxFees, Total Base fees: $totalBaseFees, totalOutputErg: $totalOutputErg, Total holding share: $totalHoldingShare")
         logger.info(s"Primary tx fees: ${primaryTxFees}")
         var initialInputs = inputBoxes
@@ -82,8 +87,9 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
 
           val outB = ctx.newTxBuilder().outBoxBuilder()
           val amntDistToken = ((subPool.nextHoldingShare * BigInt(emissionCycle.tokensForHolding)) / totalHoldingShare).toLong
-
+          logger.info(s"amntDistToken for subpool ${subPool.id}: ${amntDistToken}")
           subPool.nextHoldingValue = BoxHelpers.removeDust(((subPool.nextHoldingShare * BigInt(rewardAfterFees)) / totalHoldingShare).toLong)
+          logger.info(s"nextHoldingValue for subpool ${subPool.id}: ${subPool.nextHoldingValue}")
           val outBox = outB
             .contract(holdingContract.asErgoContract)
             .value(subPool.nextHoldingValue)
@@ -93,6 +99,8 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
           outputMap = outputMap + (subPool -> (outBox -> outputIndex))
           outputIndex = outputIndex + 1
         }
+        val nextOutputErg    = pool.subPools.map(_.nextHoldingValue).sum
+        logger.info(s"Next Output ERG: ${nextOutputErg}")
         val feeOutputs = ArrayBuffer.empty[OutBox]
         for (fee <- baseFeeMap) {
           val outB = ctx.newTxBuilder().outBoxBuilder()
