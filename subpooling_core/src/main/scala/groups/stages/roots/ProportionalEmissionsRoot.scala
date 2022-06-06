@@ -80,6 +80,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
         var outputIndex: Int = 1
         val rewardAfterFees = interBox.getValue - ((emissionsBox.poolFee.value * interBox.getValue.toLong) / PoolFees.POOL_FEE_CONST)
+        logger.info(s"RewardAfterFees: ${rewardAfterFees}")
         val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox, rewardAfterFees)
         logger.info(s"Total output tokens: ${emissionCycle.tokensForHolding}")
         totalTokensDistributed = emissionCycle.tokensForHolding
@@ -89,7 +90,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
           val amntDistToken = ((subPool.nextHoldingShare * BigInt(emissionCycle.tokensForHolding)) / totalHoldingShare).toLong
           logger.info(s"amntDistToken for subpool ${subPool.id}: ${amntDistToken}")
           subPool.nextHoldingValue = BoxHelpers.removeDust(((subPool.nextHoldingShare * BigInt(rewardAfterFees)) / totalHoldingShare).toLong)
-          logger.info(s"nextHoldingValue for subpool ${subPool.id}: ${subPool.nextHoldingValue}")
+          logger.info(s"nextHoldingValue for subpool ${subPool.id}: ${Helpers.nanoErgToErg(subPool.nextHoldingValue)}")
           val outBox = outB
             .contract(holdingContract.asErgoContract)
             .value(subPool.nextHoldingValue)

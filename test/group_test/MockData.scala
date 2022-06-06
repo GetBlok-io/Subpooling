@@ -69,7 +69,7 @@ object MockData {
 
   object HoldingData {
     // Init Mock data
-    val holdingValue: Long = Parameters.OneErg * 66
+    val holdingValue: Long = 63019232000L
     val totalEmissions: Long = Parameters.OneErg * 3000000
     val emissionsReward: Long = Parameters.OneErg * 66
     val singlePool: Pool = initSinglePool
