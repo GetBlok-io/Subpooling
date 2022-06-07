@@ -318,7 +318,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
       else
         offset = -1
 
-      if(accumDiff / block.netDiff > 400){
+      if((accumDiff / block.netDiff) * 100 > 500){
         offset = -1
       }
     }
