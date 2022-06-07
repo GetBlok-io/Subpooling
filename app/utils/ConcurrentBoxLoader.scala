@@ -86,7 +86,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     val collectedInputs = ArrayBuffer() ++ ergoClient.execute {
       ctx =>
         ctx.getWallet.getUnspentBoxes(amountToFind).get()
-    }.asScala.toSeq.filter(_.getTokens.size() == 0).sortBy(b => b.getValue.toLong).reverse
+    }.asScala.toSeq.sortBy(b => b.getValue.toLong).reverse
     collectedInputs.foreach{
       ib => loadedBoxes.add(ib)
     }
@@ -101,7 +101,6 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
       boxesCollected += polledBox
       currentSum = currentSum + polledBox.getValue.toLong
     }
-
 
     logger.info(s"Collected ${boxesCollected.length} boxes for total value of ${currentSum}. The value needed was ${amountToCollect}")
 
