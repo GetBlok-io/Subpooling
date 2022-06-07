@@ -5,6 +5,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
@@ -83,6 +84,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   }
 
   def preLoadInputBoxes(amountToFind: Long): ConcurrentLinkedQueue[InputBox] = {
+    logger.info(s"Now preLoading input boxes with a total of ${Helpers.nanoErgToErg(amountToFind)} ERG")
     val collectedInputs = ArrayBuffer() ++ ergoClient.execute {
       ctx =>
         ctx.getWallet.getUnspentBoxes(amountToFind).get()
@@ -90,6 +92,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     collectedInputs.foreach{
       ib => loadedBoxes.add(ib)
     }
+    logger.info(s"Added ${collectedInputs.length} boxes to ConcurrentBoxLoader")
     loadedBoxes
   }
 
