@@ -1,8 +1,8 @@
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick_2.12/3.3.3/slick_2.12-3.3.3.pom
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick-hikaricp_2.12/3.3.3/slick-hikaricp_2.12-3.3.3.pom
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick-hikaricp_2.12/3.3.3/slick-hikaricp_2.12-3.3.3.jar
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick_2.12/3.3.3/slick_2.12-3.3.3.jar
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick-hikaricp_2.12/3.3.3/slick-hikaricp_2.12-3.3.3-javadoc.jar
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick-hikaricp_2.12/3.3.3/slick-hikaricp_2.12-3.3.3-sources.jar
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick_2.12/3.3.3/slick_2.12-3.3.3-sources.jar
-[debug] downloaded https://repo1.maven.org/maven2/com/typesafe/slick/slick_2.12/3.3.3/slick_2.12-3.3.3-javadoc.jar
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-appkit_2.12/4.0.9/ergo-appkit_2.12-4.0.9.pom
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-wallet_2.12/4.0.27/ergo-wallet_2.12-4.0.27.pom
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-wallet_2.12/4.0.27/ergo-wallet_2.12-4.0.27.jar
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-appkit_2.12/4.0.9/ergo-appkit_2.12-4.0.9.jar
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-wallet_2.12/4.0.27/ergo-wallet_2.12-4.0.27-sources.jar
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-appkit_2.12/4.0.9/ergo-appkit_2.12-4.0.9-sources.jar
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-appkit_2.12/4.0.9/ergo-appkit_2.12-4.0.9-javadoc.jar
+[debug] downloaded https://repo1.maven.org/maven2/org/ergoplatform/ergo-wallet_2.12/4.0.27/ergo-wallet_2.12-4.0.27-javadoc.jar

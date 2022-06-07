@@ -155,7 +155,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               val start = lastBlock.created
               val end = block.created
               logger.info(s"Querying shares between last block ${lastBlock.blockheight} and current block ${block.blockheight}")
-              val accumDiff = calculateEffort(start, end)
+              val accumDiff = calculateEffort(start, end, block)
               logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
               writeEffortForBlock(block, accumDiff)
             }else{
@@ -303,7 +303,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     }(contexts.taskContext)
   }
 
-  def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime) = {
+  def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime, block: PoolBlock) = {
     var offset = 0
     var limit = 25000
     var accumDiff = BigDecimal(0)
@@ -317,6 +317,10 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         offset = offset + limit
       else
         offset = -1
+
+      if(accumDiff / block.netDiff > 400){
+        offset = -1
+      }
     }
     logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
     accumDiff
