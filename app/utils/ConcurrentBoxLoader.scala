@@ -92,7 +92,8 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     collectedInputs.foreach{
       ib => loadedBoxes.add(ib)
     }
-    logger.info(s"Added ${collectedInputs.length} boxes to ConcurrentBoxLoader")
+    logger.info(s"Added ${collectedInputs.length} boxes to ConcurrentBoxLoader, with total value of" +
+      s" ${Helpers.nanoErgToErg(collectedInputs.map(_.getValue.toLong).sum)} ERG")
     loadedBoxes
   }
 
