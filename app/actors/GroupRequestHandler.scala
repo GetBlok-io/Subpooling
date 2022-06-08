@@ -95,8 +95,10 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
               ergoClient.execute {
                 ctx =>
                   implicit val networkType: NetworkType = ctx.getNetworkType
-
-                  val poolData = constructFromState(ctx, poolStates)
+                  var statesToUse = poolStates
+                  if(poolStates.exists(ps => ps.status == PoolState.FAILURE))
+                    statesToUse = poolStates.filter(ps => ps.status == PoolState.FAILURE)
+                  val poolData = constructFromState(ctx, statesToUse)
                   val pool = poolData.pool
                   var subPools = pool.subPools
                   pool.globalEpoch = block.gEpoch
