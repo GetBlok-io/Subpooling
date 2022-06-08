@@ -65,6 +65,14 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
       consVal =>
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
+
+        val lastConsVal = lastDistribution.dist.find(d => d._1.address == consVal._1.address)
+        if(lastConsVal.isDefined){
+          if(lastConsVal.get._2.getStored == Parameters.MinFee){
+            currentMinPayout = Parameters.MinFee
+          }
+        }
+
         logger.info(s"Share score for ${consVal._1.address}: $shareNum")
         var valueFromShares = ((totalValAfterFees * BigDecimal(shareNum)) / BigDecimal(totalShares)).toLong
         valueFromShares = BoxHelpers.removeDust(valueFromShares)

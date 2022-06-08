@@ -93,13 +93,6 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 currentRun = currentRun + 1
             }
           }
-
-
-
-
-
-
-
         }else{
           logger.error("There was an error thrown while trying to pre-collect inputs!", tryPreCollection.failed.get)
         }

@@ -31,10 +31,11 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
 
           // Increment number by 1 if member was mining previously, otherwise reset value to 1
           val epochsMined = if (oldMember.epochsMined > 0) oldMember.epochsMined + 1 else 1
-
+          val minPay      = if(oldMember.storedPay == Parameters.MinFee) Parameters.MinFee else currentMember.minPay
           distMap = distMap + currentMember.copy(memberInfo
           = currentMember.memberInfo
               .withEpochs(epochsMined)
+              .withMinPay(minPay)
           ).toDistributionValue
           membersAdded += currentMember
         }
