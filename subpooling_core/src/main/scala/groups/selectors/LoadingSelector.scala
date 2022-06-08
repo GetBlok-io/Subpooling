@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package groups.selectors
 
-import global.{AppParameters, Helpers}
+import global.AppParameters
 import groups.entities.{Member, Pool}
 import groups.models.GroupSelector
 import persistence.models.Models.PoolPlacement
@@ -24,11 +24,7 @@ class LoadingSelector(placements: Array[PoolPlacement]) extends GroupSelector {
       //logger.info(s"Now loading placements for subpool ${subpool.id} in pool ${subpool.token.toString}")
       if(subpoolPlacements.nonEmpty) {
         //logger.info(s"Placements were found for subpool ${subpool.id}! Total of ${subpoolPlacements.length} placements were found!")
-        val filteredPlacements = subpoolPlacements.filter {
-          p => !(p.amount == 0 && subpool.box.shareDistribution.dist.find(_._1.address.toString == p.miner).exists(_._2.getStored == Helpers.MinFee))
-        }
-        logger.info(s"initPlacements: ${subpoolPlacements.length} | filteredPlacements: ${filteredPlacements.length}")
-        val dist = new ShareDistribution(filteredPlacements.map(p => PropBytes.ofAddress(Address.create(p.miner))(AppParameters.networkType) ->
+        val dist = new ShareDistribution(subpoolPlacements.map(p => PropBytes.ofAddress(Address.create(p.miner))(AppParameters.networkType) ->
           new MemberInfo(Array(p.score, p.minpay, 0L, p.epochs_mined, 0L))).toMap)
         subpool.nextDist = dist
       }

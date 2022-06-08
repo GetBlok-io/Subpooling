@@ -115,7 +115,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                   if (tryHoldingMap.isSuccess) {
                     val holdingMap = tryHoldingMap.get
 
-                    val placedWithStorage = placedSubpools.filter(s => poolStates.exists(p => s.id == p.subpool_id && p.stored_id != "none" && p.stored_val != Parameters.MinFee))
+                    val placedWithStorage = placedSubpools.filter(s => poolStates.exists(p => s.id == p.subpool_id && p.stored_id != "none"))
                     val storageMap = placedWithStorage.map(s => s.box -> ctx.getBoxesById(poolStates.find(p => s.id == p.subpool_id).get.stored_id).head).toMap
 
                     logger.warn("Using default contracts during group execution!")
