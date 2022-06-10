@@ -194,7 +194,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                     case PoolInformation.CURR_ERG =>
                       val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
-                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), sendTxs = false)
+                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward))
                       val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
@@ -249,7 +249,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       val emissionsBox = new ProportionalEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
                       val root = new ProportionalEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward,
-                        AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox, sendTxs = false)
+                        AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
                       val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                   }

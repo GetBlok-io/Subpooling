@@ -62,7 +62,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       () =>
 
         Try {
-          checkProcessingBlocks
+         // checkProcessingBlocks
         }.recoverWith{
           case ex =>
             logger.error("There was a critical error while checking processing blocks!", ex)
@@ -75,7 +75,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         if(params.regenFromChain) {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regenerateDB).recoverWith {
+          Try(regeneratePlaces).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -186,6 +186,31 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
+  def regeneratePlaces = {
+    implicit val timeout: Timeout = Timeout(1000 seconds)
+    val placements = Await.result(db.run(Tables.PoolPlacementsTable.result), 1000 seconds)
+    val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
+    for(poolPlace <- poolPlaces){
+      if(poolPlace._1 == params.defaultPoolTag){
+        val fTx = (expReq ? TxById(ErgoId.create("922729074851c6fbf5f8033fb4ad7e0870404db6e1b4870419b4ac925394261d"))).mapTo[Option[TransactionData]]
+        fTx.map{
+          optTx =>
+            if(optTx.isDefined) {
+              val tx = optTx.get
+              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt).id.toString, tx.outputs(p.subpool_id.toInt).value))
+              nextUpdates.foreach {
+                u =>
+                  val q = Tables.PoolPlacementsTable.filter(p => p.subpool === params.defaultPoolTag && p.subpool_id === u._1).map(p => (p.holdingId, p.holdingVal))
+                  db.run(q.update(u._2._1, u._2._2))
+              }
+              logger.info(s"Completed placement regen for pool ${params.defaultPoolTag}")
+            }
+        }
+      }
+    }
+
+
+  }
 
   def checkProcessingBlocks: Future[Unit] = {
     implicit val timeout: Timeout = Timeout(60 seconds)
