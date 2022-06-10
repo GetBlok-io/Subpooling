@@ -191,13 +191,13 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val placements = Await.result(db.run(Tables.PoolPlacementsTable.result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
-      if(poolPlace._1 == params.defaultPoolTag){
-        val fTx = (expReq ? TxById(ErgoId.create("922729074851c6fbf5f8033fb4ad7e0870404db6e1b4870419b4ac925394261d"))).mapTo[Option[TransactionData]]
+      if(poolPlace._1 == "3d87a6c89801af3866dcdfc318b803ca09332799870f08f12e105865d537e502"){
+        val fTx = (expReq ? TxById(ErgoId.create("0117389a119659d9eb0d7d1fd89d217d8af0cb4e78f3e8aa89a3b61cc8998653"))).mapTo[Option[TransactionData]]
         fTx.map{
           optTx =>
             if(optTx.isDefined) {
               val tx = optTx.get
-              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt).id.toString, tx.outputs(p.subpool_id.toInt).value))
+              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 1).id.toString, tx.outputs(p.subpool_id.toInt + 1).value))
               nextUpdates.foreach {
                 u =>
                   val q = Tables.PoolPlacementsTable.filter(p => p.subpool === params.defaultPoolTag && p.subpool_id === u._1).map(p => (p.holdingId, p.holdingVal))
