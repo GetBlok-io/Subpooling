@@ -186,6 +186,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
+
   def checkProcessingBlocks: Future[Unit] = {
     implicit val timeout: Timeout = Timeout(60 seconds)
     val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.PROCESSING)).mapTo[Seq[PoolBlock]]

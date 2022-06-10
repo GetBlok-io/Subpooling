@@ -15,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdingContract: HoldingContract, baseFeeMap: Map[Address, Long],
-                  var inputBoxes: Option[Seq[InputBox]] = None)
+                  var inputBoxes: Option[Seq[InputBox]] = None, sendTxs: Boolean = true)
   extends TransactionStage[InputBox](pool, ctx, wallet) with ParallelRoot {
   override val stageName: String = "HoldingRoot"
   val log = LoggerFactory.getLogger(stageName)
@@ -101,7 +101,12 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))
-        val txId = ctx.sendTransaction(transaction.get)
+        val txId = {
+          if(sendTxs)
+            ctx.sendTransaction(transaction.get)
+          else
+            transaction.get.getId.replace("\"", "")
+        }
         log.info(txId)
         val inputMap: Map[Subpool, InputBox] = outputMap.map(om => om._1 -> om._2._1.convertToInputWith(txId.replace("\"", ""), om._2._2.toShort))
         inputMap
