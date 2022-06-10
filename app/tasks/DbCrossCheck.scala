@@ -75,7 +75,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         if(params.regenFromChain) {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regeneratePlaces).recoverWith {
+          Try(regenerateDB).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -93,7 +93,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
 
-    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).take(1).result.headOption)
+    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).filter(_.poolTag === params.defaultPoolTag).sortBy(_.created).take(1).result.headOption)
     qBlock.map{
       block =>
         if(block.isDefined) {
@@ -153,6 +153,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val distValue = metadataBox.shareDistribution.dist.find(_._1.address.toString == p.miner).get
                   logger.info("Miner found, now checking if miner had a payment in outputs")
                   val optPaid = tx.outputs.find(_.address.toString == p.miner).map(_.value)
+
                   logger.info(s"Miner payment: ${optPaid}")
                   logger.info(s"Now making new pool member for miner ${p.miner}")
                   val member = PoolMember(currBlock.poolTag, metadataBox.subpool, currTxId, metadataBox.getId.toString, currBlock.gEpoch,
