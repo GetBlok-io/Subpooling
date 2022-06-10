@@ -155,16 +155,17 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               val start = lastBlock.created
               val end = block.created
               logger.info(s"Querying miners for pool ${block.poolTag}")
-              val fMiners = db.run(Tables.PoolSharesTable.queryPoolMiners(block.poolTag, params.defaultPoolTag))
+              val fMiners = db.run(Tables.PoolSharesTable.queryMinerPools)
               val fInfo   = db.run(Tables.PoolInfoTable.filter(_.poolTag === block.poolTag).result.head)
               for{
                 info <- fInfo
                 miners <- fMiners
               }
               yield {
+
                 logger.info(s"A total of ${miners.size} miners ")
                 logger.info(s"Querying shares between last block ${lastBlock.blockheight} and current block ${block.blockheight}")
-                val accumDiff = calculateEffort(start, end, block, Set(miners:_*), info)
+                val accumDiff = calculateEffort(start, end, block, miners.toMap, info)
                 logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
                 writeEffortForBlock(block, accumDiff)
               }
@@ -313,7 +314,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     }(contexts.taskContext)
   }
 
-  def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime, block: PoolBlock, miners: Set[String], info: PoolInformation) = {
+  def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime, block: PoolBlock, miners: Map[String, Option[String]], info: PoolInformation) = {
     var offset = 0
     var limit = 25000
     var accumDiff = BigDecimal(0)
@@ -324,7 +325,10 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         while(offset != -1){
           logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
           val shares = Await.result(db.run(Tables.PoolSharesTable.queryBetweenDate(startDate, endDate, offset, limit)), 1000 seconds)
-            .filter(s => miners.contains(s.miner))
+            .filter{
+              s =>
+                miners.get(s.miner).flatten.getOrElse(params.defaultPoolTag) == block.poolTag
+            }
           accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
           logger.info(s"Current accumulated difficulty: ${accumDiff}")
           if(shares.nonEmpty)
