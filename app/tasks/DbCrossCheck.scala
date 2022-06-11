@@ -62,13 +62,15 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       () =>
 
         Try {
-          checkProcessingBlocks
+          //checkProcessingBlocks
         }.recoverWith{
           case ex =>
             logger.error("There was a critical error while checking processing blocks!", ex)
             Failure(ex)
         }
-        Try(checkDistributions).recoverWith{
+        Try(
+        //  checkDistributions
+        ).recoverWith{
           case ex =>
             logger.error("There was a critical error while checking distributions!", ex)
             Failure(ex)
@@ -93,13 +95,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
 
-    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).filter(_.poolTag === params.defaultPoolTag).sortBy(_.created).take(1).result.headOption)
+    val qBlock = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).filter(_.poolTag === "3d87a6c89801af3866dcdfc318b803ca09332799870f08f12e105865d537e502").sortBy(_.created).take(1).result.headOption)
     qBlock.map{
       block =>
         if(block.isDefined) {
           val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === block.get.poolTag).result), 1000 seconds)
           val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === block.get.poolTag && p.block === block.get.blockheight).result),
             1000 seconds)
+          logger.info(s"Using block ${block.get.blockheight} with gEpoch ${block.get.gEpoch} for pool ${block.get.poolTag}")
           logger.info("Querying outputs from chain")
           val outputs = Await.result(Future.sequence(states.map(s => (expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]])), 1000 seconds)
           logger.info("Finished querying outputs, now querying transactions!")
@@ -153,12 +156,13 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val distValue = metadataBox.shareDistribution.dist.find(_._1.address.toString == p.miner).get
                   logger.info("Miner found, now checking if miner had a payment in outputs")
                   val optPaid = tx.outputs.find(_.address.toString == p.miner).map(_.value)
-
+                  val optToken = tx.outputs.find(_.address.toString == p.miner).map(_.assets.head.amount)
                   logger.info(s"Miner payment: ${optPaid}")
                   logger.info(s"Now making new pool member for miner ${p.miner}")
+                  // TODO: Make this more robust, and remember to remove old tokens in non token pools that are regened.
                   val member = PoolMember(currBlock.poolTag, metadataBox.subpool, currTxId, metadataBox.getId.toString, currBlock.gEpoch,
                     metadataBox.epoch, metadataBox.epochHeight, p.miner, p.score, shareNum, sharePerc, p.minpay, distValue._2.getStored,
-                    optPaid.getOrElse(0L), p.amount, p.epochs_mined, "none", 0, currBlock.blockheight, LocalDateTime.now())
+                    optPaid.getOrElse(0L), p.amount, p.epochs_mined, "COMET", optToken.getOrElse(0L), currBlock.blockheight, LocalDateTime.now())
                   logger.info("Finished making miner!")
                   member
               }
