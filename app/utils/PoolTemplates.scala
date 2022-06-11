@@ -22,10 +22,11 @@ object PoolTemplates {
     PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_TEST_TOKENS, 3L, 5L,
     "GetBlok.io Token Test Pool",
     "GetBlok.io Test Token Pool identification token")
-  val NETA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
+  val NETA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
     "anetaBTC Smart Pool",
-    "anetaBTC Smart Pool identification token")
+    "anetaBTC Smart Pool identification token",
+    Some(Address.create("9ffAuiHXqgTCNpPdfJxQ4eQzkG5CPvG5bwEPeQZHLR3tLwvp2Zc"))) // TODO: Change this
   val COMET_POOL: PoolTemplate = PoolTemplate("COMET Smart Pool", 0.01, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.ProportionalEmissions, PoolInformation.CURR_ERG_COMET, 5L, 10L,
     "COMET Smart Pool",
@@ -34,11 +35,11 @@ object PoolTemplates {
 
 
   val templates: Array[UninitializedPool] = Array(
-    UninitializedPool(poolMade = false, None, STANDARD_POOL),
-    UninitializedPool(poolMade = false, None, SOLO_POOL),
+//    UninitializedPool(poolMade = false, None, STANDARD_POOL),
+//    UninitializedPool(poolMade = false, None, SOLO_POOL),
 
-    //UninitializedPool(poolMade = false, Some(false), NETA_POOL),
-    UninitializedPool(poolMade = false, Some(false), COMET_POOL)
+    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
+//    UninitializedPool(poolMade = false, Some(false), COMET_POOL)
     )
 
   def getPaymentStr(paymentType: PaymentType): String = {

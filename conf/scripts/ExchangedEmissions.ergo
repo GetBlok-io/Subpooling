@@ -13,6 +13,7 @@
   val holdingBytes:  Coll[Byte] = const_holdingBytesHashed
   val slippage:      Int        = 1 // Assume 1% slippage
   val minHoldingBoxVal: Long    = 1000L * 1000L * 10 // Up to 10 members in each subpool, so make sure enough ERG is in holding
+                                                    // To potentially hold tokens for all of them
   val poolFeeDenom:  Long       = 100000L
   // SELF Assets & Registers
   val emToken:       Coll[Byte] = SELF.tokens(0)._1 // emission NFT
@@ -71,7 +72,7 @@
       isValueInRange((OUTPUTS(0).tokens(1)._2, distTokenAmnt - adjustedOutput)),
       OUTPUTS(0).value        == SELF.value,
       OUTPUTS(0).R4[Long].get  == percentChange, // Cannot be changed, but kept on registers rather than constants for visibility / transparency
-      OUTPUTS(0).R5[Long].get  <= 2000, // Share operator may take max fee of 2000 / 100000 or 2%, and may change every emission cycle
+      OUTPUTS(0).R5[Long].get  <= 3000, // Share operator may take max fee of 3000 / 100000 or 3%, and may change every emission cycle
       OUTPUTS(0).R5[Long].get  >= 0
     ))
   }

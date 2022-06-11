@@ -247,6 +247,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
     def makeNetaEmissionTx(tag: String, emTokenMintBox: InputBox) = {
       client.execute{
         ctx =>
+          //TODO: Use exact box id here if necessary
           logger.info("Building transactions to create NETA Emissions Box")
           val metadataContract = MetadataContract.generateMetadataContract(ctx)
           val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(tag))

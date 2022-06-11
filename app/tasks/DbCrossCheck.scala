@@ -85,12 +85,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
     })(contexts.taskContext)
   }
-  def parseReg(reg: RegisterData, idx: Int) = {
-    reg.renderedValue.replace("[", "").replace("]", "").split(",")(idx).toLong
-  }
-  def regSeq(reg: RegisterData) = {
-    reg.renderedValue.replace("[", "").replace("]", "").split(",")
-  }
+
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
