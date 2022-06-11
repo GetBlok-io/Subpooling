@@ -256,10 +256,9 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
             logger.info("Metadata and holding contracts generated")
             val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpNFT, template.distToken)
             logger.info("Emissions Contract generated")
-            val totalDistributionToken = new ErgoToken(template.distToken, template.totalEmissions)
-            val tokenInputs = ctx.getCoveringBoxesFor(wallet.p2pk, 0L, Seq(totalDistributionToken).asJava).getBoxes
-              .asScala.toSeq.filter(i => i.getTokens.size() > 0).filter(i => i.getTokens.get(0).getId == template.distToken).sortBy(_.getTokens.get(0).getValue.toLong)
-              .reverse
+
+            val tokenInputs = ctx.getBoxesById("207bdd352da82ba75c381dcddcffbb7f6491588108a3f96a95fdebbfaa5dec65")
+            val totalDistributionToken = tokenInputs.head.getTokens.get(0)
             logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
             logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
             val emissionsOutBox = ExchangeContract.buildGenesisBox(ctx, emissionsContract,
