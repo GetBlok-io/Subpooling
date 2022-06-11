@@ -35,7 +35,7 @@
     val actual   = valuesPair._2
     val amountTop = (expected - actual) * 100L
     val percentage = amountTop / actual
-    (percentage < 1L) && (percentage > -1L) // 1% margin of error during calculations
+    (percentage < 2L) && (percentage > -2L) // 2% margin of error during calculations
   }
   val holdingBoxes = OUTPUTS.filter{ (box: Box) => blake2b256(box.propositionBytes) == holdingBytes}
 

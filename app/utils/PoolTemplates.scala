@@ -26,7 +26,7 @@ object PoolTemplates {
     PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
     "anetaBTC Smart Pool",
     "anetaBTC Smart Pool identification token",
-    Some(Address.create("9ffAuiHXqgTCNpPdfJxQ4eQzkG5CPvG5bwEPeQZHLR3tLwvp2Zc"))) // TODO: Change this
+    Some(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T"))) // TODO: Change this
   val COMET_POOL: PoolTemplate = PoolTemplate("COMET Smart Pool", 0.01, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.ProportionalEmissions, PoolInformation.CURR_ERG_COMET, 5L, 10L,
     "COMET Smart Pool",

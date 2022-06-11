@@ -62,7 +62,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
           .boxesToSpend(boxesToSpend.asJava)
           .outputs(interOutBox, interFeeOutBox)
           .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .fee(AppParameters.groupFee)
+          .fee(AppParameters.groupFee * 100)
           .build()
 
         val signedInterTx = wallet.prover.sign(unsignedInterTx)
@@ -111,7 +111,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
 
         val unsignedTx = txB
           .boxesToSpend((Seq(emissionsBox.asInput, interBox).asJava))
-          .fee(primaryTxFees)
+          .fee(primaryTxFees + Parameters.OneErg / 3)
           .outputs((emissionCycle.outputs ++ outputBoxes): _*)
           .withDataInputs(Seq(emissionCycle.lpBox).asJava)
           .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
@@ -147,7 +147,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
   }
 }
 object ExchangeEmissionsRoot {
-  def getMaxInputs(blockReward: Long): Long = blockReward + (101 * AppParameters.groupFee)
+  def getMaxInputs(blockReward: Long): Long = blockReward + (200 * AppParameters.groupFee)
 }
 
 

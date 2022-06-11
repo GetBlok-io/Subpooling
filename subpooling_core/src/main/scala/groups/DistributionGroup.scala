@@ -71,12 +71,22 @@ class DistributionGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
             val shareNum  = ((d._2.getScore * block.netDiff) / AppParameters.scoreAdjustmentCoeff).toLong
             val change = getAmountAdded(p, d)
             if (p.paymentMap.contains(d._1)) {
-              val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
-                p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
-                p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
-                currencyValue(p.paymentMap.get(d._1)), change, d._2.getEpochsMined, tokenName.getOrElse("none"), p.paymentMap(d._1).getTokens.asScala.headOption.map(_.getValue.toLong).getOrElse(0L),
-                block.blockheight, LocalDateTime.now())
-              poolMembers += poolMember
+              // Token holding contract does not auto assume tokens in outputs are additional tokens
+              if(!holdingContract.isInstanceOf[TokenHoldingContract]) {
+                val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
+                  p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
+                  p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
+                  currencyValue(p.paymentMap.get(d._1)), change, d._2.getEpochsMined, tokenName.getOrElse("none"), p.paymentMap(d._1).getTokens.asScala.headOption.map(_.getValue.toLong).getOrElse(0L),
+                  block.blockheight, LocalDateTime.now())
+                poolMembers += poolMember
+              }else{
+                val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
+                  p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,
+                  p.nextBox.epochHeight, d._1.address.toString, d._2.getScore, shareNum, sharePerc, d._2.getMinPay, d._2.getStored,
+                  currencyValue(p.paymentMap.get(d._1)), change, d._2.getEpochsMined, tokenName.getOrElse("none"), 0L,
+                  block.blockheight, LocalDateTime.now())
+                poolMembers += poolMember
+              }
             }else{
               val poolMember = PoolMember(p.token.toString, p.id, completedGroups(p).getId.replace("\"", ""),
                 p.nextBox.getId.toString, block.gEpoch, p.nextBox.epoch,

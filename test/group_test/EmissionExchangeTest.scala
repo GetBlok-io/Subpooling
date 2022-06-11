@@ -38,7 +38,7 @@ class EmissionExchangeTest extends AnyFunSuite {
     val box = boxItems.get.head
     val POOL_FEE_DENOM = 1000
     logger.info(box.toString)
-    val swapAmount = calculateMinOutputAmount(Helpers.ergToNanoErg(122), .01,
+    val swapAmount = calculateMinOutputAmount(Helpers.ergToNanoErg(65), .01,
       box.value, box.assets(2).amount, Integer.valueOf(box.registers.R4.get.renderedValue).longValue(), POOL_FEE_DENOM)
 
     logger.info(s"Swap amount: $swapAmount")

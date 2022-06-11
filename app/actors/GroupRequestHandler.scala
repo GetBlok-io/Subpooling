@@ -217,7 +217,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       logger.info("Using NETA tokens for currency!")
                       val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
                       val template = EmissionTemplates.getNETATemplate(ctx.getNetworkType)
-                      val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpToken, template.distToken)
+                      val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpNFT, template.distToken)
                       logger.info(s"Emissions Contract: ${emissionsContract.getAddress}")
                       val potentialBoxes = ctx.getCoveringBoxesFor(emissionsContract.getAddress, 0L, Seq(new ErgoToken(poolInformation.emissions_id, 1L)).asJava).getBoxes
 

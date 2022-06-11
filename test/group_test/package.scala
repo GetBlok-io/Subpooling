@@ -38,7 +38,7 @@ package object group_test {
         val mOB = new MetadataOutputBuilder(ctx.newTxBuilder().outBoxBuilder())
         val metadataContract = MetadataContract.generateTestContract(ctx)
         val subpoolToken = ErgoId.create(dummyToken)
-        val outBox = MetadataContract.buildGenesisBox(mOB, metadataContract, creatorAddress, value, ctx.getHeight, subpoolToken, subpoolId, feeAmount = 0)
+        val outBox = MetadataContract.buildGenesisBox(mOB, metadataContract, creatorAddress, value, ctx.getHeight, subpoolToken, subpoolId, feeAmount = 1000)
         new MetadataInputBox(outBox.convertToInputWith(dummyTxId, 0), subpoolToken)
     }
   }

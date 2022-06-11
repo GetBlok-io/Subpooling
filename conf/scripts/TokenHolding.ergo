@@ -20,7 +20,14 @@
 
             def isValueInRange(valuesPair: (Long, Long)): Boolean = {
               val expected = valuesPair._1
-              val actual   = valuesPair._2
+              val actual   = {
+                if(valuesPair._2 != 0){
+                  valuesPair._2
+                }
+                else{
+                  1L
+                }
+              }
               val amountTop = (expected - actual) * 100L // multiply by 100 to prevent integer division
               val percentage = amountTop / actual
               (percentage < 3L) && (percentage > -3L) // 3% margin of error during calculations

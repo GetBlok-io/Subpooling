@@ -37,8 +37,8 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
           }
       }
       logger.info(s"${shares.size} shares were queried")
-      logger.info(s"Share batch start: ${shares.head.created}")
-      logger.info(s"Share batch end: ${shares.last.created}")
+      logger.info(s"Share batch start: ${shares.headOption.map(_.created)}")
+      logger.info(s"Share batch end: ${shares.lastOption.map(_.created)}")
       logger.info(s"Current offset: ${offset}")
       shares.foreach{
         s =>
