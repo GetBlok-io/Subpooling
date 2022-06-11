@@ -62,14 +62,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       () =>
 
         Try {
-          //checkProcessingBlocks
+          checkProcessingBlocks
         }.recoverWith{
           case ex =>
             logger.error("There was a critical error while checking processing blocks!", ex)
             Failure(ex)
         }
         Try(
-        //  checkDistributions
+          checkDistributions
         ).recoverWith{
           case ex =>
             logger.error("There was a critical error while checking distributions!", ex)
