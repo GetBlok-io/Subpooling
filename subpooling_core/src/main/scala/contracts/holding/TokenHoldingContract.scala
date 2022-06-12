@@ -94,9 +94,6 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         logger.info(s"Owed Payment: $owedPayment")
         val newConsensusInfo = consVal._2.withStored(owedPayment)
         (consVal._1, newConsensusInfo)
-    }.filter{
-      c =>
-        c._2.getStored != 0 || c._2.getScore != 0
     }
     val newShareDistribution = new ShareDistribution(updatedConsensus)
     val newMetadataRegisters = commandTx.cOB.metadataRegisters.copy(shareDist = newShareDistribution)
@@ -206,6 +203,12 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 
     var holdingBuilders = Array.empty[HoldingSetBuilder]
     logger.info(s"Total change value ${changeValue}")
+
+    val amountPaid = boxValueMap.values.sum
+    val otherChange = totalTokenValue - amountPaid
+    logger.info(s"Other change value: ${otherChange}")
+
+
     boxValueMap.foreach{
       c =>
         val addr = c._1.address
