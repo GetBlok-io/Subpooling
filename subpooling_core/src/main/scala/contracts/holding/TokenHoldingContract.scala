@@ -94,6 +94,9 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         logger.info(s"Owed Payment: $owedPayment")
         val newConsensusInfo = consVal._2.withStored(owedPayment)
         (consVal._1, newConsensusInfo)
+    }.filter{
+      c =>
+        c._2.getStored != 0 || c._2.getScore != 0
     }
     val newShareDistribution = new ShareDistribution(updatedConsensus)
     val newMetadataRegisters = commandTx.cOB.metadataRegisters.copy(shareDist = newShareDistribution)
@@ -138,7 +141,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
       lastConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
     val totalRewards = totalTokenValue - totalOwedPayouts
     logger.info(s"Total owed payouts: ${totalOwedPayouts}")
-    logger.info(s"Stored holding ${distributionTx.holdingInputs(1).toJson(true)}")
+
     val feeList = currentPoolFees.fees.map{
       f =>
         val feeAmount = ((BigInt(f._2.toLong) * totalRewards) / PoolFees.POOL_FEE_CONST).toLong

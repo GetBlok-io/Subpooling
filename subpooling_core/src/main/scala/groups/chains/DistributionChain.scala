@@ -34,6 +34,7 @@ class DistributionChain(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet,
           .buildMetadataTx()
 
         val signedTx = wallet.prover.sign(unsignedTx)
+
         val txId = if(sendTxs) {
           ctx.sendTransaction(signedTx).replace("\"", "")
         }else{
