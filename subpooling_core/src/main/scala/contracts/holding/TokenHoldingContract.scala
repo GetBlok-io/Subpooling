@@ -126,7 +126,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
           accum + box.getTokens.get(0).getValue
         }else
           accum
-    }
+    } + 4
     logger.info("Total Token Value Held: " + totalTokenValue)
 
     val lastConsensus = metadataBox.shareDistribution
