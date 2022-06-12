@@ -199,7 +199,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         }
     }
     val changeValue =
-      currentConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum + 4
+      currentConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
 
     var holdingBuilders = Array.empty[HoldingSetBuilder]
     logger.info(s"Total change value ${changeValue}")
@@ -207,7 +207,13 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val amountPaid = boxValueMap.values.sum
     val otherChange = totalTokenValue - amountPaid
     logger.info(s"Other change value: ${otherChange}")
-
+    boxValueMap.foreach{
+      c =>
+        logger.info(s"Current Address: ${c._1.address.toString}")
+        logger.info(s"Current stored value: ${currentConsensus.dist(c._1).getStored}")
+        logger.info(s"Current paid value: ${c._2}")
+        logger.info(s"Current score ${currentConsensus.dist(c._1).getScore}")
+    }
 
     boxValueMap.foreach{
       c =>
