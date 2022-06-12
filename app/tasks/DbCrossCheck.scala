@@ -326,19 +326,21 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           write ! UpdatePoolBlockStatus(PoolBlock.PAID, block.blockheight)
           val fPoolMembers = (query ? PoolMembersByGEpoch(block.poolTag, block.gEpoch)).mapTo[Seq[PoolMember]]
           val fPoolInfo = (query ? QueryPoolInfo(block.poolTag)).mapTo[PoolInformation]
+          val fPoolMiners = db.run(Tables.PoolSharesTable.queryMinerPools)
           logger.info("Block status update complete")
           for{
             members <- fPoolMembers
             info <- fPoolInfo
+            settings <- fPoolMiners
           } yield {
-            enterNewPaymentStats(block, info, members)
+            enterNewPaymentStats(block, info, members, settings.toMap)
           }
 
         }
     }
   }
 
-  def enterNewPaymentStats(block: PoolBlock, info: PoolInformation, members: Seq[PoolMember]): Try[Unit] = {
+  def enterNewPaymentStats(block: PoolBlock, info: PoolInformation, members: Seq[PoolMember], settings: Map[String, Option[String]]): Try[Unit] = {
     // Build db changes
     // TODO: Fix payments for tokens
     val payments = members.filter(m => m.paid > 0).map{
@@ -347,7 +349,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           m.tx, None, LocalDateTime.now(), block.blockheight, block.gEpoch)
     }
 
-    val balances = members.map{
+    val balances = members.filter(m => m.subpool == settings.get(m.miner).flatten.getOrElse(params.defaultPoolTag)).map{
       m =>
         m.miner -> Helpers.convertFromWhole(info.currency, m.stored)
     }
