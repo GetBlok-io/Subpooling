@@ -199,7 +199,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         }
     }
     val changeValue =
-      currentConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
+      currentConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum + 4
 
     var holdingBuilders = Array.empty[HoldingSetBuilder]
     logger.info(s"Total change value ${changeValue}")
