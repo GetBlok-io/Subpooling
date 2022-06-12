@@ -66,7 +66,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
         logger.info(s"Share score for ${consVal._1.address}: $shareNum")
-        var valueFromShares = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / BigInt(totalShares)).toLong
+        var valueFromShares = ((totalValAfterFees * shareNum) / totalShares).toLong
 
 
         logger.info("Member: " + consVal._1.address)
@@ -136,7 +136,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 
     val totalOwedPayouts =
       lastConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
-    val totalRewards = totalTokenValue - totalOwedPayouts - 20
+    val totalRewards = totalTokenValue - totalOwedPayouts
     logger.info(s"Total owed payouts: ${totalOwedPayouts}")
     logger.info(s"Stored holding ${distributionTx.holdingInputs(1).toJson(true)}")
     val feeList = currentPoolFees.fees.map{
@@ -158,7 +158,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     // The percentage used is the proportion of the share number passed in over the total number of shares.
     def getValueFromShare(shareNum: Long) = {
       if(totalShares != 0) {
-        val newBoxValue = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / BigInt(totalShares)).toLong
+        val newBoxValue = ((totalValAfterFees * shareNum) / totalShares).toLong
         newBoxValue
       }else
         0L
@@ -209,7 +209,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         val addrBytes = c._1.arr
 
         logger.info(s" Value from shares for address ${addr}: ${c._2}")
-        if(c._2 > 0) {
+        if(c._2 > 0L) {
           val outB = distributionTx.asUnsignedTxB.outBoxBuilder()
           val holdingBuilder = new HoldingSetBuilder(outB)
           val setBuilder = holdingBuilder
