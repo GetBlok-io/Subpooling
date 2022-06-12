@@ -42,8 +42,8 @@ class ExchangeContract(val contract: ErgoContract, shareOp: Address, poolOp: Add
    */
   def cycleEmissions(ctx: BlockchainContext, emissionsBox: ExchangeEmissionsBox, ergAfterFees: Long): ExchangeCycleResults = {
     logger.info(s"LPToken Id: ${lpToken}")
-    val lpBox = ctx.getCoveringBoxesFor(Address.create(getSwapAddress(ctx.getNetworkType)), Parameters.MinFee, Seq(new ErgoToken(this.lpToken, 1L)).asJava)
-                .getBoxes.asScala.toSeq.filter(_.getTokens.asScala.exists(_.getId == lpToken)).head
+    val lpBox = ctx.getUnspentBoxesFor(Address.create(getSwapAddress(ctx.getNetworkType)), 0, 100)
+                .asScala.toSeq.filter(_.getTokens.asScala.exists(_.getId == lpToken)).head
     logger.info(s"LP box: ${lpBox.getId}")
     logger.info(s"LP box json: ${lpBox.toJson(true)}")
     val outputTokens = simulateSwap(ergAfterFees, 0.01, lpBox.getValue.toLong,
