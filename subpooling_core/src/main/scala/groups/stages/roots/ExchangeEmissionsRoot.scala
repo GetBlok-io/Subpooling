@@ -17,7 +17,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdingContract: HoldingContract, blockReward: Long, baseFeeMap: Map[Address, Long],
-                            emissionsBox: ExchangeEmissionsBox, var inputBoxes: Option[Seq[InputBox]] = None, sendTxs: Boolean = true)
+                            emissionsBox: ExchangeEmissionsBox, var inputBoxes: Option[Seq[InputBox]] = None, sendTxs: Boolean = true.self,
+                            var lpBoxId: Option[ErgoId] = None)
   extends TransactionStage[InputBox](pool, ctx, wallet) with ParallelRoot {
   override val stageName: String = "ExchangeEmissionsRoot"
   val logger: Logger = LoggerFactory.getLogger(stageName)
@@ -73,7 +74,10 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         logger.info(inputBoxes.map(_.map(_.getValue.toLong).sum).toString)
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
         var outputIndex: Int = 2
-        val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox, interBox.getValue - totalOutputErg - (emissionsBox.poolFee.value * interBox.getValue.toLong) / PoolFees.POOL_FEE_CONST)
+        val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox,
+          interBox.getValue - totalOutputErg - (emissionsBox.poolFee.value * interBox.getValue.toLong) / PoolFees.POOL_FEE_CONST,
+          lpBoxId
+        )
         logger.info(s"Total output tokens: ${emissionCycle.tokensForHolding}")
         totalTokensDistributed = emissionCycle.tokensForHolding
         for (subPool <- pool.subPools) {

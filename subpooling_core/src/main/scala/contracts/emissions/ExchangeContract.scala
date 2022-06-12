@@ -40,10 +40,12 @@ class ExchangeContract(val contract: ErgoContract, shareOp: Address, poolOp: Add
   /**
    * Perform one emissions cycle, such that next emissions box has correct number of tokens, and next exchange box has required ERG.
    */
-  def cycleEmissions(ctx: BlockchainContext, emissionsBox: ExchangeEmissionsBox, ergAfterFees: Long): ExchangeCycleResults = {
+  def cycleEmissions(ctx: BlockchainContext, emissionsBox: ExchangeEmissionsBox, ergAfterFees: Long, optLpBoxId: Option[ErgoId] = None): ExchangeCycleResults = {
     logger.info(s"LPToken Id: ${lpToken}")
-    val lpBox = ctx.getUnspentBoxesFor(Address.create(getSwapAddress(ctx.getNetworkType)), 0, 100)
+    val lpBox = optLpBoxId.map(o => ctx.getBoxesById(o.toString).head).getOrElse(
+      ctx.getUnspentBoxesFor(Address.create(getSwapAddress(ctx.getNetworkType)), 0, 100)
                 .asScala.toSeq.filter(_.getTokens.asScala.exists(_.getId == lpToken)).head
+    )
     logger.info(s"LP box: ${lpBox.getId}")
     logger.info(s"LP box json: ${lpBox.toJson(true)}")
     val outputTokens = simulateSwap(ergAfterFees, 0.01, lpBox.getValue.toLong,

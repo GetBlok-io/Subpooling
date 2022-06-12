@@ -1,6 +1,7 @@
 package utils
 
 import actors.BlockingDbWriter.{InsertPlacements, UpdatePoolBlockStatus}
+import actors.ExplorerRequestBus.ExplorerRequests.BoxesByTokenId
 import actors.GroupRequestHandler.{ConstructHolding, ExecuteHolding, HoldingComponents, HoldingResponse}
 import actors.QuickDbReader._
 import akka.actor.ActorRef
@@ -8,12 +9,13 @@ import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.explorer.Models.Output
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.Models._
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
-import org.ergoplatform.appkit.{InputBox, Parameters}
+import org.ergoplatform.appkit.{ErgoId, InputBox, Parameters}
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import persistence.shares.{ShareCollector, ShareHandler}
@@ -58,6 +60,14 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
                   root.inputBoxes = Some(inputBoxes)
                 case root: ExchangeEmissionsRoot =>
                   root.inputBoxes = Some(inputBoxes)
+                  // TODO: Find generalized solution
+                  val lpBoxes = Await.result((expReq ? BoxesByTokenId(EmissionTemplates.NETA_MAINNET.lpNFT, 0, 100))
+                    .mapTo[Option[Seq[Output]]], 1000 seconds)
+
+                  logger.info("Finished getting lpBoxes!")
+                  val boxToUse = lpBoxes.get.filter(l => l.isOnMainChain && l.spendingTxId.isEmpty).head
+                  logger.info(s"Using lpBox with id ${boxToUse.id}")
+                  root.lpBoxId = Some(boxToUse.id)
                 case root: ProportionalEmissionsRoot =>
                   root.inputBoxes = Some(inputBoxes)
               }
