@@ -136,7 +136,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 
     val totalOwedPayouts =
       lastConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
-    val totalRewards = totalTokenValue - totalOwedPayouts
+    val totalRewards = totalTokenValue - totalOwedPayouts - 20
     logger.info(s"Total owed payouts: ${totalOwedPayouts}")
     logger.info(s"Stored holding ${distributionTx.holdingInputs(1).toJson(true)}")
     val feeList = currentPoolFees.fees.map{
