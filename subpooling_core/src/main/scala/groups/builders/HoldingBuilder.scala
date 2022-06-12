@@ -48,8 +48,8 @@ class HoldingBuilder(rewardPaid: Long, holdingContract: HoldingContract, baseFee
         s.nextHoldingShare = s.nextTotalScore
 
     }
-    val poolsToRemove = pool.subPools.filter(s => s.nextHoldingValue == 0)
-    logger.info(s"Current number of pools after modification: ${pool.subPools.length} \n " +
+    val poolsToRemove = pool.subPools.filter(s => s.nextHoldingShare == 0)
+    logger.info(s"Current number of pools before modification: ${pool.subPools.length} \n " +
       s"Now removing ${poolsToRemove.length} pools with a holding value equal to 0")
     pool.subPools --= poolsToRemove
     this
