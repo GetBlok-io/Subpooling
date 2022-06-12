@@ -92,7 +92,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
             }
           }
         logger.info(s"Owed Payment: $owedPayment")
-        val newConsensusInfo = consVal._2.withStored(owedPayment)
+        val newConsensusInfo = consVal._2.withStored(owedPayment).withMinPay(Parameters.MinFee)
         (consVal._1, newConsensusInfo)
     }
     val newShareDistribution = new ShareDistribution(updatedConsensus)
@@ -201,7 +201,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
       currentConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
 
     var holdingBuilders = Array.empty[HoldingSetBuilder]
-
+    logger.info(s"Total change value ${changeValue}")
     boxValueMap.foreach{
       c =>
         val addr = c._1.address
