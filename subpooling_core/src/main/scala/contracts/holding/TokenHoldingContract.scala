@@ -92,7 +92,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
             }
           }
         logger.info(s"Owed Payment: $owedPayment")
-        val newConsensusInfo = consVal._2.withStored(owedPayment)
+        val newConsensusInfo = consVal._2.withStored(owedPayment).withMinPay(Parameters.MinFee)
         (consVal._1, newConsensusInfo)
     }.filter{
       c =>
