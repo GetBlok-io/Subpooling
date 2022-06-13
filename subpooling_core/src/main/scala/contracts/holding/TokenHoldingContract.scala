@@ -213,6 +213,16 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         logger.info(s"Current stored value: ${currentConsensus.dist(c._1).getStored}")
         logger.info(s"Current paid value: ${c._2}")
         logger.info(s"Current score ${currentConsensus.dist(c._1).getScore}")
+        logger.info(s"Current min pay: ${currentConsensus.dist(c._1).getMinPay}")
+        logger.info(s"Is valid ${
+          if(c._2 > currentConsensus.dist(c._1).getMinPay && currentConsensus.dist(c._1).getStored == 0){
+            true.toString
+          }else if(c._2 == 0 && currentConsensus.dist(c._1).getStored < currentConsensus.dist(c._1).getMinPay){
+            true.toString
+          }else{
+            false.toString
+          }
+        }")
     }
 
     boxValueMap.foreach{
