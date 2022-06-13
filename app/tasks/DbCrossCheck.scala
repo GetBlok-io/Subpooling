@@ -202,6 +202,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                 .assets.head.amount))
               nextUpdates.foreach {
                 u =>
+                  logger.info(s"Updating subpool ${u._1} with holding id ${u._2._1} and value ${u._2._2}")
                   val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1).map(p => (p.holdingId, p.holdingVal))
                   db.run(q.update(u._2._1, u._2._2))
               }
