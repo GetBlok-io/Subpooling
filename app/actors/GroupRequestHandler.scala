@@ -233,7 +233,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                       val emissionsBox = new ExchangeEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
-                      val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward, AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
+                      val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward, AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox,
+                        sendTxs = false)
                       val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                     case PoolInformation.CURR_ERG_COMET =>
