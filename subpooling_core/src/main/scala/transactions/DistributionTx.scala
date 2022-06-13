@@ -156,7 +156,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       this.asUnsignedTxB
       .boxesToSpend(inputBoxes.asJava)
       .outputs(outputBoxes:_*)
-      .fee(txFee)
+      .fee(txFee - Parameters.MinFee)
       .sendChangeTo(operatorAddress.getErgoAddress)
 //    // Unused tokens are burnt to prevent abuse.
 //    if(_tokenToDistribute != null){
