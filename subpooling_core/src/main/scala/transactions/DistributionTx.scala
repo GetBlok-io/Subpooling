@@ -152,14 +152,15 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
     logger.info("Distribution Tx built")
     logger.info("Total Input Value: "+ (inputBoxes.map(x => x.getValue.toLong).sum))
     logger.info("Total Output Value: "+ outputBoxes.map(x => x.getValue.toLong).sum)
-    val totalInputTokens = inputBoxes.filter(_.getTokens.size() > 0).filter(_.getTokens.get(0).getId == inputBoxes(2).getTokens.get(0).getId)
-      .map(_.getTokens.get(0).getValue.toLong).sum
-    val totalOutTokens = outputBoxes.filter(_.getTokens.size() > 0).filter(_.getTokens.get(0).getId == inputBoxes(2).getTokens.get(0).getId)
-      .map(_.getTokens.get(0).getValue.toLong).sum
-    logger.info(s"Total input tokens: ${totalInputTokens}")
-    logger.info(s"Total output tokens: ${totalOutTokens}")
-    logger.info(s"Total difference: ${totalInputTokens - totalOutTokens}")
-
+    if(_tokenToDistribute != null) {
+      val totalInputTokens = inputBoxes.filter(_.getTokens.size() > 0).filter(_.getTokens.get(0).getId == inputBoxes(2).getTokens.get(0).getId)
+        .map(_.getTokens.get(0).getValue.toLong).sum
+      val totalOutTokens = outputBoxes.filter(_.getTokens.size() > 0).filter(_.getTokens.get(0).getId == inputBoxes(2).getTokens.get(0).getId)
+        .map(_.getTokens.get(0).getValue.toLong).sum
+      logger.info(s"Total input tokens: ${totalInputTokens}")
+      logger.info(s"Total output tokens: ${totalOutTokens}")
+      logger.info(s"Total difference: ${totalInputTokens - totalOutTokens}")
+    }
       this.asUnsignedTxB
       .boxesToSpend(inputBoxes.asJava)
       .outputs(outputBoxes:_*)
