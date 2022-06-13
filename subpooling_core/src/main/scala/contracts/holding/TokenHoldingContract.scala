@@ -66,7 +66,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
         logger.info(s"Share score for ${consVal._1.address}: $shareNum")
-        var valueFromShares = ((totalValAfterFees * shareNum) / totalShares).toLong
+        var valueFromShares = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / totalShares).toLong
 
 
         logger.info("Member: " + consVal._1.address)
@@ -160,7 +160,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     // The percentage used is the proportion of the share number passed in over the total number of shares.
     def getValueFromShare(shareNum: Long) = {
       if(totalShares != 0) {
-        val newBoxValue = ((totalValAfterFees * shareNum) / totalShares).toLong
+        val newBoxValue = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / totalShares).toLong
         newBoxValue
       }else
         0L
