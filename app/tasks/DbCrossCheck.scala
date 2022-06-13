@@ -62,7 +62,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       () =>
 
         Try {
-          checkProcessingBlocks
+         // checkProcessingBlocks
         }.recoverWith{
           case ex =>
             logger.error("There was a critical error while checking processing blocks!", ex)
@@ -77,7 +77,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         if(params.regenFromChain) {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regenerateDB).recoverWith {
+          Try(regeneratePlaces).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -191,14 +191,15 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val placements = Await.result(db.run(Tables.PoolPlacementsTable.result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
-      val poolTag = "3d87a6c89801af3866dcdfc318b803ca09332799870f08f12e105865d537e502"
+      val poolTag = "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"
       if(poolPlace._1 == poolTag){
-        val fTx = (expReq ? TxById(ErgoId.create("0117389a119659d9eb0d7d1fd89d217d8af0cb4e78f3e8aa89a3b61cc8998653"))).mapTo[Option[TransactionData]]
+        val fTx = (expReq ? TxById(ErgoId.create("246534e6fe40db621612b9c5a0a9d9017fd29691f03f988646afd5b6647d7348"))).mapTo[Option[TransactionData]]
         fTx.map{
           optTx =>
             if(optTx.isDefined) {
               val tx = optTx.get
-              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 1).id.toString, tx.outputs(p.subpool_id.toInt + 1).value))
+              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 2).id.toString, tx.outputs(p.subpool_id.toInt + 2)
+                .assets.head.amount))
               nextUpdates.foreach {
                 u =>
                   val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1).map(p => (p.holdingId, p.holdingVal))
@@ -251,8 +252,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   logger.warn("Now deleting placements")
                   write ! DeletePlacementsAtBlock(block.poolTag, block.blockheight)
                   if(!output.isOnMainChain) {
-                    logger.warn("Holding box was not on the main chain! Setting block status to confirmed!")
-                    write ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, block.blockheight)
+
+                    logger.warn("Holding box was not on the main chain!")
+                    if (Instant.now().toEpochMilli - block.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis){
+                      logger.warn(s"It has been ${params.restartPlacements.toString()} since block was updated," +
+                        s" now restarting placements for pool ${block.poolTag}")
+                      write ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, block.blockheight)
+                    }
+
                   }else if(output.spendingTxId.isDefined){
                     logger.warn("Holding box was found to have an already spent transaction id! Setting block status to initiated!")
                     write ! UpdatePoolBlockStatus(PoolBlock.INITIATED, block.blockheight)
