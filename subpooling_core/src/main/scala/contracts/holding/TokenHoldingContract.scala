@@ -44,8 +44,8 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 
     val totalOwedPayouts =
       lastDistribution.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
-
-    val totalRewards = holdingBoxTokens - totalOwedPayouts - 5
+    // Removed 7 tokens to help with change, should find better solution later
+    val totalRewards = holdingBoxTokens - totalOwedPayouts - 7
     val feeList = currentPoolFees.fees.map{
       // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
