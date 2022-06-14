@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package groups.stages.roots
 
 import contracts.holding.HoldingContract
-import global.AppParameters
+import global.{AppParameters, Helpers}
 import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
@@ -11,6 +11,7 @@ import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox, OutBox}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
@@ -34,35 +35,29 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
         // max selection
 
-//        // TODO: Parameterize paranoid checks so they may be set from config
-//        if(inputBoxes.isDefined) {
-//          initialInputs = Some(Seq())
-//          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputs
-//          var sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse
-//          log.info(s"Total amount needed for tx: ${totalAmountNeeded}")
-//          log.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
-//          log.info(s"Total number of inputs ${sortedInputs.length}")
-//          var initialSum: Long = 0L
-//          val totalInputSum = inputBoxes.get.map(_.getValue.toLong).reverse.sum
-//          var break = false
-//          log.info("Now pruning input boxes")
-//          if(totalInputSum > totalAmountNeeded) {
-//            while (initialSum < totalAmountNeeded && !break) {
-//              if (sortedInputs.nonEmpty) {
-//                val nextBox = sortedInputs.head
-//                initialInputs = initialInputs.map(_ ++ Seq(nextBox))
-//                initialSum = initialSum + nextBox.getValue.toLong
-//                log.info(s"Current sum: ${initialSum}")
-//                sortedInputs = sortedInputs.slice(1, sortedInputs.length)
-//                if(sortedInputs.length == 1)
-//                  break = true
-//              }
-//            }
-//          }else{
-//            log.info("Total inputs not greater than amount needed!")
-//            throw new Exception("Not enough inputs")
-//          }
-//        }
+        // TODO: Parameterize paranoid checks so they may be set from config
+        if(inputBoxes.isDefined) {
+          initialInputs = Some(Seq())
+          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputs
+          var sortedInputs = mutable.Queue(inputBoxes.get.sortBy(i => i.getValue.toLong).reverse:_*)
+          log.info(s"Total amount needed for tx: ${totalAmountNeeded}")
+          log.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
+          log.info(s"Total number of inputs ${sortedInputs.length}")
+          var initialSum: Long = 0L
+          val totalInputSum = inputBoxes.get.map(_.getValue.toLong).sum
+          log.info("Now pruning input boxes")
+          if(totalInputSum > totalAmountNeeded) {
+            while (initialSum < totalAmountNeeded) {
+              val input = sortedInputs.dequeue()
+              log.info(s"Adding input box with id ${input.getId} and value ${Helpers.nanoErgToErg(input.getValue)} ERG")
+              initialSum = initialSum + input.getValue
+              initialInputs = Some(initialInputs.get ++ Seq(input))
+            }
+          }else{
+            log.info("Total inputs not greater than amount needed!")
+            throw new Exception("Not enough inputs")
+          }
+        }
 
         log.info("Checks complete, now building transaction")
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
