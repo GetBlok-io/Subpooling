@@ -86,7 +86,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     })(contexts.taskContext)
   }
   def cleanDB = {
-    db.run(Tables.PoolBlocksTable.filter(b => b.gEpoch === 16L && b.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").map(_.status).update(PoolBlock.PROCESSING))
+    db.run(Tables.PoolBlocksTable.filter(b => b.gEpoch === 16L && b.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").map(_.status).update(PoolBlock.INITIATED))
   }
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
