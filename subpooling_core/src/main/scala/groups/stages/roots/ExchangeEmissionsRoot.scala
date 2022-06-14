@@ -3,7 +3,7 @@ package groups.stages.roots
 
 import boxes.{EmissionsBox, ExchangeEmissionsBox}
 import contracts.holding.HoldingContract
-import global.AppParameters
+import global.{AppParameters, Helpers}
 import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
@@ -13,6 +13,7 @@ import org.ergoplatform.appkit._
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
@@ -42,16 +43,24 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         // max selection
         if(inputBoxes.isDefined) {
           initialInputs = Some(Seq())
-          val totalAmountNeeded = totalTxFees + blockReward + AppParameters.groupFee * 100
-          val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
-
+          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputErg + AppParameters.groupFee * 100
+          var sortedInputs = mutable.Queue(inputBoxes.get.sortBy(i => i.getValue.toLong).reverse:_*)
+          logger.info(s"Total amount needed for tx: ${totalAmountNeeded}")
+          logger.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
+          logger.info(s"Total number of inputs ${sortedInputs.length}")
           var initialSum: Long = 0L
-          while(initialSum < totalAmountNeeded){
-            if(sortedInputs.hasNext) {
-              val nextBox = sortedInputs.next()
-              initialInputs = initialInputs.map(_ ++ Seq(nextBox))
-              initialSum = initialSum + nextBox.getValue.toLong
+          val totalInputSum = inputBoxes.get.map(_.getValue.toLong).sum
+          logger.info("Now pruning input boxes")
+          if(totalInputSum > totalAmountNeeded) {
+            while (initialSum < totalAmountNeeded) {
+              val input = sortedInputs.dequeue()
+              logger.info(s"Adding input box with id ${input.getId} and value ${Helpers.nanoErgToErg(input.getValue)} ERG")
+              initialSum = initialSum + input.getValue
+              initialInputs = Some(initialInputs.get ++ Seq(input))
             }
+          }else{
+            logger.info("Total inputs not greater than amount needed!")
+            throw new Exception("Not enough inputs")
           }
         }
 
