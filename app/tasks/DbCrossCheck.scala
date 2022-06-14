@@ -62,14 +62,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       () =>
 
         Try {
-         // checkProcessingBlocks
+          checkProcessingBlocks
         }.recoverWith{
           case ex =>
             logger.error("There was a critical error while checking processing blocks!", ex)
             Failure(ex)
         }
         Try(
-         // checkDistributions
+          checkDistributions
         ).recoverWith{
           case ex =>
             logger.error("There was a critical error while checking distributions!", ex)
@@ -77,7 +77,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         if(params.regenFromChain) {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(cleanDB).recoverWith {
+          Try(regeneratePlaces).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
