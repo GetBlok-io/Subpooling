@@ -4,6 +4,7 @@ package groups.builders
 import io.getblok.subpooling_core.boxes.BoxHelpers
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, SimpleHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
+import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.entities.Pool
 import io.getblok.subpooling_core.groups.models.{GroupBuilder, TransactionStage}
 import io.getblok.subpooling_core.groups.stages.roots.HoldingRoot
@@ -28,6 +29,9 @@ class HoldingBuilder(rewardPaid: Long, holdingContract: HoldingContract, baseFee
    */
   override def applyModifications: GroupBuilder = {
     val rewardAfterBaseFee = rewardPaid - baseFeeMap.values.sum
+    logger.info(s"Total reward: ${Helpers.nanoErgToErg(rewardPaid)} ERG")
+    logger.info(s"Reward after base fee: ${Helpers.nanoErgToErg(rewardAfterBaseFee)} ERG")
+
     pool.subPools.foreach {
       s =>
         s.nextHoldingValue =

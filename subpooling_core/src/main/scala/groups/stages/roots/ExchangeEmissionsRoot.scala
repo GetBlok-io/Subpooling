@@ -28,7 +28,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
 
     result = {
       Try {
-        val totalTxFees = (pool.subPools.size + 1) * AppParameters.groupFee
+        val totalTxFees = (pool.subPools.size + 100) * AppParameters.groupFee
         val primaryTxFees = (pool.subPools.size) * AppParameters.groupFee
         val totalBaseFees = baseFeeMap.values.sum
         val totalHoldingShare = pool.subPools.map(p => p.nextHoldingShare).sum
@@ -43,7 +43,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         // max selection
         if(inputBoxes.isDefined) {
           initialInputs = Some(Seq())
-          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputErg + AppParameters.groupFee * 100
+          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputErg
           var sortedInputs = mutable.Queue(inputBoxes.get.sortBy(i => i.getValue.toLong).reverse:_*)
           logger.info(s"Total amount needed for tx: ${totalAmountNeeded}")
           logger.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
