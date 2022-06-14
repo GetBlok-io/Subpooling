@@ -38,19 +38,29 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         if(inputBoxes.isDefined) {
           initialInputs = Some(Seq())
           val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputs
-          val sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse.toIterator
+          var sortedInputs = inputBoxes.get.sortBy(i => i.getValue.toLong).reverse
           log.info(s"Total amount needed for tx: ${totalAmountNeeded}")
           log.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
           log.info(s"Total number of inputs ${sortedInputs.length}")
           var initialSum: Long = 0L
+          val totalInputSum = inputBoxes.get.map(_.getValue.toLong).reverse.sum
+          var break = false
           log.info("Now pruning input boxes")
-          while(initialSum < totalAmountNeeded){
-            if(sortedInputs.hasNext) {
-              val nextBox = sortedInputs.next()
-              initialInputs = initialInputs.map(_ ++ Seq(nextBox))
-              initialSum = initialSum + nextBox.getValue.toLong
-              log.info(s"Current sum: ${initialSum}")
+          if(totalInputSum > totalAmountNeeded) {
+            while (initialSum < totalAmountNeeded && !break) {
+              if (sortedInputs.nonEmpty) {
+                val nextBox = sortedInputs.head
+                initialInputs = initialInputs.map(_ ++ Seq(nextBox))
+                initialSum = initialSum + nextBox.getValue.toLong
+                log.info(s"Current sum: ${initialSum}")
+                sortedInputs = sortedInputs.slice(1, sortedInputs.length)
+                if(sortedInputs.length == 1)
+                  break = true
+              }
             }
+          }else{
+            log.info("Total inputs not greater than amount needed!")
+            throw new Exception("Not enough inputs")
           }
         }
 
