@@ -28,7 +28,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
 
     result = {
       Try {
-        val totalTxFees = (pool.subPools.size + 100) * AppParameters.groupFee
+        val totalTxFees = (pool.subPools.size + 200) * AppParameters.groupFee
         val primaryTxFees = (pool.subPools.size) * AppParameters.groupFee
         val totalBaseFees = baseFeeMap.values.sum
         val totalHoldingShare = pool.subPools.map(p => p.nextHoldingShare).sum
