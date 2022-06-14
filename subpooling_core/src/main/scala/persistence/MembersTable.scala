@@ -102,7 +102,7 @@ class MembersTable(dbConn: DbConn, part: String) extends DataTable[PoolMember](d
 
   def deleteByGEpochAndId(gEpoch: Long, id: Long): Long = {
     implicit val ps: PreparedStatement = state(delete, fromTablePart(part),  where, fieldOf("subpool_id"), eq, param, and,
-      fieldOf("gEpoch"), eq, param)
+      fieldOf("g_epoch"), eq, param)
     setLong(1, id)
     setLong(2, gEpoch)
     execUpdate
