@@ -40,10 +40,18 @@ class PushMessageNotifier @Inject()(wsClient: WSClient, config: Configuration) e
       message match {
         case BlockMessage(poolBlock, poolInfo) =>
           if(params.enableBlockBot) {
+            val effort =
+              poolBlock.effort match {
+              case Some(value) =>
+                (value.toFloat * 100).toString + "%"
+              case None =>
+                "None"
+            }
+
             logger.debug(s"Sending Push Notification for block ${poolBlock.blockheight}")
             val msgString = s"Block ${poolBlock.blockheight} was found by miner:\n${poolBlock.miner}\nin pool:\n#[${Helpers.trunc(poolBlock.poolTag)}]\n(${poolInfo.title})" +
               s"\nThe pool has now found ${poolBlock.gEpoch} blocks." +
-              s"\nThe block's effort was ${(poolBlock.effort.get.toFloat * 100).toString}%"
+              s"\nThe block's effort was $effort"
             val request: WSRequest = wsClient.url(blockBotAPI)
             val resp = request
               .withQueryStringParameters("chat_id" -> s"$blockBotChat", "text" -> msgString)
