@@ -26,7 +26,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
       Try {
         val totalTxFees = pool.subPools.size * AppParameters.groupFee
         val totalBaseFees = baseFeeMap.values.sum
-        val totalOutputs = pool.subPools.size * pool.subPools.map(p => p.nextHoldingValue).sum
+        val totalOutputs = pool.subPools.map(p => p.nextHoldingValue).sum
         log.info(s"Pool size: ${pool.subPools.size}")
         log.info(s"Total Tx fees: $totalTxFees, Total Base fees: $totalBaseFees, Total outputs: $totalOutputs")
         var initialInputs = inputBoxes
