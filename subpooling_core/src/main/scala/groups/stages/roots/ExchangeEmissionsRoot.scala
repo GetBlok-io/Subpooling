@@ -41,28 +41,28 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         // Paranoid checks, root transaction is handed off maximum amount of emission currency for the group
         // In rare cases, this may lead to unexpected selected boxes due to difference in real subpool selection vs
         // max selection
-        if(inputBoxes.isDefined) {
-          initialInputs = Some(Seq())
-          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputErg
-          var sortedInputs = mutable.Queue(inputBoxes.get.sortBy(i => i.getValue.toLong).reverse:_*)
-          logger.info(s"Total amount needed for tx: ${totalAmountNeeded}")
-          logger.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
-          logger.info(s"Total number of inputs ${sortedInputs.length}")
-          var initialSum: Long = 0L
-          val totalInputSum = inputBoxes.get.map(_.getValue.toLong).sum
-          logger.info("Now pruning input boxes")
-          if(totalInputSum > totalAmountNeeded) {
-            while (initialSum < totalAmountNeeded) {
-              val input = sortedInputs.dequeue()
-              logger.info(s"Adding input box with id ${input.getId} and value ${Helpers.nanoErgToErg(input.getValue)} ERG")
-              initialSum = initialSum + input.getValue
-              initialInputs = Some(initialInputs.get ++ Seq(input))
-            }
-          }else{
-            logger.info("Total inputs not greater than amount needed!")
-            throw new Exception("Not enough inputs")
-          }
-        }
+//        if(inputBoxes.isDefined) {
+//          initialInputs = Some(Seq())
+//          val totalAmountNeeded = totalTxFees + totalBaseFees + totalOutputErg
+//          var sortedInputs = mutable.Queue(inputBoxes.get.sortBy(i => i.getValue.toLong).reverse:_*)
+//          logger.info(s"Total amount needed for tx: ${totalAmountNeeded}")
+//          logger.info(s"Total amount of inputs ${sortedInputs.toSeq.map(_.getValue.toLong).sum}")
+//          logger.info(s"Total number of inputs ${sortedInputs.length}")
+//          var initialSum: Long = 0L
+//          val totalInputSum = inputBoxes.get.map(_.getValue.toLong).sum
+//          logger.info("Now pruning input boxes")
+//          if(totalInputSum > totalAmountNeeded) {
+//            while (initialSum < totalAmountNeeded) {
+//              val input = sortedInputs.dequeue()
+//              logger.info(s"Adding input box with id ${input.getId} and value ${Helpers.nanoErgToErg(input.getValue)} ERG")
+//              initialSum = initialSum + input.getValue
+//              initialInputs = Some(initialInputs.get ++ Seq(input))
+//            }
+//          }else{
+//            logger.info("Total inputs not greater than amount needed!")
+//            throw new Exception("Not enough inputs")
+//          }
+//        }
 
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
