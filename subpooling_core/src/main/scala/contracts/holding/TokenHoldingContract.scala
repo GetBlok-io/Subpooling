@@ -59,7 +59,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
       (accum, poolFeeVal) => accum - poolFeeVal._2
     })
     val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
-
+    logger.info("Now updating consensus")
     var shareScoreLeft = 0L
     val updatedConsensus = currentDistribution.dist.map{
       consVal =>
@@ -75,7 +75,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         logger.info("Value from shares: " + valueFromShares)
 
         logger.info("Current Min Payout: " + currentMinPayout)
-
+        logger.info(s"Score: ${consVal._2.getScore}")
         val owedPayment =
           if(lastDistribution.dist.exists(sc => consVal._1 == sc._1)){
             val lastConsValues = lastDistribution.filter(sc => consVal._1 == sc._1 ).head._2
