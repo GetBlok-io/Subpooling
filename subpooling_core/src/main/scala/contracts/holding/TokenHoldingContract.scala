@@ -67,7 +67,9 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         var currentMinPayout = consVal._2.getMinPay
         logger.info(s"Share score for ${consVal._1.address}: $shareNum")
         var valueFromShares = ((BigInt(totalValAfterFees) * BigInt(shareNum)) / totalShares).toLong
-
+        if(currentMinPayout == (0.001 * Parameters.OneErg).toLong){
+          currentMinPayout = currentMinPayout / 10 // Divide by 10 to get fractional NETA shares
+        }
 
         logger.info("Member: " + consVal._1.address)
         logger.info("Value from shares: " + valueFromShares)
