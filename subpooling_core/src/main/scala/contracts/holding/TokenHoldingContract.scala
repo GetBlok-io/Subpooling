@@ -96,6 +96,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         (consVal._1, newConsensusInfo)
     }.filter{
       c =>
+        // If value from shares addition causes error, add 1 share score to help move payouts out
         val valueFromShares = ((BigInt(totalValAfterFees) * BigInt(c._2.getScore)) / totalShares).toLong
         !(c._2.getScore == 0 && c._2.getStored == 0 && valueFromShares != 0)
     }
