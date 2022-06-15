@@ -133,7 +133,9 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         transaction = Try(wallet.prover.sign(unsignedTx))
         val txId = if(sendTxs) {
           ctx.sendTransaction(signedInterTx)
-          Thread.sleep(1000)
+          logger.info("Sent inter transaction!")
+          Thread.sleep(5000)
+          logger.info("Sent emission transaction")
           ctx.sendTransaction(transaction.get).replace("\"", "")
         }else{
           transaction.get.getId.replace("\"", "")
