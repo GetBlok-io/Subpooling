@@ -132,6 +132,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
 
         transaction = Try(wallet.prover.sign(unsignedTx))
         val txId = if(sendTxs) {
+          logger.info("Initiating transactions")
           ctx.sendTransaction(signedInterTx)
           logger.info("Sent inter transaction!")
           Thread.sleep(5000)
