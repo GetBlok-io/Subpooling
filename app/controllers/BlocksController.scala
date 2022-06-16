@@ -76,5 +76,12 @@ class BlocksController @Inject()(@Named("group-handler") groupRequestHandler: Ac
 
   }
 
+  def poolBlocksPage(page: Int, pageSize: Int, poolTag: String): Action[AnyContent] = Action.async {
+    db.run(Tables.PoolBlocksTable.filter(_.poolTag === poolTag).sortBy(_.created.desc)
+      .drop(page * pageSize)
+      .take(pageSize)
+      .result).map(okJSON(_))
+  }
+
 
 }
