@@ -131,7 +131,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq
-              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC))
+              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC)).reverse
             okJSON(earnings)
           case MONTHLY =>
             val earningsList = rewardList.map(rl =>
@@ -139,7 +139,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq
-              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC))
+              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC)).reverse
             okJSON(earnings)
           case YEARLY =>
             val earningsList = rewardList.map(rl =>
@@ -147,7 +147,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq
-              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC))
+              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC)).reverse
             okJSON(earnings)
           case _ =>
             InternalServerError("An invalid interval was passed in!")
