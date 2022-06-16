@@ -103,7 +103,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
     val minerPool = Await.result(db.run(Tables.MinerSettingsTable.filter(_.address === address).map(_.subpool).result.headOption), 100 seconds)
     val tag = minerPool.flatten.getOrElse(paramsConfig.defaultPoolTag)
     val fMiners = db.run(Tables.MinerSettingsTable.filter(_.subpool === tag).result)
-    val fStats = db.run(Tables.MinerStats.filter(_.created < LocalDateTime.now().minusMinutes(5)).sortBy(_.created.desc).take(1).result.head)
+    val fStats = db.run(Tables.MinerStats.filter(_.created < LocalDateTime.now().minusMinutes(10)).sortBy(_.created.desc).take(1).result.head)
     val fCurrStats = fStats.map(s => db.run(Tables.MinerStats.filter(ms => ms.created === s.created).result)).flatten
 
     for {
