@@ -100,45 +100,21 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
 
   def getPoolStats(address: String): Action[AnyContent] = Action.async{
 
-    val poolSettings = db.run(Tables.MinerSettingsTable.filter(_.address === address).result.headOption)
-    val response = poolSettings.map{
-      settings =>
-        val tag: String = settings.flatMap(_.subpool).getOrElse(paramsConfig.defaultPoolTag)
+    val minerPool = Await.result(db.run(Tables.MinerSettingsTable.filter(_.address === address).map(_.subpool).result.headOption), 100 seconds)
+    val tag = minerPool.flatten.getOrElse(paramsConfig.defaultPoolTag)
+    val fMiners = db.run(Tables.MinerSettingsTable.filter(_.subpool === tag).result)
+    val fStats = db.run(Tables.MinerStats.filter(_.created < LocalDateTime.now().minusMinutes(5)).sortBy(_.created.desc).take(1).result.head)
+    val fCurrStats = fStats.map(s => db.run(Tables.MinerStats.filter(ms => ms.created === s.created).result)).flatten
 
-        val fSettings = (query ? MinersByAssignedPool(tag)).mapTo[Seq[MinerSettings]]
-        val fInfo = (query ? QueryPoolInfo(tag)).mapTo[PoolInformation]
-
-        val fStats = db.run(Tables.MinerStats.sortBy(_.created.desc)
-          .filter(_.created > LocalDateTime.now().minusHours(1))
-          .result)
-
-        fStats.transformWith{
-          case Success(stats) =>
-            val fPoolStats = for{
-              settings <- fSettings
-
-            } yield {
-              val filteredStats = stats.filter(s => settings.exists(st => st.address == s.miner))
-              if(filteredStats.nonEmpty) {
-                val avgHash = filteredStats.groupBy(s => s.miner)
-                  .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.hashrate)).sum / filteredStats.size).values.sum
-                val avgShares = filteredStats.groupBy(s => s.miner)
-                  .map(s => s._1 -> s._2.map(ms => BigDecimal(ms.sharespersecond)).sum / filteredStats.size).values.sum
-
-                PoolStatistics(tag, avgHash.toDouble, avgShares.toDouble, None)
-              }else{
-                PoolStatistics(tag, 0.0, 0.0, None)
-              }
-            }
-            fPoolStats.map(okJSON(_))
-          case Failure(ex: InvalidIntervalException) =>
-            Future(InternalServerError(ex.getMessage))
-          case Failure(ex: Exception) =>
-            Future(InternalServerError("There was an unknown error while serving your request:\n"+ ex.getMessage))
-      }
-
-    }.flatten
-    response
+    for {
+      currStats <- fCurrStats
+      miners <- fMiners
+    } yield {
+      val filteredStats = currStats.filter(s => miners.exists(m => m.address == s.miner))
+      val hashrate = filteredStats.map(_.hashrate).sum
+      val shares   = filteredStats.map(_.sharespersecond).sum
+      okJSON(PoolStatistics(tag, hashrate, shares, None))
+    }
 
   }
 
