@@ -100,22 +100,24 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
 
   def getPoolStats(address: String): Action[AnyContent] = Action.async{
 
-    val minerPool = Await.result(db.run(Tables.MinerSettingsTable.filter(_.address === address).map(_.subpool).result.headOption), 100 seconds)
-    val tag = minerPool.flatten.getOrElse(paramsConfig.defaultPoolTag)
-    val fMiners = db.run(Tables.MinerSettingsTable.filter(_.subpool === tag).result)
-    val fStats = db.run(Tables.MinerStats.filter(_.created < LocalDateTime.now().minusMinutes(10)).sortBy(_.created.desc).take(1).result.head)
-    val fCurrStats = fStats.map(s => db.run(Tables.MinerStats.filter(ms => ms.created === s.created).result)).flatten
+    val fMinerPool = db.run(Tables.MinerSettingsTable.filter(_.address === address).map(_.subpool).result.headOption)
+    fMinerPool.map {
+      minerPool =>
+      val tag = minerPool.flatten.getOrElse(paramsConfig.defaultPoolTag)
+      val fMiners = db.run(Tables.MinerSettingsTable.filter(_.subpool === tag).result)
+      val fStats = db.run(Tables.MinerStats.filter(_.created < LocalDateTime.now().minusMinutes(10)).sortBy(_.created.desc).take(1).result.head)
+      val fCurrStats = fStats.map(s => db.run(Tables.MinerStats.filter(ms => ms.created === s.created).result)).flatten
 
-    for {
-      currStats <- fCurrStats
-      miners <- fMiners
-    } yield {
-      val filteredStats = currStats.filter(s => miners.exists(m => m.address == s.miner))
-      val hashrate = filteredStats.map(_.hashrate).sum
-      val shares   = filteredStats.map(_.sharespersecond).sum
-      okJSON(PoolStatistics(tag, hashrate, shares, None))
-    }
-
+      for {
+        currStats <- fCurrStats
+        miners <- fMiners
+      } yield {
+        val filteredStats = currStats.filter(s => miners.exists(m => m.address == s.miner))
+        val hashrate = filteredStats.map(_.hashrate).sum
+        val shares = filteredStats.map(_.sharespersecond).sum
+        okJSON(PoolStatistics(tag, hashrate, shares, None))
+      }
+    }.flatten
   }
 
   def getEarnings(address: String, i: String = DAILY): Action[AnyContent] = Action.async{
