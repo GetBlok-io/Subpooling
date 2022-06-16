@@ -30,7 +30,7 @@ import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import play.api.{Configuration, Logger}
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneOffset}
 import java.time.temporal.ChronoUnit
 import javax.inject.{Inject, Named, Singleton}
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
@@ -131,6 +131,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq
+              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC))
             okJSON(earnings)
           case MONTHLY =>
             val earningsList = rewardList.map(rl =>
@@ -138,6 +139,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq
+              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC))
             okJSON(earnings)
           case YEARLY =>
             val earningsList = rewardList.map(rl =>
@@ -145,6 +147,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
               .map(_._2.map(r => Earnings(r.address, r.coin, r.amount, r.created))
               )
             val earnings = earningsList.map(el => Earnings(el.head.address, el.head.coin, el.map(_.amount).sum, el.head.date)).toSeq
+              .sortBy(_.date.toEpochSecond(ZoneOffset.UTC))
             okJSON(earnings)
           case _ =>
             InternalServerError("An invalid interval was passed in!")
