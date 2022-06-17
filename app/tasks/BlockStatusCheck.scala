@@ -316,7 +316,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime, block: PoolBlock, miners: Map[String, Option[String]], info: PoolInformation) = {
     var offset = 0
-    var limit = 25000
+    var limit = 75000
     var accumDiff = BigDecimal(0)
     logger.info(s"Querying shares for effort between ${startDate} and ${endDate}")
     info.payment_type match {
