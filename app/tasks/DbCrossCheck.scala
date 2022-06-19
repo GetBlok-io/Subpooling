@@ -229,7 +229,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def regenStates = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     logger.info("Regening states")
-    val outputBoxes = (expReq ? BoxesByTokenId(ErgoId.create("30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"), 0, 100))
+    val poolTag = "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b"
+    val outputBoxes = (expReq ? BoxesByTokenId(ErgoId.create(poolTag), 0, 100))
       .mapTo[Option[Seq[Output]]]
     logger.info("Now regening states")
     outputBoxes.onComplete{
@@ -247,7 +248,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         for(subpool <- unspent){
           logger.info(s"Subpool ${subpool.registers.R6.get.renderedValue.split(",")(3).toLong} attempting regen")
           logger.info(s"With tx ${subpool.txId} and box ${subpool.id}")
-          db.run(Tables.PoolStatesTable.filter(o => o.subpool_id === subpool.registers.R6.get.renderedValue.split(",")(3).toLong)
+          db.run(Tables.PoolStatesTable.filter(o => o.subpool === poolTag).filter(o => o.subpool_id === subpool.registers.R6.get.renderedValue.split(",")(3).toLong)
           .map(s => (s.tx, s.box)).update(subpool.txId.toString -> subpool.id.toString))
         }
     }
