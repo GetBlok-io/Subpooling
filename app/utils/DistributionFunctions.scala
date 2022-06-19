@@ -161,6 +161,10 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
           // TODO: Make these trys in order to prevent whole group failure when multiple groups from same pool are used
 
           val constructDistResp = {
+            if(placements.isEmpty){
+              logger.error("Placements were empty for this block! Setting back to confirmed.")
+              db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
+            }
             require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
             logger.info(s"Construction distributions for block ${block.blockheight}")
             logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
