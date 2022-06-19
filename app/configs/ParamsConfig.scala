@@ -33,6 +33,8 @@ class ParamsConfig(config: Configuration){
   val currentFeeAddress: String = config.get[String]("params.feeAddress")
   val currentFeePerc: Double    = config.get[Double]("params.feePercent")
   val regenFromChain: Boolean   = config.get[Boolean]("params.regenFromChain")
+  val regenPlaceTx: String      = config.get[String]("params.regenPlaceTx")
+  val regenPlaceBlock: Int     = config.get[Int]("params.regenPlaceBlock")
   val groupStart: Int           = config.get[Int]("params.groupStart")
   val singularGroups: Boolean   = config.get[Boolean]("params.singularGroups")
   AppParameters.pplnsWindow = BigDecimal(window)
