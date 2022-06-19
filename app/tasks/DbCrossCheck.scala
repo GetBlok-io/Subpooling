@@ -54,6 +54,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   final val REGEN_DISTS = "dists"
   final val REGEN_PLACES = "places"
   final val REGEN_STATES = "states"
+  final val REGEN_STORED = "stored"
   implicit val ec: ExecutionContext = contexts.taskContext
   if(taskConfig.enabled) {
     logger.info(db.source.toString)
@@ -101,10 +102,29 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         regeneratePlaces
       case REGEN_STATES =>
         regenStates
+      case REGEN_STORED =>
+        regenStored
     }
     ()
   }
+  def regenStored = {
+    implicit val timeout: Timeout = Timeout(100 seconds)
+    val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").result), 1000 seconds)
+    val outputs = Await.result(Future.sequence(states.map(s => (expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]])), 1000 seconds)
+    val currentOutputs = outputs.filter(o => o.isDefined).map(_.get)
+    val currentTxs = Await.result(Future.sequence(currentOutputs.map(so => (expReq ? TxById(so.txId)).mapTo[Option[TransactionData]])), 1000 seconds)
+      .filter(_.isDefined).map(_.get)
 
+    states.foreach{
+      state =>
+        val tx = currentTxs.find(t => t.outputs.map(o => o.id.toString).contains(state.box)).get
+        val storedId = tx.outputs.find(o => o.id.toString == tx.inputs(2).id.toString).map(_.id.toString).getOrElse("none")
+        val storedVal = tx.outputs.find(o => o.id.toString == tx.inputs(2).id.toString).map(_.assets.head.amount).getOrElse(0L)
+        db.run(Tables.PoolStatesTable.filter(s => s.subpool_id === state.subpool_id && s.subpool === state.subpool)
+          .map(s => s.storedId -> s.storedVal).update(storedId -> storedVal))
+        logger.info(s"Updated state ${state.subpool_id} with stored id ${storedId} and val ${storedVal}")
+    }
+  }
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
@@ -192,7 +212,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               logger.info("Now updating state!")
               db.run(Tables.PoolStatesTable.filter(p => p.subpool === currBlock.poolTag).map(_.gEpoch).update(currBlock.gEpoch))
               logger.info("Now adding next members")
-              db.run(Tables.SubPoolMembers ++= nextMembers)
+           //   db.run(Tables.SubPoolMembers ++= nextMembers)
               logger.info("Now updating gEpoch for all states")
               db.run(Tables.PoolInfoTable.filter(_.poolTag === currBlock.poolTag).map(i => i.gEpoch -> i.updated)
                 .update(currBlock.gEpoch -> LocalDateTime.now()))
