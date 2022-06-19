@@ -60,22 +60,22 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       s" ${taskConfig.interval}")
     system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
-
-        Try {
-         // checkProcessingBlocks
-        }.recoverWith{
-          case ex =>
-            logger.error("There was a critical error while checking processing blocks!", ex)
-            Failure(ex)
-        }
-        Try(
-        //  checkDistributions
-        ).recoverWith{
-          case ex =>
-            logger.error("There was a critical error while checking distributions!", ex)
-            Failure(ex)
-        }
-        if(params.regenFromChain) {
+        if(!params.regenFromChain) {
+          Try {
+            checkProcessingBlocks
+          }.recoverWith {
+            case ex =>
+              logger.error("There was a critical error while checking processing blocks!", ex)
+              Failure(ex)
+          }
+          Try(
+            checkDistributions
+          ).recoverWith {
+            case ex =>
+              logger.error("There was a critical error while checking distributions!", ex)
+              Failure(ex)
+          }
+        }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
           Try(regeneratePlaces).recoverWith {
             case ex =>
