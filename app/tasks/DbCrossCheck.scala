@@ -204,8 +204,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             if(optTx.isDefined) {
               logger.info(s"Using tx ${optTx}")
               val tx = optTx.get
+              logger.info("Now making next updates")
               val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 2).id.toString, tx.outputs(p.subpool_id.toInt + 2)
                 .assets.head.amount))
+              logger.info("Updates made, now running to db")
               nextUpdates.foreach {
                 u =>
                   logger.info(s"Updating subpool ${u._1} with holding id ${u._2._1} and value ${u._2._2}")
