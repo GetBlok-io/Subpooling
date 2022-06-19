@@ -51,7 +51,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   val contexts: Contexts = new Contexts(system)
   val params: ParamsConfig = new ParamsConfig(config)
   var blockQueue: ArrayBuffer[Block] = ArrayBuffer.empty[Block]
-
+  final val REGEN_DISTS = "dists"
+  final val REGEN_PLACES = "places"
+  final val REGEN_STATES = "states"
   implicit val ec: ExecutionContext = contexts.taskContext
   if(taskConfig.enabled) {
     logger.info(db.source.toString)
@@ -77,7 +79,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
         }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regeneratePlaces).recoverWith {
+          Try(execRegen(params.regenType)).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -90,6 +92,19 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     db.run(Tables.SubPoolMembers.filter(b => b.g_epoch === 16L && b.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)
 
   }
+
+  def execRegen(rType: String): Unit = {
+    rType match {
+      case REGEN_DISTS =>
+        regenerateDB
+      case REGEN_PLACES =>
+        regeneratePlaces
+      case REGEN_STATES =>
+        regenStates
+    }
+    ()
+  }
+
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
