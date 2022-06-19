@@ -224,12 +224,16 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     implicit val timeout: Timeout = Timeout(1000 seconds)
     val outputBoxes = (expReq ? BoxesByTokenId(ErgoId.create("30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"), 0, 500))
       .mapTo[Option[Seq[Output]]]
-
+    logger.info("Now regening states")
     outputBoxes.map{
       optOutputs =>
+        logger.info(s"${optOutputs.get.length} outputs found!")
         val outputs = optOutputs.get
         val unspent = outputs.filter(o => o.isOnMainChain && o.spendingTxId.isEmpty)
+        logger.info(s"${unspent.length} unspent boxes")
         for(subpool <- unspent){
+          logger.info(s"Subpool ${subpool.registers.R6.get.renderedValue.split(",")(3).toLong} attempting regen")
+          logger.info(s"With tx ${subpool.txId} and box ${subpool.id}")
           db.run(Tables.PoolStatesTable.filter(o => o.subpool_id === subpool.registers.R6.get.renderedValue.split(",")(3).toLong)
           .map(s => (s.tx, s.box)).update(subpool.txId.toString -> subpool.id.toString))
         }
