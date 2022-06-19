@@ -113,7 +113,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val outputs = Await.result(Future.sequence(states.map(s => (expReq ? BoxesById(ErgoId.create(s.box))).mapTo[Option[Output]])), 1000 seconds)
     val currentOutputs = outputs.filter(o => o.isDefined).map(_.get)
     val currentTxs = Await.result(Future.sequence(currentOutputs.map(so => (expReq ? TxById(so.txId)).mapTo[Option[TransactionData]])), 1000 seconds)
-      .filter(_.isDefined).map(_.get)
+      .filter(_.isDefined).map(_.get).filter(_.id.toString != "d07c519ad591cfdc895862f51c9fa43568866a445edd751548b80f422a43a6c2")
 
     states.foreach{
       state =>
