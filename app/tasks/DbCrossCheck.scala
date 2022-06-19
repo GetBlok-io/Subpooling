@@ -192,6 +192,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def regeneratePlaces = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
+    logger.info("Regening placements")
     val placements = Await.result(db.run(Tables.PoolPlacementsTable.result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
@@ -212,6 +213,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   db.run(q.update(u._2._1, u._2._2))
               }
               logger.info(s"Completed placement regen for pool ${poolTag}")
+            }else{
+              logger.warn("Transaction was not defined!")
             }
         }
       }
