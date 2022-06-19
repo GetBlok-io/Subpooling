@@ -53,7 +53,7 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
       var distMap = subPool.nextDist.dist
       for (oldMember <- subPool.members) {
 
-        if (members.exists(m => m.address == oldMember.address && oldMember.shareScore == 0)) {
+        if (members.exists(m => m.address == oldMember.address && oldMember.shareScore == 0 && oldMember.storedPay > 0)) {
           val lostMember = members.find(m => m.address == oldMember.address).get
 
           // If member was mining last epoch, set to 0, otherwise decrement number into negatives
@@ -77,7 +77,7 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
               membersRemoved += lostMember
             }
           }
-        } else if((!members.exists(_.address == oldMember.address))){
+        } else if((!members.exists(_.address == oldMember.address)) && oldMember.storedPay > 0){
           if(oldMember.epochsMined > EPOCH_MINED_LIMIT){
             val epochsMined = if (oldMember.epochsMined > 0) 0 else oldMember.epochsMined - 1
             val copiedOldMember = oldMember.copy(memberInfo
