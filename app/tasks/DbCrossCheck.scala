@@ -79,13 +79,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
         }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-//          Try(execRegen(params.regenType)).recoverWith {
-//            case ex =>
-//              logger.error("There was a critical error while re-generating dbs!", ex)
-//              Failure(ex)
-//          }
-          db.run(Tables.PoolBlocksTable.filter(b => b.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7")
-          .filter(b => b.gEpoch === 72L).map(b => b.status).update(PoolBlock.INITIATED))
+          Try(execRegen(params.regenType)).recoverWith {
+            case ex =>
+              logger.error("There was a critical error while re-generating dbs!", ex)
+              Failure(ex)
+          }
         }
     })(contexts.taskContext)
   }
