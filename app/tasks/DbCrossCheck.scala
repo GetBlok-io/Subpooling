@@ -77,7 +77,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         if(params.regenFromChain) {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regenStates).recoverWith {
+          Try(regeneratePlaces).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -197,7 +197,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     for(poolPlace <- poolPlaces){
       val poolTag = "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"
       if(poolPlace._1 == poolTag){
-        val fTx = (expReq ? TxById(ErgoId.create("246534e6fe40db621612b9c5a0a9d9017fd29691f03f988646afd5b6647d7348"))).mapTo[Option[TransactionData]]
+        val fTx = (expReq ? TxById(ErgoId.create("698bbcdb08c413b3925dd724bedca0a3e92231369896d0bb93c6ca64bed6223c"))).mapTo[Option[TransactionData]]
         fTx.map{
           optTx =>
             if(optTx.isDefined) {
@@ -207,7 +207,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               nextUpdates.foreach {
                 u =>
                   logger.info(s"Updating subpool ${u._1} with holding id ${u._2._1} and value ${u._2._2}")
-                  val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1).map(p => (p.holdingId, p.holdingVal))
+                  val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1 && p.block === 774886L).map(p => (p.holdingId, p.holdingVal))
                   Thread.sleep(500)
                   db.run(q.update(u._2._1, u._2._2))
               }
