@@ -102,39 +102,22 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         val oldMember = lastDistribution.dist.find(_._1.address.toString == c._1.address.toString)
         logger.info("Checking epoch assumptions")
         logger.info(s"Old member for assumption: ${oldMember}")
-//        if(oldMember.isDefined) {
-//          val epochAssumption = !(c._2.getScore == 0 && c._2.getStored == 0) ||
-//            (c._2.getMinPay == ((0.001 * Parameters.OneErg).toLong / 10) && oldMember.get._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
-//          logger.info(s"epochAssumption for miner ${c._1.address}: ${epochAssumption}")
-//          epochAssumption
-//        }else{
-//          !(c._2.getScore == 0 && c._2.getStored == 0 &&
-//            c._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
-        if(oldMember.isDefined)
-          true
-        else
-          false
+        if(oldMember.isDefined) {
+          val epochAssumption = !(c._2.getScore == 0 && c._2.getStored == 0) ||
+            (c._2.getMinPay == ((0.001 * Parameters.OneErg).toLong / 10) && oldMember.get._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
+          logger.info(s"epochAssumption for miner ${c._1.address}: ${epochAssumption}")
+          epochAssumption
+        }else {
+          !(c._2.getScore == 0 && c._2.getStored == 0 &&
+            c._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
+        }
+//        if(oldMember.isDefined)
+//          true
+//        else
+//          false
     }
     val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
-    val nextConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).filter{
-      c =>
-        // If value from shares addition causes error, add 1 share score to help move payouts out
-        val oldMember = lastDistribution.dist.find(_._1.address.toString == c._1.address.toString)
-        logger.info("Checking epoch assumptions")
-        logger.info(s"Old member for assumption: ${oldMember}")
-        //        if(oldMember.isDefined) {
-        //          val epochAssumption = !(c._2.getScore == 0 && c._2.getStored == 0) ||
-        //            (c._2.getMinPay == ((0.001 * Parameters.OneErg).toLong / 10) && oldMember.get._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
-        //          logger.info(s"epochAssumption for miner ${c._1.address}: ${epochAssumption}")
-        //          epochAssumption
-        //        }else{
-        //          !(c._2.getScore == 0 && c._2.getStored == 0 &&
-        //            c._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
-        if(oldMember.isDefined)
-          true
-        else
-          false
-    }
+    val nextConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get)
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
     logger.info(s"Distinct consensus length: ${distinctConsensus.size}")
     logger.info(s"Next consensus length: ${nextConsensus.size}")
