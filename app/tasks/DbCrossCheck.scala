@@ -77,7 +77,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
         }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regeneratePlaces).recoverWith {
+          Try(regenStates).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -229,7 +229,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def regenStates = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     logger.info("Regening states")
-    val poolTag = "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b"
+    val poolTag = params.regenStatePool
     val outputBoxes = (expReq ? BoxesByTokenId(ErgoId.create(poolTag), 0, 100))
       .mapTo[Option[Seq[Output]]]
     logger.info("Now regening states")
