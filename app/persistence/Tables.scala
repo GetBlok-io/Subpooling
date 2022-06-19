@@ -46,7 +46,11 @@ object Tables {
 
       this.filter(s => s.created >= startDate).filter(s => s.created <= endDate).sortBy(s => s.created.desc).drop(offset).take(limit).result
     }
+    def queryMinerSharesBetweenDate(startDate: LocalDateTime, endDate: LocalDateTime, miner: String, offset: Long, limit: Long) = {
+      import slick.jdbc.PostgresProfile.api._
 
+      this.filter(s => s.created >= startDate).filter(s => s.created <= endDate).filter(s => s.miner === miner).sortBy(s => s.created.desc).drop(offset).take(limit).result
+    }
 
 
   }
