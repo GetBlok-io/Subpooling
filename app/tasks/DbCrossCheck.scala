@@ -77,7 +77,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
         }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(regenStates).recoverWith {
+          Try(regeneratePlaces).recoverWith {
             case ex =>
               logger.error("There was a critical error while re-generating dbs!", ex)
               Failure(ex)
@@ -214,6 +214,21 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1 && p.block === params.regenPlaceBlock.toLong ).map(p => (p.holdingId, p.holdingVal))
                   Thread.sleep(50)
                   db.run(q.update(u._2._1, u._2._2))
+              }
+              val stateUpdates =  poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 2).spendingTxId.isDefined))
+              if(stateUpdates.exists(_._2)) {
+                stateUpdates.foreach {
+                  u =>
+                    logger.info(s"Updating pool states for subpool ${u._1}")
+                    if (u._2) {
+                      logger.info("Setting pool state to success!")
+                      db.run(Tables.PoolStatesTable.filter(s => s.subpool_id === u._1 && s.subpool === poolTag).map(s => s.status).update(PoolState.SUCCESS))
+                    } else {
+                      logger.info("Setting pool state to failure")
+                      db.run(Tables.PoolStatesTable.filter(s => s.subpool_id === u._1 && s.subpool === poolTag).map(s => s.status).update(PoolState.FAILURE))
+                    }
+
+                }
               }
               logger.info(s"Completed placement regen for pool ${poolTag}")
             }else{

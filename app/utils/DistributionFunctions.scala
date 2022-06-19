@@ -150,11 +150,16 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
         val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
         val fPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === block.blockheight).result)).mapTo[Seq[PoolPlacement]]
         val futHeight   = (expReq ? GetCurrentHeight).mapTo[Int]
+        val initBlocks = Await.result((db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.INITIATED && b.poolTag === block.poolTag).result)), 100 seconds)
+        if(initBlocks.nonEmpty){
+          throw new Exception(s"There were initiated blocks that existed for pool ${poolTag}")
+        }
         val distComponents = for{
           states <- poolStateResp
           placements <- fPlacements
           height    <- futHeight
         } yield {
+
           // TODO: Removed for right now, exercise caution
           val gEpoch = poolInfo.g_epoch
 
