@@ -193,7 +193,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def regeneratePlaces = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     logger.info("Regening placements")
-    val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(_.block === 774886L ).result), 1000 seconds)
+    val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(_.block === 774890L ).result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
       val poolTag = "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"
@@ -211,7 +211,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               nextUpdates.foreach {
                 u =>
                   logger.info(s"Updating subpool ${u._1} with holding id ${u._2._1} and value ${u._2._2}")
-                  val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1 && p.block === 774886L).map(p => (p.holdingId, p.holdingVal))
+                  val q = Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.subpool_id === u._1 && p.block === 774890L).map(p => (p.holdingId, p.holdingVal))
                   Thread.sleep(500)
                   db.run(q.update(u._2._1, u._2._2))
               }
