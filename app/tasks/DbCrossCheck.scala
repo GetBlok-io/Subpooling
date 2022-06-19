@@ -287,20 +287,20 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   write ! UpdatePoolBlockStatus(PoolBlock.PROCESSED, block.blockheight)
                 }else{
                   logger.warn(s"Holding box ${holdingId} was found, but was either on a forked chain or was already spent!")
-                  logger.warn("Now deleting placements")
-                  write ! DeletePlacementsAtBlock(block.poolTag, block.blockheight)
+                  logger.warn("Not deleting placements")
+                  //write ! DeletePlacementsAtBlock(block.poolTag, block.blockheight)
                   if(!output.isOnMainChain) {
 
                     logger.warn("Holding box was not on the main chain!")
                     if (Instant.now().toEpochMilli - block.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis){
                       logger.warn(s"It has been ${params.restartPlacements.toString()} since block was updated," +
                         s" now restarting placements for pool ${block.poolTag}")
-                      write ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, block.blockheight)
+                      //write ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, block.blockheight)
                     }
 
                   }else if(output.spendingTxId.isDefined){
                     logger.warn("Holding box was found to have an already spent transaction id! Setting block status to initiated!")
-                    write ! UpdatePoolBlockStatus(PoolBlock.INITIATED, block.blockheight)
+                   // write ! UpdatePoolBlockStatus(PoolBlock.INITIATED, block.blockheight)
                   }
                 }
               case None =>
