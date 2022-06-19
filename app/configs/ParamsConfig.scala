@@ -34,7 +34,7 @@ class ParamsConfig(config: Configuration){
   val currentFeePerc: Double    = config.get[Double]("params.feePercent")
   val regenFromChain: Boolean   = config.get[Boolean]("params.regenFromChain")
   val groupStart: Int           = config.get[Int]("params.groupStart")
-
+  val singularGroups: Boolean   = config.get[Boolean]("params.singularGroups")
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff
   AppParameters.defaultMiningPK = defaultPK

@@ -198,7 +198,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     for(poolPlace <- poolPlaces){
       val poolTag = "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"
       if(poolPlace._1 == poolTag){
-        val fTx = (expReq ? TxById(ErgoId.create("698bbcdb08c413b3925dd724bedca0a3e92231369896d0bb93c6ca64bed6223c"))).mapTo[Option[TransactionData]]
+        val fTx = (expReq ? TxById(ErgoId.create("d5a3f93fb287f40308c79212c34ca6b02d5b88c9750068cd5acdac3d2228ed3a"))).mapTo[Option[TransactionData]]
         fTx.map{
           optTx =>
             if(optTx.isDefined) {

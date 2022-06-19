@@ -68,10 +68,40 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
         if(tryPreCollection.isSuccess) {
           val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
-          if(currentRun % 2 == 0) {
+          if (params.singularGroups) {
+            if (currentRun % 2 == 0) {
+              val tryPlacement = Try {
+                placementFunctions.executePlacement()
+              }
+              tryPlacement match {
+                case Success(value) =>
+                  logger.info("Synchronous placement functions executed successfully!")
+                  currentRun = currentRun + 1
+                case Failure(exception) =>
+                  logger.error("There was a fatal error thrown during synchronous placement execution", exception)
+                  currentRun = currentRun + 1
+              }
+            } else {
+              val tryDist = Try {
+                distributionFunctions.executeDistribution()
+              }
+              tryDist match {
+                case Success(value) =>
+                  logger.info("Synchronous distribution functions executed successfully!")
+                  currentRun = currentRun + 1
+                case Failure(exception) =>
+                  logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
+                  currentRun = currentRun + 1
+              }
+            }
+          }else{
             val tryPlacement = Try {
               placementFunctions.executePlacement()
             }
+            val tryDist = Try {
+              distributionFunctions.executeDistribution()
+            }
+
             tryPlacement match {
               case Success(value) =>
                 logger.info("Synchronous placement functions executed successfully!")
@@ -80,10 +110,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 logger.error("There was a fatal error thrown during synchronous placement execution", exception)
                 currentRun = currentRun + 1
             }
-          }else{
-            val tryDist = Try {
-              distributionFunctions.executeDistribution()
-            }
+
             tryDist match {
               case Success(value) =>
                 logger.info("Synchronous distribution functions executed successfully!")
@@ -93,10 +120,9 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 currentRun = currentRun + 1
             }
           }
-        }else{
+        } else {
           logger.error("There was an error thrown while trying to pre-collect inputs!", tryPreCollection.failed.get)
         }
-
     })(contexts.taskContext)
   }else{
     logger.info("GroupExecution Task was not enabled")
