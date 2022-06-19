@@ -61,7 +61,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
     logger.info("Now updating consensus")
     var shareScoreLeft = 0L
-    val updatedConsensus = currentDistribution.dist.map{
+    var updatedConsensus = currentDistribution.dist.map{
       consVal =>
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
@@ -112,6 +112,11 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
             c._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
         }
     }
+    val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
+    val nextConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d))
+    logger.info(s"Updated consensus length: ${updatedConsensus.size}")
+    logger.info(s"Distinct consensus length: ${distinctConsensus.size}")
+    logger.info(s"Next consensus length: ${nextConsensus.size}")
     val newShareDistribution = new ShareDistribution(updatedConsensus)
     val newMetadataRegisters = commandTx.cOB.metadataRegisters.copy(shareDist = newShareDistribution)
 
