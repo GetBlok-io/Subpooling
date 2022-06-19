@@ -193,7 +193,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def regeneratePlaces = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     logger.info("Regening placements")
-    val placements = Await.result(db.run(Tables.PoolPlacementsTable.result), 1000 seconds)
+    val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(_.block === 774886L ).result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
       val poolTag = "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"
