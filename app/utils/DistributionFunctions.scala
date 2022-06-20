@@ -10,7 +10,7 @@ import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
@@ -128,9 +128,30 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
             case Failure(exception) =>
               logger.error(s"There was an error updating the gEpoch for pool ${dr.nextStates.head.subpool}", exception)
           }
+          val fInfo = db.run(Tables.PoolInfoTable.filter(_.poolTag === dr.block.poolTag).result.head)
 
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === dr.block.blockheight).map(b => b.status -> b.updated)
-            .update(PoolBlock.INITIATED -> LocalDateTime.now()))
+          fInfo.onComplete{
+            case Success(info) =>
+              if(info.payment_type == PoolInformation.PAY_SOLO){
+                db.run(Tables.PoolBlocksTable
+                  .filter(b => b.poolTag === dr.block.poolTag)
+                  .filter(b => b.gEpoch === dr.block.gEpoch)
+                  .map(b => b.status -> b.updated)
+                  .update(PoolBlock.INITIATED -> LocalDateTime.now()))
+                logger.info(s"Finished updating block ${dr.block.blockheight} with SOLO pool and status INITIATED")
+              }else{
+                db.run(Tables.PoolBlocksTable
+                  .filter(b => b.poolTag === dr.block.poolTag)
+                  .filter(b => b.gEpoch >= dr.block.gEpoch && b.gEpoch <= dr.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
+                  .map(b => b.status -> b.updated)
+                  .update(PoolBlock.INITIATED -> LocalDateTime.now()))
+                logger.info(s"Finished updating blocks ${dr.block.blockheight} with epoch ${dr.block.gEpoch} and its next 4 epochs for pool" +
+                  s" ${dr.block.poolTag} and status INITIATED")
+              }
+            case Failure(ex) =>
+              logger.error(s"There was a critical error updating block ${dr.block.blockheight}", ex)
+          }
+
         }
       case Failure(exception) =>
         logger.error("There was a fatal error while evaluating a distribution response!", exception)
@@ -165,7 +186,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
         val constructDistResp = {
           if(placements.isEmpty){
             logger.error("Placements were empty for this block! Setting back to confirmed.")
-            db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
+            // db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
           }
           require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
           logger.info(s"Construction distributions for block ${block.blockheight}")
@@ -193,18 +214,18 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
                         if (height - placed.block > 100){
                           logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
                             "and setting blocks status to confirmed again!")
-                          db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
-                          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-                            .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
+//                          db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
+//                          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
+//                            .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
                         }else{
                           logger.warn(s"Current height $height is not large enough to restart placements")
                         }
                       } else {
                         logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
                           "and setting blocks status to confirmed again!")
-                        db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
-                        db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-                          .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
+//                        db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
+//                        db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
+//                          .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
                       }
                     case None =>
                       logger.error("This path should never be executed, something went wrong!")
@@ -216,8 +237,10 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
               }
             }else{
               logger.warn("Failed placements were found, now setting block back to processing status to have DbCrossCheck re-evaluate")
-              db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-                .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
+//              db.run(Tables.PoolBlocksTable
+//                .filter(b => b.poolTag === failedPlacements.block.poolTag)
+//                .filter(b => b.gEpoch >= failedPlacements.block.gEpoch && b.gEpoch <= failedPlacements.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE).map(b => b.status -> b.updated)
+//                .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
             }
             logger.error("There was a fatal error during distribution due to invalid placements!")
             throw new Exception("Placements failed!")

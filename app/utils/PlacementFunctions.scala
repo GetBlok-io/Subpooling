@@ -99,6 +99,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
           logger.info(s"Holding execution was success for batch starting with ${response.batchSelection.blocks.head.blockheight} and pool ${response.nextPlacements.head}")
           logger.info("Now updating batched blocks to processing status and inserting placements into placements table")
           val blockUpdate = (db.run(Tables.PoolBlocksTable
+            .filter(_.poolTag === response.batchSelection.blocks.head.poolTag)
             .filter(_.gEpoch >= response.batchSelection.blocks.head.gEpoch)
             .filter(_.gEpoch <= response.batchSelection.blocks.last.gEpoch)
             .map(b => b.status -> b.updated)
@@ -145,20 +146,24 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         else {
           logger.info(s"Performing SOLO query for block ${block.blockheight} with poolTag ${block.poolTag}" +
             s" and miner ${block.miner}")
-          val collectors = for(shareBlock <- batchSelection.blocks) yield {
-            Future(shareHandler.queryForSOLO(shareBlock, params.defaultPoolTag))
-          }
+          val collectors = Seq(Future(shareHandler.queryForSOLO(batchSelection.blocks.head, params.defaultPoolTag)))
           collectors
         }
       }
 
-      val fCollector = fCollectors.map{
-        collectors =>
-          val merged = collectors.slice(1, collectors.length).foldLeft(collectors.head){
-            (head: ShareCollector, other: ShareCollector) =>
-              head.merge(other)
+      val fCollector = {
+        if(batchSelection.info.payment_type != PoolInformation.PAY_SOLO) {
+          fCollectors.map {
+            collectors =>
+              val merged = collectors.slice(1, collectors.length).foldLeft(collectors.head) {
+                (head: ShareCollector, other: ShareCollector) =>
+                  head.merge(other)
+              }
+              merged.avg(collectors.length)
           }
-          merged.avg(collectors.length)
+        }else{
+          fCollectors.map(_.head)
+        }
       }
 
       val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]

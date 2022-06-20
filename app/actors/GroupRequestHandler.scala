@@ -146,7 +146,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
 
                     val selector = new LoadingSelector(placements.toArray)
-                    val builder = new DistributionBuilder(holdingMap, storageMap)
+                    val builder = new DistributionBuilder(holdingMap, storageMap, sendTxs = AppParameters.sendTxs)
                     val group = new DistributionGroup(pool, ctx, wallet, commandContract, holdingContract, tokenName)
 
                     val groupManager = new GroupManager(group, builder, selector)
@@ -195,7 +195,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                     case PoolInformation.CURR_ERG =>
                       val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
-                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(reward))
+                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(reward),
+                        sendTxs = AppParameters.sendTxs)
                       val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
@@ -210,7 +211,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                         .filter(i => i.getTokens.get(0).getId.toString == poolInformation.emissions_id).head
                       val emissionsBox = new EmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An emissions box was found! $emissionsBox")
-                      val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, reward, AppParameters.getBaseFees(reward), emissionsBox)
+                      val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, reward,
+                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = AppParameters.sendTxs)
                       val builder = new HoldingBuilder(emissionsBox.emissionReward.value, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
@@ -235,9 +237,10 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       val emissionsBox = new ExchangeEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
                       val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
-                        AppParameters.getBaseFees(reward), emissionsBox)
+                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = AppParameters.sendTxs)
                       val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
+
                     case PoolInformation.CURR_ERG_COMET =>
                       logger.info("Using ERG+COMET tokens for currency!")
                       val holdingContract = AdditiveHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
@@ -251,7 +254,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       val emissionsBox = new ProportionalEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
                       val root = new ProportionalEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
-                        AppParameters.getBaseFees(reward), emissionsBox)
+                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = AppParameters.sendTxs)
                       val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                   }

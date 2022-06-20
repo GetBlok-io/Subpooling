@@ -12,7 +12,7 @@ import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoToken, InputBox}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import org.slf4j.{Logger, LoggerFactory}
-import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
+import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection, BlockSelection}
 
 import java.util
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -31,7 +31,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 
   val logger: Logger = LoggerFactory.getLogger("ConcurrentBoxLoader")
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
-  final val BLOCK_BATCH_SIZE = 5
+
 
   def selectBlocks(blocks: Seq[SPoolBlock], distinctOnly: Boolean): BatchSelection = {
     implicit val timeout: Timeout = Timeout(20 seconds)
@@ -52,7 +52,8 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 //      blocks.take(params.pendingBlockNum)
 //        .map(pb => BlockSelection(pb, Await.result((query ? QueryPoolInfo(pb.poolTag)).mapTo[PoolInformation], timeout.duration)))
 //    }
-    val blockHead = blocks.head
+    // TODO: Fix when done testing
+    val blockHead = blocks.filter(_.poolTag == "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").head
     val poolBlocks = blocks.filter(_.poolTag == blockHead.poolTag).sortBy(_.gEpoch).take(5)
     require(poolBlocks.size == BLOCK_BATCH_SIZE, s"Required batch size of ${BLOCK_BATCH_SIZE} was not met with selection of size ${poolBlocks.size}")
     val poolInfo =  Await.result((query ? QueryPoolInfo(blockHead.poolTag)).mapTo[PoolInformation], timeout.duration)
@@ -118,7 +119,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   }
 }
 object ConcurrentBoxLoader {
-
+  final val BLOCK_BATCH_SIZE = 5
 
 
   case class PartialBlockSelection(block: SPoolBlock, poolTag: String)

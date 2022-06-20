@@ -24,6 +24,7 @@ import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
+import utils.ConcurrentBoxLoader
 
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 import javax.inject.{Inject, Named, Singleton}
@@ -51,7 +52,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   val contexts: Contexts = new Contexts(system)
   val params: ParamsConfig = new ParamsConfig(config)
   var blockQueue: ArrayBuffer[Block] = ArrayBuffer.empty[Block]
-  final val REGEN_DISTS = "dists"
+  final val REGEN_DISTS  = "dists"
   final val REGEN_PLACES = "places"
   final val REGEN_STATES = "states"
   final val REGEN_STORED = "stored"
@@ -306,24 +307,34 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def checkProcessingBlocks: Future[Unit] = {
     implicit val timeout: Timeout = Timeout(60 seconds)
     val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.PROCESSING)).mapTo[Seq[PoolBlock]]
+    val qPools = db.run(Tables.PoolInfoTable.result)
     for{
       blocks <- queryBlocks
+      pools <- qPools
     } yield {
-      blocks.foreach{
-        block =>
-          val queryPlacements = (query ? PlacementsByBlock(block.poolTag, block.blockheight)).mapTo[Seq[PoolPlacement]]
-          queryPlacements.map {
-            placements =>
+      val pooledBlocks = blocks.groupBy(_.poolTag)
+      for(poolBlock <- pooledBlocks){
+        val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
 
-              placements.groupBy(_.holding_id).keys.foreach {
-                holdingId =>
-                  verifyHoldingBoxes(block, holdingId)
-              }
-          }
+        val blockBatch = {
+          if(poolToUse.payment_type == PoolInformation.PAY_SOLO)
+            poolBlock._2.sortBy(_.gEpoch).take(1)
+          else
+            poolBlock._2.sortBy(_.gEpoch).take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
+        }
+        val queryPlacements = (query ? PlacementsByBlock(blockBatch.head.poolTag, blockBatch.head.blockheight)).mapTo[Seq[PoolPlacement]]
+        queryPlacements.map {
+          placements =>
+
+            placements.groupBy(_.holding_id).keys.foreach {
+              holdingId =>
+                verifyHoldingBoxes(blockBatch, holdingId)
+            }
+        }
       }
     }
   }
-  def verifyHoldingBoxes(block: PoolBlock, holdingId: String): Unit = {
+  def verifyHoldingBoxes(blocks: Seq[PoolBlock], holdingId: String): Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
 
     val boxFromExp = (expReq ? BoxesById(ErgoId.create(holdingId)))
@@ -335,7 +346,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               case Some(output) =>
                 if(output.isOnMainChain && output.spendingTxId.isEmpty) {
                   logger.info(s"Found unspent holding box ${holdingId}, now updating to processed")
-                  write ! UpdatePoolBlockStatus(PoolBlock.PROCESSED, block.blockheight)
+                  db.run(Tables.PoolBlocksTable
+                    .filter(b => b.poolTag === blocks.head.poolTag)
+                    .filter(b => b.gEpoch >= blocks.head.gEpoch && b.gEpoch <= blocks.last.gEpoch)
+                    .map(b => b.status -> b.updated)
+                    .update(PoolBlock.PROCESSED, LocalDateTime.now())
+                  )
                 }else{
                   logger.warn(s"Holding box ${holdingId} was found, but was either on a forked chain or was already spent!")
                   logger.warn("Not deleting placements")
@@ -343,9 +359,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   if(!output.isOnMainChain) {
 
                     logger.warn("Holding box was not on the main chain!")
-                    if (Instant.now().toEpochMilli - block.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis){
+                    if (Instant.now().toEpochMilli - blocks.head.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis){
                       logger.warn(s"It has been ${params.restartPlacements.toString()} since block was updated," +
-                        s" now restarting placements for pool ${block.poolTag}")
+                        s" now restarting placements for pool ${blocks.head.poolTag}")
                       //write ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, block.blockheight)
                     }
 
@@ -355,16 +371,16 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   }
                 }
               case None =>
-                if (Instant.now().toEpochMilli - block.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis) {
+                if (Instant.now().toEpochMilli - blocks.head.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis) {
                   logger.warn(s"It has been ${params.restartPlacements.toString()} since block was updated," +
-                    s" now restarting placements for pool ${block.poolTag}")
-                  write ! DeletePlacementsAtBlock(block.poolTag, block.blockheight)
-                  write ! UpdatePoolBlockStatus(PoolBlock.CONFIRMED, block.blockheight)
+                    s" now restarting placements for pool ${blocks.head.poolTag}")
+                  write ! DeletePlacementsAtBlock(blocks.head.poolTag, blocks.head.blockheight)
+
                 } else {
                   logger.warn("ExplorerReqBus returned no Output, but restartPlacements time has not passed for this block!")
                 }
             }
-            logger.info(s"Completed updates for processing block ${block.blockheight}")
+            logger.info(s"Completed updates for processing block ${blocks.head.blockheight}")
           case TimeoutError(ex) =>
             logger.error("Received a socket timeout from ExplorerRequestBus, refusing to modify pool states!")
             throw ex
@@ -380,14 +396,28 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def checkDistributions: Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
     val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.INITIATED)).mapTo[Seq[PoolBlock]]
-    for(blocks <- queryBlocks){
-      blocks.foreach{
-        block =>
-          val queryPoolStates = (query ? QueryAllSubPools(block.poolTag)).mapTo[Seq[PoolState]]
-          validateDistStates(block, queryPoolStates)
-        }
+    val qPools = db.run(Tables.PoolInfoTable.result)
+    for {
+      blocks <- queryBlocks
+      pools <- qPools
+    }
+    yield {
+
+        val pooledBlocks = blocks.groupBy(_.poolTag)
+        for (poolBlock <- pooledBlocks) {
+          val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
+          val blocksToUse = {
+            if(poolToUse.payment_type == PoolInformation.PAY_SOLO){
+              poolBlock._2.take(1)
+            }else{
+              poolBlock._2.take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
+            }
+          }
+          val queryPoolStates = (query ? QueryAllSubPools(poolBlock._1)).mapTo[Seq[PoolState]]
+          validateDistStates(blocksToUse, queryPoolStates)
       }
     }
+  }
 
   def modifySuccessState(state: PoolState, txOpt: Option[TransactionData]): PoolState = {
         txOpt match {
@@ -410,18 +440,23 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
   }
 
-  def validateDistStates(block: PoolBlock, queryPoolStates: Future[Seq[PoolState]]): Future[Unit] = {
+  def validateDistStates(blocks: Seq[PoolBlock], queryPoolStates: Future[Seq[PoolState]]): Future[Unit] = {
     implicit val timeout: Timeout = Timeout(80 seconds)
     queryPoolStates.map {
       poolStates =>
         if(!poolStates.forall(s => s.status == PoolState.CONFIRMED)) {
-          handleUnconfirmedStates(block, poolStates)
+          handleUnconfirmedStates(blocks, poolStates)
         }else{
           logger.info(s"All pools had status confirmed for pool ${poolStates.head.subpool}")
           logger.info("Now updating block and pool information")
-          write ! UpdatePoolBlockStatus(PoolBlock.PAID, block.blockheight)
-          val fPoolMembers = (query ? PoolMembersByGEpoch(block.poolTag, block.gEpoch)).mapTo[Seq[PoolMember]]
-          val fPoolInfo = (query ? QueryPoolInfo(block.poolTag)).mapTo[PoolInformation]
+          db.run(Tables.PoolBlocksTable
+            .filter(_.poolTag === blocks.head.poolTag)
+            .filter(_.gEpoch >= blocks.head.gEpoch)
+            .filter(_.gEpoch <= blocks.last.gEpoch)
+            .map(b => b.status -> b.updated)
+            .update(PoolBlock.PAID -> LocalDateTime.now()))
+          val fPoolMembers = (query ? PoolMembersByGEpoch(blocks.head.poolTag, blocks.head.gEpoch)).mapTo[Seq[PoolMember]]
+          val fPoolInfo = (query ? QueryPoolInfo(blocks.head.poolTag)).mapTo[PoolInformation]
           val fPoolMiners = db.run(Tables.PoolSharesTable.queryMinerPools)
           logger.info("Block status update complete")
           for{
@@ -429,7 +464,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             info <- fPoolInfo
             settings <- fPoolMiners
           } yield {
-            enterNewPaymentStats(block, info, members, settings.toMap)
+            enterNewPaymentStats(blocks.head, info, members, settings.toMap)
           }
 
         }
@@ -522,17 +557,17 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     Try(logger.info("Pool data updates complete"))
   }
 
-  def handleUnconfirmedStates(block: PoolBlock, poolStates: Seq[PoolState]): Unit = {
+  def handleUnconfirmedStates(blocks: Seq[PoolBlock], poolStates: Seq[PoolState]): Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
     val modifiedPoolStates = {
       val statesToCheck = poolStates.filter(s => s.status == PoolState.SUCCESS)
       val nextStates = Future.sequence(statesToCheck.map {
         state =>
           val verifyTx = (expReq ? TxById(ErgoId.create(state.tx)))
-          logger.info(s"Modifying state for pool ${block.poolTag} with block ${block.blockheight}")
+          logger.info(s"Modifying state for pool ${blocks.head.poolTag} with block ${blocks.head.blockheight}")
           val newState = verifyTx.map {
             case txOpt: Option[TransactionData] =>
-              modifySuccessState(state.copy(g_epoch = block.gEpoch), txOpt)
+              modifySuccessState(state.copy(g_epoch = blocks.head.gEpoch), txOpt)
             case TimeoutError(ex) =>
               logger.error("Received a socket timeout from ExplorerRequestBus, refusing to modify pool states!")
               throw ex
@@ -556,13 +591,13 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         if(newFailedStates.nonEmpty) {
           newStates.filter(s => s.status == PoolState.FAILURE).foreach {
             s =>
-              write ! DeleteSubPoolMembers(block.poolTag, block.gEpoch, s.subpool_id)
+              write ! DeleteSubPoolMembers(blocks.head.poolTag, blocks.head.gEpoch, s.subpool_id)
           }
         }
 
         if(newStates.exists(s => s.status == PoolState.FAILURE) || poolStates.exists(s => s.status == PoolState.FAILURE)){
           logger.info("Now setting block back to processed state due to existence of failures")
-          write ! UpdatePoolBlockStatus(PoolBlock.PROCESSED, block.blockheight)
+          write ! UpdatePoolBlockStatus(PoolBlock.PROCESSED, blocks.head.blockheight)
 
         }
         logger.info("Pool state modifications complete")

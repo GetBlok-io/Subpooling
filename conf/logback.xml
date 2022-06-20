@@ -58,15 +58,23 @@
 
   <logger name = "DistributionFunctions" additivity = "false">
     <appender-ref ref="Groups"/>
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCSTDOUT" />
   </logger>
   <logger name = "PlacementFunctions" additivity = "false">
     <appender-ref ref="Groups"/>
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCSTDOUT" />
   </logger>
   <logger name = "ConcurrentBoxLoader" additivity = "false">
     <appender-ref ref="Groups"/>
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCSTDOUT" />
   </logger>
   <logger name = "GroupRequestHandler" additivity = "false">
     <appender-ref ref="Groups"/>
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="ASYNCSTDOUT" />
   </logger>
 
   <logger name = "DBWriter" additivity = "false">

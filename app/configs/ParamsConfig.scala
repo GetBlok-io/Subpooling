@@ -39,10 +39,14 @@ class ParamsConfig(config: Configuration){
   val regenStatePool: String   = config.get[String]("params.regenStatePool")
   val groupStart: Int           = config.get[Int]("params.groupStart")
   val singularGroups: Boolean   = config.get[Boolean]("params.singularGroups")
+  val sendTransactions: Boolean = config.get[Boolean]("params.sendTxs")
+
+
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff
   AppParameters.defaultMiningPK = defaultPK
   AppParameters.numMinConfirmations = confirmationNum
   AppParameters.feeAddress = currentFeeAddress
   AppParameters.feePerc = currentFeePerc
+  AppParameters.sendTxs = sendTransactions
 }
