@@ -284,12 +284,14 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     }
 
     if(changeValue > 0) {
+      logger.info(s"Adding change value of ${changeValue} to outputs")
       val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
       val holdingBuilder = outB
         .value(Parameters.MinFee)
         .tokens(new ErgoToken(distributionTokenId, changeValue))
         .contract(new ErgoTreeContract(holdingAddress.getErgoAddress.script, holdingAddress.getNetworkType))
       holdingBuilders = holdingBuilders++Array(holdingBuilder)
+      logger.info("Change value made!")
     }
     new HoldingOutputBuilder(holdingBuilders)
   }
