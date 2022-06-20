@@ -269,6 +269,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
                 }
               }
+
+              if(stateUpdates.forall(_._2)){
+                logger.info("All spending txs defined, setting block to initiated")
+                db.run(Tables.PoolBlocksTable.filter(b => b.blockHeight === params.regenPlaceBlock.toLong).map(_.status).update(PoolBlock.INITIATED))
+              }
+
               logger.info(s"Completed placement regen for pool ${poolTag}")
             }else{
               logger.warn("Transaction was not defined!")
