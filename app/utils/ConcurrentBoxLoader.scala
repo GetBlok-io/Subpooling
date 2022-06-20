@@ -12,7 +12,7 @@ import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoToken, InputBox}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import org.slf4j.{Logger, LoggerFactory}
-import utils.ConcurrentBoxLoader.BlockSelection
+import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
 
 import java.util
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -31,29 +31,34 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 
   val logger: Logger = LoggerFactory.getLogger("ConcurrentBoxLoader")
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
+  final val BLOCK_BATCH_SIZE = 5
 
-
-  def selectBlocks(blocks: Seq[SPoolBlock], distinctOnly: Boolean): Seq[BlockSelection] = {
+  def selectBlocks(blocks: Seq[SPoolBlock], distinctOnly: Boolean): BatchSelection = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now selecting blocks with unique pool tags")
 
-    if(distinctOnly) {
-      val distinctBlocks = ArrayBuffer.empty[SPoolBlock]
-      for (block <- blocks.sortBy(b => b.gEpoch)) {
-        if (!distinctBlocks.exists(b => block.poolTag == b.poolTag)) {
-          logger.info(s"Unique pool tag ${block.poolTag} was added to selection!")
-          distinctBlocks += block
-        }
-      }
-      distinctBlocks.toSeq.take(params.pendingBlockNum)
-        .map(db => BlockSelection(db, Await.result((query ? QueryPoolInfo(db.poolTag)).mapTo[PoolInformation], timeout.duration)))
-    }else{
-      blocks.take(params.pendingBlockNum)
-        .map(pb => BlockSelection(pb, Await.result((query ? QueryPoolInfo(pb.poolTag)).mapTo[PoolInformation], timeout.duration)))
-    }
+//    if(distinctOnly) {
+//      val distinctBlocks = ArrayBuffer.empty[SPoolBlock]
+//      for (block <- blocks.sortBy(b => b.gEpoch)) {
+//        if (!distinctBlocks.exists(b => block.poolTag == b.poolTag)) {
+//          logger.info(s"Unique pool tag ${block.poolTag} was added to selection!")
+//          distinctBlocks += block
+//        }
+//      }
+//      distinctBlocks.toSeq.take(params.pendingBlockNum)
+//        .map(db => BlockSelection(db, Await.result((query ? QueryPoolInfo(db.poolTag)).mapTo[PoolInformation], timeout.duration)))
+//    }else{
+//      blocks.take(params.pendingBlockNum)
+//        .map(pb => BlockSelection(pb, Await.result((query ? QueryPoolInfo(pb.poolTag)).mapTo[PoolInformation], timeout.duration)))
+//    }
+    val blockHead = blocks.head
+    val poolBlocks = blocks.filter(_.poolTag == blockHead.poolTag).sortBy(_.gEpoch).take(5)
+    require(poolBlocks.size == BLOCK_BATCH_SIZE, s"Required batch size of ${BLOCK_BATCH_SIZE} was not met with selection of size ${poolBlocks.size}")
+    val poolInfo =  Await.result((query ? QueryPoolInfo(blockHead.poolTag)).mapTo[PoolInformation], timeout.duration)
+    BatchSelection(poolBlocks, poolInfo)
   }
-
+  @deprecated
   def makeBlockBoxMap(blockSelections: Seq[BlockSelection], collectedInputs: ArrayBuffer[InputBox], maxInputs: Long): Map[Long, Seq[InputBox]] = {
     var blockAmountMap = Map.empty[Long, Seq[InputBox]]
     for (blockSel <- blockSelections) {
@@ -118,4 +123,5 @@ object ConcurrentBoxLoader {
 
   case class PartialBlockSelection(block: SPoolBlock, poolTag: String)
   case class BlockSelection(block: SPoolBlock, poolInformation: PoolInformation)
+  case class BatchSelection(blocks: Seq[SPoolBlock], info: PoolInformation)
 }

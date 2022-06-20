@@ -16,7 +16,7 @@ import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import slick.jdbc.PostgresProfile
-import utils.ConcurrentBoxLoader.BlockSelection
+import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
 
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
@@ -37,7 +37,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).result)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with processed status")
-    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
     if(blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = true)
       val blockBoxMap = collectDistributionInputs(selectedBlocks)
@@ -139,112 +139,102 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     distResponse
   }
 
-  def constructDistComponents(blockSelections: Seq[BlockSelection]): Future[Seq[DistributionComponents]] = {
+  def constructDistComponents(batchSelection: BatchSelection): Future[DistributionComponents] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    val collectedComponents = blockSelections.map {
-      blockSel =>
-        val poolTag = blockSel.poolInformation.poolTag
-        val poolInfo = blockSel.poolInformation
-        val block = blockSel.block
-        val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
-        val fPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === block.blockheight).result)).mapTo[Seq[PoolPlacement]]
-        val futHeight   = (expReq ? GetCurrentHeight).mapTo[Int]
-        val initBlocks = Await.result((db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.INITIATED && b.poolTag === block.poolTag).result)), 100 seconds)
-        if(initBlocks.nonEmpty){
-          throw new Exception(s"There were initiated blocks that existed for pool ${poolTag}")
-        }
-        val distComponents = for{
-          states <- poolStateResp
-          placements <- fPlacements
-          height    <- futHeight
-        } yield {
+    val collectedComponents = {
+      val poolTag = batchSelection.info.poolTag
+      val poolInfo = batchSelection.info
+      val block = batchSelection.blocks.head
+      val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
+      val fPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === block.blockheight).result)).mapTo[Seq[PoolPlacement]]
+      val futHeight   = (expReq ? GetCurrentHeight).mapTo[Int]
+      val initBlocks = Await.result((db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.INITIATED && b.poolTag === block.poolTag).result)), 100 seconds)
+      require(initBlocks.isEmpty, s"Initiated batches already exist for pool ${poolTag}!")
+      val distComponents = for{
+        states <- poolStateResp
+        placements <- fPlacements
+        height    <- futHeight
+      } yield {
 
-          // TODO: Removed for right now, exercise caution
-          val gEpoch = poolInfo.g_epoch
+        // TODO: Removed for right now, exercise caution
+        val gEpoch = poolInfo.g_epoch
 
-          // TODO: Make these trys in order to prevent whole group failure when multiple groups from same pool are used
+        // TODO: Make these trys in order to prevent whole group failure when multiple groups from same pool are used
 
-          val constructDistResp = {
-            if(placements.isEmpty){
-              logger.error("Placements were empty for this block! Setting back to confirmed.")
-              db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
-            }
-            require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
-            logger.info(s"Construction distributions for block ${block.blockheight}")
-            logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
-            require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-            groupHandler ? ConstructDistribution(poolTag, states, placements, poolInfo, block)
+        val constructDistResp = {
+          if(placements.isEmpty){
+            logger.error("Placements were empty for this block! Setting back to confirmed.")
+            db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
           }
+          require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
+          logger.info(s"Construction distributions for block ${block.blockheight}")
+          logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
+          logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
+          logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
+          require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
+          groupHandler ? ConstructDistribution(poolTag, states, placements, poolInfo, block)
+        }
 
-          constructDistResp.map {
-            case constructionResponse: DistributionComponents =>
-              constructionResponse
-            case failedPlacements: FailedPlacements =>
-              logger.warn(s"Placements were failed for pool ${poolTag} at block ${failedPlacements.block.blockheight}")
-              if(params.autoConfirmGroups) {
-                val lastPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag).sortBy(_.block.desc).result.headOption))
-                  .mapTo[Option[PoolPlacement]]
-                lastPlacements.onComplete {
-                  case Success(optPlacement) =>
-                    optPlacement match {
-                      case Some(placed) =>
-                        if (placed.block == failedPlacements.block.blockheight) {
-                          logger.info("Last placement and failed placement are the same")
-                          if (height - placed.block > 100){
-                            logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
-                              "and setting blocks status to confirmed again!")
-                            db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
-                            db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-                              .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
-                          }else{
-                            logger.warn(s"Current height $height is not large enough to restart placements")
-                          }
-                        } else {
+        constructDistResp.map {
+          case constructionResponse: DistributionComponents =>
+            constructionResponse
+          case failedPlacements: FailedPlacements =>
+            logger.warn(s"Placements were failed for pool ${poolTag} at block ${failedPlacements.block.blockheight}")
+            if(params.autoConfirmGroups) {
+              val lastPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag).sortBy(_.block.desc).result.headOption))
+                .mapTo[Option[PoolPlacement]]
+              lastPlacements.onComplete {
+                case Success(optPlacement) =>
+                  optPlacement match {
+                    case Some(placed) =>
+                      if (placed.block == failedPlacements.block.blockheight) {
+                        logger.info("Last placement and failed placement are the same")
+                        if (height - placed.block > 100){
                           logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
                             "and setting blocks status to confirmed again!")
                           db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
                           db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
                             .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
+                        }else{
+                          logger.warn(s"Current height $height is not large enough to restart placements")
                         }
-                      case None =>
-                        logger.error("This path should never be executed, something went wrong!")
-                    }
+                      } else {
+                        logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
+                          "and setting blocks status to confirmed again!")
+                        db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
+                        db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
+                          .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
+                      }
+                    case None =>
+                      logger.error("This path should never be executed, something went wrong!")
+                  }
 
-                  case Failure(exception) =>
-                    logger.error("There was an error while attempting to get last placements. No changes will be made to the database",
-                      exception)
-                }
-              }else{
-                logger.warn("Failed placements were found, now setting block back to processing status to have DbCrossCheck re-evaluate")
-                db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-                  .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
+                case Failure(exception) =>
+                  logger.error("There was an error while attempting to get last placements. No changes will be made to the database",
+                    exception)
               }
-              logger.error("There was a fatal error during distribution due to invalid placements!")
-              throw new Exception("Placements failed!")
-            case _ =>
-              logger.error("There was a fatal error during Distribution Construction")
-              throw new Exception("An unexpected type was returned during Distribution Construction!")
-          }
+            }else{
+              logger.warn("Failed placements were found, now setting block back to processing status to have DbCrossCheck re-evaluate")
+              db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
+                .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
+            }
+            logger.error("There was a fatal error during distribution due to invalid placements!")
+            throw new Exception("Placements failed!")
+          case _ =>
+            logger.error("There was a fatal error during Distribution Construction")
+            throw new Exception("An unexpected type was returned during Distribution Construction!")
         }
-        distComponents.flatten
+      }
+      distComponents.flatten
     }
-    Future.sequence(collectedComponents)
+    collectedComponents
   }
 
 
-
-  // TODO: Current parallelized implementation works well for ensuring multiple groups are executed,
-  // TODO: But does not take into account that failure during box collection will cause a fatal error for all groups
-  // TODO: In the future, ensure failure of one group does not affect others
-  def collectDistributionInputs(blockSelections: Seq[BlockSelection]): Map[Long, Seq[InputBox]] = {
-    var blockBoxMap = Map.empty[Long, Seq[InputBox]]
-
-    for(blockSel <- blockSelections){
-      blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(DistributionRoot.getMaxInputs))
-    }
-
-    blockBoxMap
+  // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
+  def collectDistributionInputs(batchSelection: BatchSelection): Map[BatchSelection, Seq[InputBox]] = {
+    Map(batchSelection -> boxLoader.collectFromLoaded(DistributionRoot.getMaxInputs))
   }
 
 }
