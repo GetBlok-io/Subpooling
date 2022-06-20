@@ -8,6 +8,7 @@ import models.DatabaseModels.SPoolBlock
 import org.slf4j.LoggerFactory
 import persistence.{PoolSharesTable, Tables}
 import slick.jdbc.PostgresProfile
+import utils.ConcurrentBoxLoader.BatchSelection
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt

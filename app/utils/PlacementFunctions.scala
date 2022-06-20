@@ -20,7 +20,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import persistence.shares.{ShareCollector, ShareHandler}
 import slick.jdbc.PostgresProfile
-import utils.ConcurrentBoxLoader.BlockSelection
+import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
 
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
@@ -40,9 +40,9 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.CONFIRMED).sortBy(_.created).result)
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with confirmed status")
-    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
     if(blocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = !params.parallelPoolPlacements)
+      val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = true)
       val blockBoxMap = collectHoldingInputs(selectedBlocks)
       val holdingComponents = constructHoldingComponents(selectedBlocks)
 
@@ -124,68 +124,83 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     holdingResponse
   }
 
-  def constructHoldingComponents(blockSelections: Seq[BlockSelection]): Future[Seq[HoldingComponents]] = {
+  def constructHoldingComponents(batchSelection: BatchSelection): Future[HoldingComponents] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    val collectedComponents = blockSelections.map {
-      blockSel =>
-        val poolTag = blockSel.poolInformation.poolTag
-        val block = blockSel.block
-        logger.info(s"Now querying shares, pool states, and miner settings for block ${block.blockheight}" +
-          s" and pool ${block.poolTag}")
-        val shareHandler = getShareHandler(blockSel.block, blockSel.poolInformation)
-        val fCollector = {
-          if(blockSel.poolInformation.payment_type != PoolInformation.PAY_SOLO)
-            Future(shareHandler.queryToWindow(block, params.defaultPoolTag))
-          else {
-            logger.info(s"Performing SOLO query for block ${block.blockheight} with poolTag ${block.poolTag}" +
-              s" and miner ${block.miner}")
-            Future(shareHandler.queryForSOLO(block, params.defaultPoolTag))
+    val collectedComponents = {
+      val poolTag = batchSelection.info.poolTag
+      val block = batchSelection.blocks.head
+      logger.info(s"Now querying shares, pool states, and miner settings for block ${block.blockheight}" +
+        s" and pool ${block.poolTag}")
+      val shareHandler = getShareHandler(batchSelection.blocks.head, batchSelection.info)
+      val fCollectors = Future.sequence{
+        if(batchSelection.info.payment_type != PoolInformation.PAY_SOLO){
+          val collectors = for(shareBlock <- batchSelection.blocks) yield {
+            Future(shareHandler.queryToWindow(shareBlock, params.defaultPoolTag))
           }
+          collectors
         }
-        val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
-        val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
+        else {
+          logger.info(s"Performing SOLO query for block ${block.blockheight} with poolTag ${block.poolTag}" +
+            s" and miner ${block.miner}")
+          val collectors = for(shareBlock <- batchSelection.blocks) yield {
+            Future(shareHandler.queryForSOLO(shareBlock, params.defaultPoolTag))
+          }
+          collectors
+        }
+      }
 
-        val holdingComponents = for{
-          poolStates <- poolStateResp
-          minerSettings <- poolMinersResp
-          collector     <- fCollector
-        } yield modifyHoldingData(poolStates, minerSettings, collector, blockSel)
-        holdingComponents.flatten
+      val fCollector = fCollectors.map{
+        collectors =>
+          val merged = collectors.slice(1, collectors.length).foldLeft(collectors.head){
+            (head: ShareCollector, other: ShareCollector) =>
+              head.merge(other)
+          }
+          merged.avg(collectors.length)
+      }
+
+      val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
+      val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
+
+      val holdingComponents = for{
+        poolStates <- poolStateResp
+        minerSettings <- poolMinersResp
+        collector     <- fCollector
+      } yield modifyHoldingData(poolStates, minerSettings, collector, batchSelection)
+      holdingComponents.flatten
     }
-    Future.sequence(collectedComponents)
+    collectedComponents
   }
 
   // TODO: Current parallelized implementation works well for ensuring multiple groups are executed,
   // TODO: But does not take into account that failure during box collection will cause a fatal error for all groups
   // TODO: In the future, ensure failure of one group does not affect others
-  def collectHoldingInputs(blockSelections: Seq[BlockSelection]): Map[Long, Seq[InputBox]] = {
-    var blockBoxMap = Map.empty[Long, Seq[InputBox]]
+  def collectHoldingInputs(batch: BatchSelection): Map[BatchSelection, Seq[InputBox]] = {
+    var blockBoxMap = Map.empty[BatchSelection, Seq[InputBox]]
     // Make this a future
-    for(blockSel <- blockSelections) {
-      blockSel.poolInformation.currency match {
-        case PoolInformation.CURR_ERG =>
-          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(HoldingRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
-        case PoolInformation.CURR_TEST_TOKENS =>
-          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(EmissionRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
-        case PoolInformation.CURR_NETA =>
-          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(ExchangeEmissionsRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
-        case PoolInformation.CURR_ERG_COMET =>
-          blockBoxMap = blockBoxMap + (blockSel.block.blockheight -> boxLoader.collectFromLoaded(ProportionalEmissionsRoot.getMaxInputs(blockSel.block.getNanoErgReward)))
-      }
-
+    val batchSum = Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum)
+    batch.info.currency match {
+      case PoolInformation.CURR_ERG =>
+        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(HoldingRoot.getMaxInputs(batchSum)))
+      case PoolInformation.CURR_TEST_TOKENS =>
+        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(EmissionRoot.getMaxInputs(batchSum)))
+      case PoolInformation.CURR_NETA =>
+        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(ExchangeEmissionsRoot.getMaxInputs(batchSum)))
+      case PoolInformation.CURR_ERG_COMET =>
+        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(ProportionalEmissionsRoot.getMaxInputs(batchSum)))
     }
+
+
     blockBoxMap
   }
 
-  def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[SMinerSettings], collector: ShareCollector, blockSel: BlockSelection): Future[HoldingComponents] = {
+  def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection): Future[HoldingComponents] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
 
     //collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == ms.))
 
-    logger.info(s"Collector shareMap length: ${collector.shareMap.size}")
-    logger.info(s"shareMap: ${collector.shareMap.toString()}")
+    logger.info(s"Collector shareMap length: ${collector}")
     // TODO: Make pool flags (1) equal to share operator payment type
 
     // Collect new min payments for this placement
@@ -193,7 +208,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       m =>
         // Double wrap option to account for null values
         val minPay = Option(minerSettings.find(s => s.address == m.address.toString).map(_.paymentthreshold).getOrElse(0.01))
-        if(blockSel.poolInformation.payment_type != PoolInformation.PAY_SOLO){
+        if(batch.info.payment_type != PoolInformation.PAY_SOLO){
           m.copy( memberInfo =
           m.memberInfo.withMinPay(
             (minPay.getOrElse(0.01) * BigDecimal(Helpers.OneErg)).longValue()
@@ -204,21 +219,24 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
           )
         }
     }
-    val poolTag = blockSel.poolInformation.poolTag
-    val poolInformation = blockSel.poolInformation
+    val poolTag = batch.info.poolTag
+    val poolInformation = batch.info
+
     logger.info("Num members: " + members.length)
-    val lastPlacementResp = db.run(Tables.PoolPlacementsTable.filter(p => p.gEpoch === blockSel.block.gEpoch - 1 && p.subpool === poolTag).result)
+
+    // TODO
+    val lastPlacementResp = db.run(Tables.PoolPlacementsTable.filter(p => p.gEpoch === batch.blocks.head.gEpoch - 5 && p.subpool === poolTag).result)
       .mapTo[Seq[PoolPlacement]]
     lastPlacementResp.flatMap {
       placements =>
         if(placements.nonEmpty) {
-          logger.info(s"Last placements at gEpoch ${blockSel.block.gEpoch - 1} were found for pool ${poolTag}")
+          logger.info(s"Last placements at gEpoch ${batch.blocks.head.gEpoch - 1} were found for pool ${poolTag}")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
-            members, Some(placements), poolInformation, blockSel.block)).mapTo[HoldingComponents]
+            members, Some(placements), poolInformation, batch.blocks.head, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
         }else {
-          logger.warn(s"No last placement was found for pool ${poolTag} and block ${blockSel.block.blockheight} ")
+          logger.warn(s"No last placement was found for pool ${poolTag} and block ${batch.blocks.head} ")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
-            members, None, poolInformation, blockSel.block)).mapTo[HoldingComponents]
+            members, None, poolInformation, batch.blocks.head, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
         }
     }
   }

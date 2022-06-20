@@ -163,7 +163,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
               }
 
             case ConstructHolding(poolTag, poolStates: Seq[PoolState], membersWithInfo: Array[Member], optLastPlacements: Option[Seq[PoolPlacement]],
-            poolInformation, block) =>
+            poolInformation, block, reward) =>
               ergoClient.execute {
                 ctx =>
 
@@ -194,8 +194,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                     case PoolInformation.CURR_ERG =>
                       val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
-                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward))
-                      val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
+                      val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(reward))
+                      val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
                     case PoolInformation.CURR_TEST_TOKENS =>
@@ -209,8 +209,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                         .filter(i => i.getTokens.get(0).getId.toString == poolInformation.emissions_id).head
                       val emissionsBox = new EmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An emissions box was found! $emissionsBox")
-                      val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward, AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
-                      val builder = new HoldingBuilder(emissionsBox.emissionReward.value, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
+                      val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, reward, AppParameters.getBaseFees(reward), emissionsBox)
+                      val builder = new HoldingBuilder(emissionsBox.emissionReward.value, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
                     case PoolInformation.CURR_NETA =>
@@ -233,8 +233,8 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                       val emissionsBox = new ExchangeEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
-                      val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward,
-                        AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
+                      val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
+                        AppParameters.getBaseFees(reward), emissionsBox)
                       val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                     case PoolInformation.CURR_ERG_COMET =>
@@ -349,7 +349,8 @@ object GroupRequestHandler {
   case class ConstructDistribution(poolTag: String, poolStates: Seq[PoolState], placements: Seq[PoolPlacement],
                                    poolInformation: PoolInformation, block: SPoolBlock) extends GroupRequest
   case class ConstructHolding(poolTag: String, poolStates: Seq[PoolState], membersWithMinPay: Array[Member],
-                              optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, block: SPoolBlock) extends GroupRequest
+                              optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, block: SPoolBlock,
+                              reward: Long) extends GroupRequest
   // Responses
   case class DistributionResponse(nextMembers: Array[PoolMember], nextStates: Array[PoolState], block: SPoolBlock)
   case class HoldingResponse(nextPlacements: Array[PoolPlacement], block: SPoolBlock)

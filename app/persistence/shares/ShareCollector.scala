@@ -26,6 +26,37 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
     this
   }
 
+  def merge(collector: ShareCollector): ShareCollector = {
+    for(miner <- shareMap.keys){
+      if(collector.shareMap.contains(miner)) {
+        val currentStats = shareMap(miner)
+        val newStats = collector.shareMap(miner)
+        currentStats.shareScore = currentStats.shareScore + newStats.shareScore
+        currentStats.shareNum = currentStats.shareNum + newStats.shareNum
+        currentStats.iterations = currentStats.iterations + newStats.iterations
+        shareMap(miner) = currentStats
+      }
+    }
+
+    for(miner <- collector.shareMap.keys){
+      if(!shareMap.contains(miner)){
+        shareMap(miner) = collector.shareMap(miner)
+      }
+    }
+    this
+  }
+
+  def avg(numCollectors: Int): ShareCollector = {
+    for(miner <- shareMap.keys){
+      val currentStats = shareMap(miner)
+      currentStats.shareScore = currentStats.shareScore / numCollectors
+      currentStats.shareNum = currentStats.shareNum / numCollectors
+      currentStats.iterations = currentStats.iterations / numCollectors
+      shareMap(miner) = currentStats
+    }
+    this
+  }
+
   def toMembers: Array[Member] = {
     shareMap.retain((a, s) => Try(Address.create(a)).isSuccess)
     paymentType match {
