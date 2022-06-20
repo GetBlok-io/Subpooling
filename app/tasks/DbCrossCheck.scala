@@ -117,11 +117,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
     states.foreach{
       state =>
-        val optTx = currentTxs.find(t => t.outputs.map(o => o.id.toString).contains(state.box))
+        val optTx = currentTxs.find(t => t.outputs.exists(o => o.id.toString == state.box))
         if(optTx.isDefined) {
           val tx = optTx.get
-          val storedId = tx.outputs.find(o => o.id.toString == tx.inputs(2).id.toString).map(_.id.toString).getOrElse("none")
-          val storedVal = tx.outputs.find(o => o.id.toString == tx.inputs(2).id.toString).map(_.assets.head.amount).getOrElse(0L)
+          val storedId = tx.outputs.find(o => o.address.toString == tx.inputs(2).address.toString).map(_.id.toString).getOrElse("none")
+          val storedVal = tx.outputs.find(o => o.address.toString == tx.inputs(2).address.toString).map(_.assets.head.amount).getOrElse(0L)
           db.run(Tables.PoolStatesTable.filter(s => s.subpool_id === state.subpool_id && s.subpool === state.subpool)
             .map(s => s.storedId -> s.storedVal).update(storedId -> storedVal))
           logger.info(s"Updated state ${state.subpool_id} with stored id ${storedId} and val ${storedVal}")
