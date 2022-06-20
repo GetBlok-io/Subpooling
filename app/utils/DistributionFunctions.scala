@@ -35,9 +35,11 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now querying processed blocks for distribution")
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).result)
+
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with processed status")
-    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds).take(params.pendingBlockNum * 2)
+    val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
+
     if(blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = true)
       val blockBoxMap = collectDistributionInputs(selectedBlocks)
