@@ -45,15 +45,15 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
 
       collectedComponents.onComplete {
         case Success(components) =>
-          val executions = Future.sequence(components.map {
-            dc =>
-              val inputBoxes = blockBoxMap(dc.block.blockheight)
-              dc.builder.inputBoxes = Some(inputBoxes)
-              logger.info("Now sending dist req")
-              val distResponse = (groupHandler ? ExecuteDistribution(dc, dc.block)).mapTo[DistributionResponse]
-              logger.info("Waiting to eval dist response")
-              evalDistributionResponse(distResponse)
-          })
+          val executions = {
+
+            val inputBoxes = blockBoxMap(selectedBlocks)
+            components.builder.inputBoxes = Some(inputBoxes)
+            logger.info("Now sending dist req")
+            val distResponse = (groupHandler ? ExecuteDistribution(components, components.block)).mapTo[DistributionResponse]
+            logger.info("Waiting to eval dist response")
+            evalDistributionResponse(distResponse)
+          }
 
         case Failure(exception) =>
           logger.error("There was an error collecting distribution components!", exception)
