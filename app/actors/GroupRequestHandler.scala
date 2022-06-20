@@ -21,6 +21,7 @@ import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoClientException, ErgoId, ErgoToken, InputBox, NetworkType, Parameters, RestApiErgoClient}
 import play.api.libs.json.Json
 import play.api.{Configuration, Logger}
+import utils.ConcurrentBoxLoader.BatchSelection
 import utils.EmissionTemplates
 
 import javax.inject.Inject
@@ -79,16 +80,16 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
             case ExecuteHolding(holdingComponents) =>
               ergoClient.execute {
                 ctx =>
-                  logger.info(s"Executing holding group for ${holdingComponents.poolTag} for block ${holdingComponents.block.blockheight}")
+                  logger.info(s"Executing holding group for ${holdingComponents.poolTag} for blocks ${holdingComponents.batchSelection.blocks.toString()}")
                   val groupManager = holdingComponents.manager
                   val group = holdingComponents.group
 
                   groupManager.initiate()
 
                   if (groupManager.isSuccess) {
-                    sender ! HoldingResponse(group.poolPlacements.map(_.copy(g_epoch = holdingComponents.block.gEpoch)).toArray, holdingComponents.block)
+                    sender ! HoldingResponse(group.poolPlacements.map(_.copy(g_epoch = holdingComponents.batchSelection.blocks.head.gEpoch)).toArray, holdingComponents.batchSelection)
                   } else {
-                    sender ! HoldingResponse(Array(), holdingComponents.block)
+                    sender ! HoldingResponse(Array(), holdingComponents.batchSelection)
                   }
               }
             case ConstructDistribution(poolTag, poolStates, placements, poolInformation, block) =>
@@ -163,7 +164,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
               }
 
             case ConstructHolding(poolTag, poolStates: Seq[PoolState], membersWithInfo: Array[Member], optLastPlacements: Option[Seq[PoolPlacement]],
-            poolInformation, block, reward) =>
+            poolInformation, batchSelection, reward) =>
               ergoClient.execute {
                 ctx =>
 
@@ -171,20 +172,20 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                   val holdingSetup = {
                     if (optLastPlacements.isDefined) {
                       if (optLastPlacements.get.nonEmpty) {
-                        if (optLastPlacements.get.head.block < block.blockheight) {
-                          setupHolding(poolTag, poolStates, membersWithInfo, optLastPlacements, block)
+                        if (optLastPlacements.get.head.block < batchSelection.blocks.head.blockheight) {
+                          setupHolding(poolTag, poolStates, membersWithInfo, optLastPlacements, batchSelection.blocks.head)
                         } else {
                           logger.warn("Last placements block was >= current block used for placements")
                           logger.warn("Now setting up placements using blockchain data")
-                          setupHolding(poolTag, poolStates, membersWithInfo, None, block)
+                          setupHolding(poolTag, poolStates, membersWithInfo, None, batchSelection.blocks.head)
                         }
                       } else {
                         logger.warn("Last placements were empty!, using blockchain data to construct holding")
-                        setupHolding(poolTag, poolStates, membersWithInfo, None, block)
+                        setupHolding(poolTag, poolStates, membersWithInfo, None, batchSelection.blocks.head)
                       }
                     } else {
                       logger.info("Last placements were not found, using blockchain data to construct holding")
-                      setupHolding(poolTag, poolStates, membersWithInfo, None, block)
+                      setupHolding(poolTag, poolStates, membersWithInfo, None, batchSelection.blocks.head)
                     }
                   }
                   val modifiedPool = holdingSetup.modifiedPool
@@ -235,7 +236,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
                       val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
                         AppParameters.getBaseFees(reward), emissionsBox)
-                      val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
+                      val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                     case PoolInformation.CURR_ERG_COMET =>
                       logger.info("Using ERG+COMET tokens for currency!")
@@ -249,17 +250,17 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                         .filter(i => i.getTokens.get(0).getId.toString == poolInformation.emissions_id).head
                       val emissionsBox = new ProportionalEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
-                      val root = new ProportionalEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, block.getNanoErgReward,
-                        AppParameters.getBaseFees(block.getNanoErgReward), emissionsBox)
-                      val builder = new HoldingBuilder(block.getNanoErgReward, holdingContract, AppParameters.getBaseFees(block.getNanoErgReward), root)
+                      val root = new ProportionalEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
+                        AppParameters.getBaseFees(reward), emissionsBox)
+                      val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                   }
 
                   val standard = new StandardSelector(modifiedMembers,
                     SelectionParameters(-Math.abs(poolInformation.epoch_kick), Math.min(Math.abs(poolInformation.max_members), 10)))
-                  val group = new HoldingGroup(modifiedPool, ctx, wallet, block.blockheight, currencyComponents.holdingContract)
+                  val group = new HoldingGroup(modifiedPool, ctx, wallet, batchSelection.blocks.head.blockheight, currencyComponents.holdingContract)
                   val groupManager = new GroupManager(group, currencyComponents.builder, standard)
-                  sender ! HoldingComponents(groupManager, standard, currencyComponents.builder, currencyComponents.root, group, poolTag, block)
+                  sender ! HoldingComponents(groupManager, standard, currencyComponents.builder, currencyComponents.root, group, poolTag, batchSelection)
               }
           }
         }.recoverWith{
@@ -349,11 +350,11 @@ object GroupRequestHandler {
   case class ConstructDistribution(poolTag: String, poolStates: Seq[PoolState], placements: Seq[PoolPlacement],
                                    poolInformation: PoolInformation, block: SPoolBlock) extends GroupRequest
   case class ConstructHolding(poolTag: String, poolStates: Seq[PoolState], membersWithMinPay: Array[Member],
-                              optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, block: SPoolBlock,
+                              optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, batchSelection: BatchSelection,
                               reward: Long) extends GroupRequest
   // Responses
   case class DistributionResponse(nextMembers: Array[PoolMember], nextStates: Array[PoolState], block: SPoolBlock)
-  case class HoldingResponse(nextPlacements: Array[PoolPlacement], block: SPoolBlock)
+  case class HoldingResponse(nextPlacements: Array[PoolPlacement], batchSelection: BatchSelection)
 
   case class HoldingSetup(modifiedPool: Pool, modifiedMembers: Array[Member])
   class GroupComponents(manager: GroupManager, selector: GroupSelector, builder: GroupBuilder, group: TransactionGroup, poolTag: String)
@@ -365,7 +366,7 @@ object GroupRequestHandler {
   case class FailedPlacements(block: SPoolBlock)
 
   case class HoldingComponents(manager: GroupManager, selector: StandardSelector, builder: HoldingBuilder, root: TransactionStage[InputBox],
-                               group: HoldingGroup, poolTag: String, block: SPoolBlock) extends GroupComponents(manager, selector, builder, group, poolTag)
+                               group: HoldingGroup, poolTag: String, batchSelection: BatchSelection) extends GroupComponents(manager, selector, builder, group, poolTag)
 
   case class PoolParameters(poolCurrency: String, poolTokenId: String, poolTokenBox: InputBox)
 

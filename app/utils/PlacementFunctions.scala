@@ -48,40 +48,39 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
 
       holdingComponents.onComplete {
         case Success(components) =>
-          val executions = components.map {
-            holdingComp =>
-              val inputBoxes = blockBoxMap(holdingComp.block.blockheight)
+          val executions = {
+            val inputBoxes = blockBoxMap(components.batchSelection.blocks.head.blockheight)
 
-              logger.info(s"Using input boxes with values: ${inputBoxes.map(b => b.getValue.toLong).mkString}")
-              holdingComp.root match {
-                case root: HoldingRoot =>
-                  root.inputBoxes = Some(inputBoxes)
-                case root: EmissionRoot =>
-                  root.inputBoxes = Some(inputBoxes)
-                case root: ExchangeEmissionsRoot =>
-                  root.inputBoxes = Some(inputBoxes)
-                  // TODO: Find generalized solution
-                  val lpBoxes = Await.result((expReq ? BoxesByTokenId(EmissionTemplates.NETA_MAINNET.lpNFT, 0, 100))
-                    .mapTo[Option[Seq[Output]]], 1000 seconds)
+            logger.info(s"Using input boxes with values: ${inputBoxes.map(b => b.getValue.toLong).mkString}")
+            components.root match {
+              case root: HoldingRoot =>
+                root.inputBoxes = Some(inputBoxes)
+              case root: EmissionRoot =>
+                root.inputBoxes = Some(inputBoxes)
+              case root: ExchangeEmissionsRoot =>
+                root.inputBoxes = Some(inputBoxes)
+                // TODO: Find generalized solution
+                val lpBoxes = Await.result((expReq ? BoxesByTokenId(EmissionTemplates.NETA_MAINNET.lpNFT, 0, 100))
+                  .mapTo[Option[Seq[Output]]], 1000 seconds)
 
-                  logger.info("Finished getting lpBoxes!")
-                  val boxToUse = lpBoxes.get.filter(l => l.isOnMainChain && l.spendingTxId.isEmpty).head
-                  logger.info(s"Using lpBox with id ${boxToUse.id}")
-                  root.lpBoxId = Some(boxToUse.id)
-                case root: ProportionalEmissionsRoot =>
-                  root.inputBoxes = Some(inputBoxes)
-              }
-              holdingComp.builder.inputBoxes = Some(inputBoxes)
-              val holdResponse = (groupHandler ? ExecuteHolding(holdingComp)).mapTo[HoldingResponse]
-              evalHoldingResponse(holdResponse)
-          }
+                logger.info("Finished getting lpBoxes!")
+                val boxToUse = lpBoxes.get.filter(l => l.isOnMainChain && l.spendingTxId.isEmpty).head
+                logger.info(s"Using lpBox with id ${boxToUse.id}")
+                root.lpBoxId = Some(boxToUse.id)
+              case root: ProportionalEmissionsRoot =>
+                root.inputBoxes = Some(inputBoxes)
+            }
+            components.builder.inputBoxes = Some(inputBoxes)
+            val holdResponse = (groupHandler ? ExecuteHolding(components)).mapTo[HoldingResponse]
+            evalHoldingResponse(holdResponse)
+        }
 
-          val allComplete = Future.sequence(executions)
+          val allComplete = executions
           allComplete.onComplete{
             case Success(value) =>
               logger.info("All placement executions completed!")
             case Failure(exception) =>
-              logger.warn("Placement executions failed!")
+              logger.warn("Placement executions failed!", exception)
           }
         case Failure(exception) =>
           logger.error("There was an error collecting holding components!", exception)
@@ -97,9 +96,12 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     holdingResponse.onComplete{
       case Success(response) =>
         if(response.nextPlacements.nonEmpty) {
-          logger.info(s"Holding execution was success for block ${response.block.blockheight} and pool ${response.nextPlacements.head}")
-          logger.info("Now updating block to processing status and inserting placements into placements table")
-          val blockUpdate = (db.run(Tables.PoolBlocksTable.filter(_.blockHeight === response.block.blockheight).map(b => b.status -> b.updated)
+          logger.info(s"Holding execution was success for batch starting with ${response.batchSelection.blocks.head.blockheight} and pool ${response.nextPlacements.head}")
+          logger.info("Now updating batched blocks to processing status and inserting placements into placements table")
+          val blockUpdate = (db.run(Tables.PoolBlocksTable
+            .filter(_.gEpoch >= response.batchSelection.blocks.head.gEpoch)
+            .filter(_.gEpoch <= response.batchSelection.blocks.last.gEpoch)
+            .map(b => b.status -> b.updated)
             .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
 
           val placeInsertion = db.run(Tables.PoolPlacementsTable ++= response.nextPlacements.toSeq)
@@ -108,9 +110,9 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
             placeRowsInserted <- placeInsertion
           } yield {
             if(blockRowsUpdated > 0)
-              logger.info(s"${blockRowsUpdated} rows were updated for block ${response.block.blockheight}")
+              logger.info(s"${blockRowsUpdated} rows were updated for ${response.batchSelection.blocks.length} blocks")
             else
-              logger.error(s"No rows were updated for block ${response.block.blockheight}!")
+              logger.error(s"No rows were updated for ${response.batchSelection.blocks.length} blocks!")
             if(placeRowsInserted.getOrElse(0) > 0)
               logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${response.nextPlacements.head.subpool}")
             else
@@ -175,19 +177,19 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   // TODO: Current parallelized implementation works well for ensuring multiple groups are executed,
   // TODO: But does not take into account that failure during box collection will cause a fatal error for all groups
   // TODO: In the future, ensure failure of one group does not affect others
-  def collectHoldingInputs(batch: BatchSelection): Map[BatchSelection, Seq[InputBox]] = {
-    var blockBoxMap = Map.empty[BatchSelection, Seq[InputBox]]
+  def collectHoldingInputs(batch: BatchSelection): Map[Long, Seq[InputBox]] = {
+    var blockBoxMap = Map.empty[Long, Seq[InputBox]]
     // Make this a future
     val batchSum = Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum)
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
-        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(HoldingRoot.getMaxInputs(batchSum)))
+        blockBoxMap = blockBoxMap + (batch.blocks.head.blockheight -> boxLoader.collectFromLoaded(HoldingRoot.getMaxInputs(batchSum)))
       case PoolInformation.CURR_TEST_TOKENS =>
-        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(EmissionRoot.getMaxInputs(batchSum)))
+        blockBoxMap = blockBoxMap + (batch.blocks.head.blockheight -> boxLoader.collectFromLoaded(EmissionRoot.getMaxInputs(batchSum)))
       case PoolInformation.CURR_NETA =>
-        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(ExchangeEmissionsRoot.getMaxInputs(batchSum)))
+        blockBoxMap = blockBoxMap + (batch.blocks.head.blockheight -> boxLoader.collectFromLoaded(ExchangeEmissionsRoot.getMaxInputs(batchSum)))
       case PoolInformation.CURR_ERG_COMET =>
-        blockBoxMap = blockBoxMap + (batch -> boxLoader.collectFromLoaded(ProportionalEmissionsRoot.getMaxInputs(batchSum)))
+        blockBoxMap = blockBoxMap + (batch.blocks.head.blockheight -> boxLoader.collectFromLoaded(ProportionalEmissionsRoot.getMaxInputs(batchSum)))
     }
 
 
@@ -232,11 +234,11 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         if(placements.nonEmpty) {
           logger.info(s"Last placements at gEpoch ${batch.blocks.head.gEpoch - 1} were found for pool ${poolTag}")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
-            members, Some(placements), poolInformation, batch.blocks.head, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
+            members, Some(placements), poolInformation, batch, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
         }else {
           logger.warn(s"No last placement was found for pool ${poolTag} and block ${batch.blocks.head} ")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
-            members, None, poolInformation, batch.blocks.head, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
+            members, None, poolInformation, batch, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
         }
     }
   }
