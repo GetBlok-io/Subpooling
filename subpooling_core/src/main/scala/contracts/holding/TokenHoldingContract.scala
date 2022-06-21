@@ -205,7 +205,10 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
         if(lastConsensus.dist.exists(sc => consVal._1 == sc._1)){
           val lastConsValues = lastConsensus.filter(sc => consVal._1 == sc._1).head._2
           val lastStoredPayout = lastConsValues.getStored
-
+          logger.info(s"Last stored payout: ${lastStoredPayout}")
+          logger.info(s"Value from shares: ${valueFromShares}")
+          logger.info(s"Total sum: ${lastStoredPayout + valueFromShares}")
+          logger.info(s"Is greater than minPay? ${(lastStoredPayout + valueFromShares) >= currentMinPayout}")
           if(lastStoredPayout + valueFromShares >= currentMinPayout) {
 
             (consVal._1, lastStoredPayout + valueFromShares)
