@@ -135,10 +135,12 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       val block = batchSelection.blocks.head
       logger.info(s"Now querying shares, pool states, and miner settings for block ${block.blockheight}" +
         s" and pool ${block.poolTag}")
-      val shareHandler = getShareHandler(batchSelection.blocks.head, batchSelection.info)
+
       val fCollectors = Future.sequence{
+
         if(batchSelection.info.payment_type != PoolInformation.PAY_SOLO){
           val collectors = for(shareBlock <- batchSelection.blocks) yield {
+            val shareHandler = getShareHandler(shareBlock, batchSelection.info)
             Future(shareHandler.queryToWindow(shareBlock, params.defaultPoolTag))
           }
           collectors
@@ -146,6 +148,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         else {
           logger.info(s"Performing SOLO query for block ${block.blockheight} with poolTag ${block.poolTag}" +
             s" and miner ${block.miner}")
+          val shareHandler = getShareHandler(block, batchSelection.info)
           val collectors = Seq(Future(shareHandler.queryForSOLO(batchSelection.blocks.head, params.defaultPoolTag)))
           collectors
         }

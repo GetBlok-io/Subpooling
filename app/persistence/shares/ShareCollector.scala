@@ -29,6 +29,17 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
   def merge(collector: ShareCollector): ShareCollector = {
     var mergeCount = 0L
     log.info("Now merging together intersected miners")
+    log.info(s"Total of ${shareMap.size} miners in original map")
+    log.info(s"Total of ${collector.shareMap.size} in map to merge")
+
+    val differenceOne = shareMap.keys.toSeq.diff(collector.shareMap.keys.toSeq)
+    val differenceTwo = collector.shareMap.keys.toSeq.diff(shareMap.keys.toSeq)
+
+    log.info(s"Total of difference between original map and merge map: ${differenceOne.size}")
+    log.info(s"Total of difference between merge map and original map: ${differenceTwo}")
+    log.info(differenceOne.mkString("(", ", ", ")"))
+    log.info(differenceTwo.mkString("(", ", ", ")"))
+
     for(miner <- shareMap.keys){
       if(collector.shareMap.contains(miner)) {
         val currentStats = shareMap(miner)
@@ -40,6 +51,7 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
         mergeCount = mergeCount + 1
       }
     }
+
     log.info(s"A total of ${mergeCount} miners had stats merged into one another")
     var newCount = 0
     log.info("Now adding new miners")
@@ -50,6 +62,7 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
       }
     }
     log.info(s"Added a total ${newCount} new miners")
+
     this
   }
 
