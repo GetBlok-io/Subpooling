@@ -147,7 +147,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
 
                     val selector = new LoadingSelector(placements.toArray)
                     val builder = new DistributionBuilder(holdingMap, storageMap, sendTxs = AppParameters.sendTxs)
-                    val group = new DistributionGroup(pool, ctx, wallet, commandContract, holdingContract, tokenName)
+                    val group = new DistributionGroup(pool, ctx, wallet, commandContract, holdingContract, tokenName, sendTxs = AppParameters.sendTxs)
 
                     val groupManager = new GroupManager(group, builder, selector)
                     sender ! DistributionComponents(groupManager, selector, builder, group, poolTag, block, placedStates)
