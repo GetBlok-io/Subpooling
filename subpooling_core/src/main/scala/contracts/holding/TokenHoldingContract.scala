@@ -123,8 +123,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     lastDistribution.dist.foreach{
        ld =>
         if(ld._2.getStored > 0 && !nextConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
-          nextConsensus = nextConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
-            .withStored(0L))
+          nextConsensus = nextConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withEpochs(-1))
         }
     }
 
