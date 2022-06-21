@@ -604,9 +604,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           db.run(Tables.PoolBlocksTable
             .filter(_.poolTag === blocks.head.poolTag)
             .filter(_.gEpoch >= blocks.head.gEpoch)
-            .filter(_.gEpoch <= blocks.last.gEpoch)
+            .filter(_.gEpoch <= blocks.last.gEpoch + 1)
             .map(b => b.status -> b.updated)
-            .update(PoolBlock.PAID -> LocalDateTime.now()))
+            .update(PoolBlock.PROCESSED -> LocalDateTime.now()))
 
         }
         logger.info("Pool state modifications complete")
