@@ -117,7 +117,14 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 //          false
     }
     val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
-    val nextConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get)
+    var nextConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get)
+    lastDistribution.dist.foreach{
+      ld =>
+        if(ld._2.getStored > 0 && !nextConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
+          nextConsensus = nextConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
+            .withStored(0L).withEpochs(-1))
+        }
+    }
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
     logger.info(s"Distinct consensus length: ${distinctConsensus.size}")
     logger.info(s"Next consensus length: ${nextConsensus.size}")
