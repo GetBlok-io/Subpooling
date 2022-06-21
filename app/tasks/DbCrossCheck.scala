@@ -375,7 +375,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   logger.warn(s"It has been ${params.restartPlacements.toString()} since block was updated," +
                     s" now restarting placements for pool ${blocks.head.poolTag}")
                   write ! DeletePlacementsAtBlock(blocks.head.poolTag, blocks.head.blockheight)
-
+                  db.run(Tables.PoolBlocksTable
+                    .filter(b => b.poolTag === blocks.head.poolTag)
+                    .filter(b => b.gEpoch >= blocks.head.gEpoch && b.gEpoch <= blocks.last.gEpoch)
+                    .map(b => b.status -> b.updated)
+                    .update(PoolBlock.CONFIRMED, LocalDateTime.now()))
                 } else {
                   logger.warn("ExplorerReqBus returned no Output, but restartPlacements time has not passed for this block!")
                 }
