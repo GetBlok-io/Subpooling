@@ -99,8 +99,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     lastDistribution.dist.foreach{
       ld =>
         if(ld._2.getStored > 0 && !updatedConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
-          updatedConsensus = updatedConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
-            .withEpochs(-1)
+          updatedConsensus = updatedConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong)
             .withStored(0L))
         }
     }
