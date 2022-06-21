@@ -61,7 +61,16 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
     logger.info("Now updating consensus")
     var shareScoreLeft = 0L
-    var updatedConsensus = currentDistribution.dist.map{
+    var updatedConsensus = currentDistribution.dist
+    lastDistribution.dist.foreach{
+      ld =>
+        if(ld._2.getStored > 0 && !updatedConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
+          updatedConsensus = updatedConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
+            .withStored(0L).withEpochs(-1))
+        }
+    }
+
+    updatedConsensus = updatedConsensus.map{
       consVal =>
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
@@ -117,18 +126,12 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 //          false
     }
     val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
-    var nextConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get)
-    lastDistribution.dist.foreach{
-      ld =>
-        if(ld._2.getStored > 0 && !nextConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
-          nextConsensus = nextConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
-            .withStored(0L).withEpochs(-1))
-        }
-    }
+    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
+
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
     logger.info(s"Distinct consensus length: ${distinctConsensus.size}")
-    logger.info(s"Next consensus length: ${nextConsensus.size}")
-    val newShareDistribution = new ShareDistribution(nextConsensus.toMap)
+  //  logger.info(s"Next consensus length: ${nextConsensus.size}")
+    val newShareDistribution = new ShareDistribution(updatedConsensus.toMap)
     val newMetadataRegisters = commandTx.cOB.metadataRegisters.copy(shareDist = newShareDistribution)
 
     commandTx.cOB.setMetadata(newMetadataRegisters)

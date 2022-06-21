@@ -13,10 +13,10 @@ class PoolSharesTable(tag: Tag) extends Table[Share](tag, "shares") {
   def difficulty        = column[Double]("difficulty")
   def networkDifficulty = column[Double]("networkdifficulty")
   def miner             = column[String]("miner")
-  def worker            = column[String]("worker")
-  def userAgent         = column[String]("useragent")
+  def worker            = column[Option[String]]("worker")
+  def userAgent         = column[Option[String]]("useragent")
   def ipAddress         = column[String]("ipaddress")
-  def source            = column[String]("source")
+  def source            = column[Option[String]]("source")
   def created           = column[LocalDateTime]("created")
   def *                 = (poolId, blockHeight, miner, worker, difficulty, networkDifficulty,
     userAgent, ipAddress, source, created) <> (Share.tupled, Share.unapply)

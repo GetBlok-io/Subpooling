@@ -37,6 +37,14 @@ object Models {
         Some(effort)
     }
 
+    protected def strOpt(idx: Int)(implicit rs: ResultSet): Option[String] = {
+      val str = rs.getString(idx)
+      if(rs.wasNull())
+        None
+      else
+        Some(str)
+    }
+
     protected def int(idx: Int)(implicit rs: ResultSet): Int = {
       rs.getInt(idx)
     }
@@ -208,14 +216,14 @@ object Models {
 
 
 
-  case class Share(poolid: String, blockheight: Long, miner: String, worker: String, difficulty: Double, networkdifficulty: Double,
-                   useragent: String, ipaddress: String, source: String, created: LocalDateTime)
+  case class Share(poolid: String, blockheight: Long, miner: String, worker: Option[String], difficulty: Double, networkdifficulty: Double,
+                   useragent: Option[String], ipaddress: String, source: Option[String], created: LocalDateTime)
 
-  object Share extends DatabaseConversion[Share] with ((String, Long, String, String, Double, Double,
-    String, String, String, LocalDateTime) => Share) {
+  object Share extends DatabaseConversion[Share] with ((String, Long, String,  Option[String], Double, Double,
+    Option[String], String,  Option[String], LocalDateTime) => Share) {
     override def fromResultSet(rs: ResultSet): Share = {
       implicit val resultSet: ResultSet = rs
-      Share(str(1), long(2), str(5), str(6), dec(3), dec(4),str(7), str(8), str(9), date(10))
+      Share(str(1), long(2), str(5), strOpt(6), dec(3), dec(4),strOpt(7), str(8), strOpt(9), date(10))
     }
   }
   case class PartialShare(miner: String, diff: Double, netDiff: Double, poolTag: Option[String])
