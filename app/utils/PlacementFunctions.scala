@@ -240,7 +240,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     lastPlacementResp.flatMap {
       placements =>
         if(placements.nonEmpty) {
-          logger.info(s"Last placements at gEpoch ${batch.blocks.head.gEpoch - 1} were found for pool ${poolTag}")
+          logger.info(s"Last placements at gEpoch ${batch.blocks.head.gEpoch - 5} were found for pool ${poolTag}")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
             members, Some(placements), poolInformation, batch, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))).mapTo[HoldingComponents]
         }else {
