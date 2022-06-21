@@ -53,7 +53,7 @@ class StandardSelector(val members: Array[Member], selectionParams: SelectionPar
       var distMap = subPool.nextDist.dist
       for (oldMember <- subPool.members) {
 
-        if (members.exists(m => m.address == oldMember.address && oldMember.shareScore == 0 && oldMember.storedPay > 0)) {
+        if (members.exists(m => m.address == oldMember.address && oldMember.storedPay > 0)) {
           val lostMember = members.find(m => m.address == oldMember.address).get
 
           // If member was mining last epoch, set to 0, otherwise decrement number into negatives

@@ -61,7 +61,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
 
     var shareScoreLeft = 0L
-    val updatedConsensus = currentDistribution.dist.map{
+    var updatedConsensus = currentDistribution.dist.map{
       consVal =>
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
@@ -95,6 +95,14 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
         logger.info(s"Owed Payment: $owedPayment")
         val newConsensusInfo = consVal._2.withStored(owedPayment)
         (consVal._1, newConsensusInfo)
+    }
+    lastDistribution.dist.foreach{
+      ld =>
+        if(ld._2.getStored > 0 && !updatedConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
+          updatedConsensus = updatedConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
+            .withEpochs(-1)
+            .withStored(0L))
+        }
     }
     val newShareDistribution = new ShareDistribution(updatedConsensus)
     val newMetadataRegisters = commandTx.cOB.metadataRegisters.copy(shareDist = newShareDistribution)
