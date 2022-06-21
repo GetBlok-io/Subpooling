@@ -40,7 +40,15 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     }
 
     val currentPoolFees = metadataBox.getPoolFees
-    val currentTxFee = Parameters.MinFee * currentDistribution.size
+    var nextDistribution = currentDistribution.dist
+    lastDistribution.dist.foreach{
+      ld =>
+        if(ld._2.getStored > 0 && !nextDistribution.exists(c => c._1.address.toString == ld._1.address.toString)){
+          nextDistribution = nextDistribution ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong)
+            .withStored(0L))
+        }
+    }
+    val currentTxFee = Parameters.MinFee * nextDistribution.size
 
     val totalOwedPayouts =
       lastDistribution.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
@@ -53,15 +61,16 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
         val feeNoDust: Long = BoxHelpers.removeDust(feeAmount)
         (poolFee._1 , feeNoDust)
     }
+
     // Total amount in holding after pool fees and tx fees.
     // This is the total amount of ERG to be distributed to pool members
     val totalValAfterFees = (feeList.toArray.foldLeft(totalRewards){
       (accum, poolFeeVal) => accum - poolFeeVal._2
     })- currentTxFee
-    val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
+    val totalShares = nextDistribution.map(d => d._2.getScore).sum
 
     var shareScoreLeft = 0L
-    val updatedConsensus = currentDistribution.dist.map{
+    val updatedConsensus = nextDistribution.map{
       consVal =>
         val shareNum = consVal._2.getScore
         var currentMinPayout = consVal._2.getMinPay
