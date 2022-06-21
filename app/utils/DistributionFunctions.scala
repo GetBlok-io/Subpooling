@@ -142,7 +142,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
               }else{
                 db.run(Tables.PoolBlocksTable
                   .filter(b => b.poolTag === dr.block.poolTag)
-                  .filter(b => b.gEpoch >= dr.block.gEpoch && b.gEpoch <= dr.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
+                  .filter(b => b.gEpoch >= dr.block.gEpoch && b.gEpoch < dr.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
                   .map(b => b.status -> b.updated)
                   .update(PoolBlock.INITIATED -> LocalDateTime.now()))
                 logger.info(s"Finished updating blocks ${dr.block.blockheight} with epoch ${dr.block.gEpoch} and its next 4 epochs for pool" +
@@ -239,7 +239,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
               logger.warn("Failed placements were found, now setting block back to processing status to have DbCrossCheck re-evaluate")
 //              db.run(Tables.PoolBlocksTable
 //                .filter(b => b.poolTag === failedPlacements.block.poolTag)
-//                .filter(b => b.gEpoch >= failedPlacements.block.gEpoch && b.gEpoch <= failedPlacements.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE).map(b => b.status -> b.updated)
+//                .filter(b => b.gEpoch >= failedPlacements.block.gEpoch && b.gEpoch < failedPlacements.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE).map(b => b.status -> b.updated)
 //                .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
             }
             logger.error("There was a fatal error during distribution due to invalid placements!")

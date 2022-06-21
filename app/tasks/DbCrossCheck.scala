@@ -601,7 +601,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
         if(newStates.exists(s => s.status == PoolState.FAILURE) || poolStates.exists(s => s.status == PoolState.FAILURE)){
           logger.info("Now setting block back to processed state due to existence of failures")
-          write ! UpdatePoolBlockStatus(PoolBlock.PROCESSED, blocks.head.blockheight)
+          db.run(Tables.PoolBlocksTable
+            .filter(_.poolTag === blocks.head.poolTag)
+            .filter(_.gEpoch >= blocks.head.gEpoch)
+            .filter(_.gEpoch <= blocks.last.gEpoch)
+            .map(b => b.status -> b.updated)
+            .update(PoolBlock.PAID -> LocalDateTime.now()))
 
         }
         logger.info("Pool state modifications complete")
