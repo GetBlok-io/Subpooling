@@ -143,7 +143,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
     var txFee = (commandInputBox.getValue + commandInputBox.shareDistribution.size * Parameters.MinFee)
     if(_tokenToDistribute != null){
       // Ensure there is enough ERG for change box when a token is being distributed
-      txFee = commandInputBox.getValue - Parameters.MinFee * 2
+      txFee = commandInputBox.getValue - Parameters.MinFee
     }
 
     val outputBoxes = List(metadataOutBox.asOutBox)++(holdingOutputs.map(h => h.asOutBox))
