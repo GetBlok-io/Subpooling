@@ -605,7 +605,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           db.run(Tables.PoolBlocksTable
             .filter(_.poolTag === blocks.head.poolTag)
             .filter(_.gEpoch >= blocks.head.gEpoch)
-            .filter(_.gEpoch <= blocks.last.gEpoch + 1)
+            .filter(_.gEpoch <= blocks.last.gEpoch)
             .map(b => b.status -> b.updated)
             .update(PoolBlock.PROCESSED -> LocalDateTime.now()))
 
