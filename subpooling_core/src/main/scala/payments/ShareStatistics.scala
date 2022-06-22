@@ -22,7 +22,7 @@ class ShareStatistics(miner: String) {
    * thereby allowing for batched block rewards to be proportional to the miners who mined them
    */
   def addBlock(): ShareStatistics = {
-    shareNum    = shareNum + 100
+    shareNum    = shareNum + 1
     shareScore  = shareScore + 100
     iterations = iterations + 1
     this
