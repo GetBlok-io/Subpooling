@@ -165,7 +165,14 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
               merged.avg(collectors.length)
           }
         }else{
-          fCollectors.map(_.head)
+          fCollectors.map {
+            collectors =>
+              val merged = collectors.slice(1, collectors.length).foldLeft(collectors.head) {
+                (head: ShareCollector, other: ShareCollector) =>
+                  head.merge(other)
+              }
+              merged
+          }
         }
       }
 
