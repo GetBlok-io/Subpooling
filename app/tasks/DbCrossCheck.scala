@@ -268,8 +268,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               logger.info(s"Using tx ${optTx}")
               val tx = optTx.get
               logger.info("Now making next updates")
-              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 2).id.toString, tx.outputs(p.subpool_id.toInt + 2)
-                .assets.head.amount))
+              val nextUpdates = poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt).id.toString, tx.outputs(p.subpool_id.toInt)
+                .value))
               logger.info("Updates made, now running to db")
               nextUpdates.foreach {
                 u =>
@@ -278,7 +278,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   Thread.sleep(50)
                   db.run(q.update(u._2._1, u._2._2))
               }
-              val stateUpdates =  poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt + 2).spendingTxId.isDefined))
+              val stateUpdates =  poolPlace._2.map(p => p.subpool_id -> (tx.outputs(p.subpool_id.toInt).spendingTxId.isDefined))
               if(stateUpdates.exists(_._2)) {
                 stateUpdates.foreach {
                   u =>
