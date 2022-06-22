@@ -21,7 +21,7 @@ object AppParameters {
   }
 
   var networkType: NetworkType = NetworkType.MAINNET
-  val groupFee: Long = Parameters.MinFee * 5
+  val groupFee: Long = Parameters.MinFee * 10
   val commandValue: Long = Parameters.MinFee * 5
   var pplnsWindow: BigDecimal = BigDecimal("0.5")
   val shareConst: BigDecimal = BigDecimal("256")
