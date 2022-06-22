@@ -15,6 +15,8 @@ object Models {
     case object PROP_MAX_ROUND extends PaymentType // PROP with max round length
 
     case object SOLO_SHARES extends PaymentType
+
+    case object SOLO_BATCH extends PaymentType
   }
 
 }

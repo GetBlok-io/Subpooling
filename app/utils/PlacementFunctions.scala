@@ -267,7 +267,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       case PoolInformation.PAY_PPLNS =>
         new ShareHandler(PaymentType.PPLNS_WINDOW, block.miner, db)
       case PoolInformation.PAY_SOLO =>
-        new ShareHandler(PaymentType.SOLO_SHARES, block.miner, db)
+        new ShareHandler(PaymentType.SOLO_BATCH, block.miner, db) // TODO: Use solo batch payments
       case PoolInformation.PAY_EQ =>
         new ShareHandler(PaymentType.EQUAL_PAY, block.miner, db)
       case _ =>
