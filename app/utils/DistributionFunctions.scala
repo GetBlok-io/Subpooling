@@ -130,27 +130,13 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
           }
           val fInfo = db.run(Tables.PoolInfoTable.filter(_.poolTag === dr.block.poolTag).result.head)
 
-          fInfo.onComplete{
-            case Success(info) =>
-              if(info.payment_type == PoolInformation.PAY_SOLO){
-                db.run(Tables.PoolBlocksTable
-                  .filter(b => b.poolTag === dr.block.poolTag)
-                  .filter(b => b.gEpoch === dr.block.gEpoch)
-                  .map(b => b.status -> b.updated)
-                  .update(PoolBlock.INITIATED -> LocalDateTime.now()))
-                logger.info(s"Finished updating block ${dr.block.blockheight} with SOLO pool and status INITIATED")
-              }else{
-                db.run(Tables.PoolBlocksTable
-                  .filter(b => b.poolTag === dr.block.poolTag)
-                  .filter(b => b.gEpoch >= dr.block.gEpoch && b.gEpoch < dr.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
-                  .map(b => b.status -> b.updated)
-                  .update(PoolBlock.INITIATED -> LocalDateTime.now()))
-                logger.info(s"Finished updating blocks ${dr.block.blockheight} with epoch ${dr.block.gEpoch} and its next 4 epochs for pool" +
-                  s" ${dr.block.poolTag} and status INITIATED")
-              }
-            case Failure(ex) =>
-              logger.error(s"There was a critical error updating block ${dr.block.blockheight}", ex)
-          }
+          db.run(Tables.PoolBlocksTable
+            .filter(b => b.poolTag === dr.block.poolTag)
+            .filter(b => b.gEpoch >= dr.block.gEpoch && b.gEpoch < dr.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
+            .map(b => b.status -> b.updated)
+            .update(PoolBlock.INITIATED -> LocalDateTime.now()))
+          logger.info(s"Finished updating blocks ${dr.block.blockheight} with epoch ${dr.block.gEpoch} and its next 4 epochs for pool" +
+            s" ${dr.block.poolTag} and status INITIATED")
 
         }
       case Failure(exception) =>
