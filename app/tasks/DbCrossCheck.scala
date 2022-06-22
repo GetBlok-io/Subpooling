@@ -86,7 +86,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 775668L).map(_.status).update(PoolBlock.CONFIRMED))
+          restartPlaces
         }
     })(contexts.taskContext)
   }
@@ -109,6 +109,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
     ()
   }
+
+  // TODO: Parameterize pools for regen and restarts
   def regenStored = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     val states = Await.result(db.run(Tables.PoolStatesTable.filter(_.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").result), 1000 seconds)
@@ -127,6 +129,22 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         logger.info(s"Updated state ${state.subpool_id} with stored id ${storedId} and val ${storedVal}")
     }
   }
+
+  def restartPlaces = {
+    val fBlocks = db.run(Tables.PoolBlocksTable.filter(_.poolTag === "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b")
+      .filter(_.status === PoolBlock.PROCESSING).sortBy(_.gEpoch).result)
+    fBlocks.map{
+      blocks =>
+        write ! DeletePlacementsAtBlock(blocks.head.poolTag, blocks.head.blockheight)
+        db.run(Tables.PoolBlocksTable
+          .filter(b => b.poolTag === blocks.head.poolTag)
+          .filter(b => b.gEpoch >= blocks.head.gEpoch && b.gEpoch <= blocks.last.gEpoch)
+          .map(b => b.status -> b.updated)
+          .update(PoolBlock.CONFIRMED, LocalDateTime.now()))
+    }
+
+  }
+
   def regenerateDB = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     // TODO: UNCOMMENT DB CHANGES AND SET STATUS BACK TO PROCESSED
