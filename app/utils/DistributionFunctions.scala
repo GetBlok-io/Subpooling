@@ -194,7 +194,13 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
           require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-          groupHandler ? ConstructDistribution(poolTag, states, placements, poolInfo, block)
+          var placementsToUse = {
+            if(poolInfo.payment_type == PoolInformation.PAY_SOLO)
+              placements.map(p => p.copy(score = p.score / 10000000L))
+            else
+              placements
+          }
+          groupHandler ? ConstructDistribution(poolTag, states, placementsToUse, poolInfo, block)
         }
 
         constructDistResp.map {

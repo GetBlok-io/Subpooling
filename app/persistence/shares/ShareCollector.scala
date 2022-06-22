@@ -103,7 +103,7 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
         val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(10000L, 0L, 0L, 0L, 0L))))
         members.toArray
       case PaymentType.SOLO_BATCH =>
-        val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(a._2.adjustedScore.longValue(), 0L, 0L, 0L, 0L))))
+        val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(a._2, 0L, 0L, 0L, 0L))))
         members.toArray
       case PaymentType.SOLO_SHARES =>
         val memberInfo = new MemberInfo(Array(shareMap.filter(_._1 == blockMiner).head._2.adjustedScore.longValue(), 0L, 0L, 0L, 0L))

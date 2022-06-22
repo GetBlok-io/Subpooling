@@ -23,7 +23,7 @@ class ShareStatistics(miner: String) {
    */
   def addBlock(): ShareStatistics = {
     shareNum    = shareNum + 1
-    shareScore  = shareScore + 100
+    shareScore  = shareScore + 100000
     iterations = iterations + 1
     this
   }
