@@ -346,7 +346,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
         val blockBatch = {
           if(poolToUse.payment_type == PoolInformation.PAY_SOLO)
-            poolBlock._2.sortBy(_.gEpoch).take(1)
+            poolBlock._2.sortBy(_.gEpoch).take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
           else
             poolBlock._2.sortBy(_.gEpoch).take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
         }
@@ -440,7 +440,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
           val blocksToUse = {
             if(poolToUse.payment_type == PoolInformation.PAY_SOLO){
-              poolBlock._2.take(1)
+              poolBlock._2.take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
             }else{
               poolBlock._2.take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
             }
