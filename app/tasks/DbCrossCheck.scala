@@ -81,11 +81,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
         }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-          Try(execRegen(params.regenType)).recoverWith {
-            case ex =>
-              logger.error("There was a critical error while re-generating dbs!", ex)
-              Failure(ex)
-          }
+//          Try(execRegen(params.regenType)).recoverWith {
+//            case ex =>
+//              logger.error("There was a critical error while re-generating dbs!", ex)
+//              Failure(ex)
+//          }
+            initEIP27
         }
     })(contexts.taskContext)
   }
@@ -94,7 +95,17 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     db.run(Tables.SubPoolMembers.filter(b => b.g_epoch === 16L && b.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)
 
   }
-
+  def initEIP27 = {
+    val fBlocks = db.run(Tables.PoolBlocksTable.filter(_.blockHeight >= 777217L).result)
+    fBlocks.map{
+      blocks =>
+        val blockUpdates = blocks.map(b => b.blockheight -> (b.reward - 12.0D))
+        blockUpdates.foreach{
+          b =>
+            db.run(Tables.PoolBlocksTable.filter(pb => pb.blockHeight === b._1).map(pb => pb.reward).update(b._2))
+        }
+    }
+  }
   def execRegen(rType: String): Unit = {
     rType match {
       case REGEN_DISTS =>

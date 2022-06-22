@@ -54,7 +54,10 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
             val minerPK = fullBlock.get.getHeader.getPowSolutions.getPk
             val coinbaseTx = fullBlock.get.getBlockTransactions.getTransactions.get(0)
             val rewardAddress = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getErgoTree
-            val txReward = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue
+            val txReward = {
+              fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue -
+                fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getAssets.get(0).getAmount
+            }
             var fullReward = txReward
             logger.info(s"Current number of transactions for fullBlock: ${fullBlock.get.getBlockTransactions.getTransactions.size()}")
             if(fullBlock.get.getBlockTransactions.getTransactions.size() > 1) {
