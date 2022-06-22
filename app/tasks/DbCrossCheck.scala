@@ -148,6 +148,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def cleanDupBlocks = {
     implicit val timeout: Timeout = Timeout(100 seconds)
     val fBlocks = db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 777040L).map(_.status).update(PoolBlock.VALIDATING))
+    fBlocks.map{
+      r =>
+        logger.info(s"${r} rows were updated")
+    }
   }
 
   def regenerateDB = {
