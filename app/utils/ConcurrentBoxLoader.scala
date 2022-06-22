@@ -57,10 +57,10 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     while(firstBlock.isEmpty){
       require(blockList.nonEmpty, s"No pools found with ${BLOCK_BATCH_SIZE} blocks")
       val tryHead = blockList.head
-      val poolBlocks = blocks.filter(_.poolTag == tryHead.poolTag)
+      val poolBlocks = blockList.filter(_.poolTag == tryHead.poolTag)
       if(poolBlocks.size < 5){
         logger.info(s"Removing pool ${tryHead.poolTag} from selection due to lacking ${BLOCK_BATCH_SIZE} confirmed blocks")
-        blockList --= blocks
+        blockList --= poolBlocks
       }else{
         firstBlock = Some(blockList.head)
       }
