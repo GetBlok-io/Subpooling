@@ -66,7 +66,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
       }
     }
     val blockHead = firstBlock.get
-    var poolBlocks = blocks.take(BLOCK_BATCH_SIZE)
+    var poolBlocks = blocks.filter(_.poolTag == blockHead.poolTag).take(BLOCK_BATCH_SIZE)
     logger.info(s"Current pool being paid out: ${blockHead.poolTag}")
     val poolInfo =  Await.result((query ? QueryPoolInfo(blockHead.poolTag)).mapTo[PoolInformation], timeout.duration)
     logger.info(s"With payment type ${poolInfo.payment_type}")
