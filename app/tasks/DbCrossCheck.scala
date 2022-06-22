@@ -89,7 +89,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           db.run(Tables.PoolBlocksTable
             .filter(b => b.poolTag === "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b")
             .filter(b => b.gEpoch <= 32L && b.gEpoch >= 29L)
-            .map(_.status).update(PoolBlock.PAID)
+            .map(_.status).update(PoolBlock.PAID))
         }
     })(contexts.taskContext)
   }
