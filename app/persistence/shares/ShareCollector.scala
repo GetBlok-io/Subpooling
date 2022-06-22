@@ -6,6 +6,7 @@ import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.payments.ShareStatistics
 import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, Share}
 import io.getblok.subpooling_core.registers.MemberInfo
+import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.{Address, NetworkType}
 import org.slf4j.LoggerFactory
 
@@ -24,6 +25,10 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
       shareMap(share.miner) = new ShareStatistics(share.miner).addShare(share)
     }
     this
+  }
+
+  def addBlock(block: SPoolBlock): Unit = {
+
   }
 
   def merge(collector: ShareCollector): ShareCollector = {
