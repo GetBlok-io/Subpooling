@@ -52,7 +52,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 //      blocks.take(params.pendingBlockNum)
 //        .map(pb => BlockSelection(pb, Await.result((query ? QueryPoolInfo(pb.poolTag)).mapTo[PoolInformation], timeout.duration)))
 //    }
-    val blockHead = blocks.filter(_.poolTag != "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b").head
+    val blockHead = blocks.filter(_.poolTag != "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b")(1)
     var poolBlocks = blocks.filter(_.poolTag == blockHead.poolTag).sortBy(_.gEpoch).take(5)
     require(poolBlocks.size == BLOCK_BATCH_SIZE, s"Required batch size of ${BLOCK_BATCH_SIZE} was not met with selection of size ${poolBlocks.size}")
     logger.info(s"Current pool being paid out: ${blockHead.poolTag}")

@@ -17,6 +17,17 @@ class ShareStatistics(miner: String) {
     this
   }
 
+  /**
+   * Used for batched SOLO pools, simply adds a constant value to the share score for each block,
+   * thereby allowing for batched block rewards to be proportional to the miners who mined them
+   */
+  def addBlock(): ShareStatistics = {
+    shareNum    = shareNum + 100
+    shareScore  = shareScore + 100
+    iterations = iterations + 1
+    this
+  }
+
   def sharePercent(totalShareScore: BigDecimal): BigDecimal = {
     (shareScore * 100) / totalShareScore
   }

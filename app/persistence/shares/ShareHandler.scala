@@ -88,5 +88,9 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
     collector
   }
 
+  def addForSOLO(block: SPoolBlock): ShareCollector = {
+    collector.addToBlockMap(block)
+  }
+
 
 }

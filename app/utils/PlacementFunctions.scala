@@ -149,7 +149,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
           logger.info(s"Performing SOLO query for block ${block.blockheight} with poolTag ${block.poolTag}" +
             s" and miner ${block.miner}")
           val shareHandler = getShareHandler(block, batchSelection.info)
-          val collectors = Seq(Future(shareHandler.queryForSOLO(batchSelection.blocks.head, params.defaultPoolTag)))
+          val collectors = (batchSelection.blocks.map(b => Future(shareHandler.addForSOLO(b))))
           collectors
         }
       }

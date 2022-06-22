@@ -27,8 +27,14 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
     this
   }
 
-  def addBlock(block: SPoolBlock): Unit = {
-
+  def addToBlockMap(block: SPoolBlock): ShareCollector = {
+    if(shareMap.contains(block.miner)){
+      shareMap(block.miner).addBlock()
+    }else{
+      log.info(s"Adding new miner to blockMap ${block.miner}")
+      shareMap(block.miner) = new ShareStatistics(block.miner).addBlock()
+    }
+    this
   }
 
   def merge(collector: ShareCollector): ShareCollector = {
