@@ -135,11 +135,17 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
   override def generateInitialOutputs(ctx: BlockchainContext, distributionTx: DistributionTx, holdingBoxes: List[InputBox]): HoldingOutputBuilder = {
     implicit val networkType: NetworkType = AppParameters.networkType
     logger.info("Now generating initial holding outputs for SimpleHoldingContract")
+    if(holdingBoxes.exists(i => i.getValue == Parameters.MinFee)) {
+      logger.info("Found minval holding box, slicing to allow contract execution")
+      logger.info(s"origLength: ${distributionTx.holdingInputs.size}")
+      distributionTx.holdingInputs(holdingBoxes.slice(0, 1))
+      logger.info(s"newLength: ${distributionTx.holdingInputs.size}")
+    }
     val metadataBox = distributionTx.metadataInputBox
     val commandBox = distributionTx.commandInputBox
     val holdingAddress = distributionTx.holdingContract.toAddress
     val initBoxes: List[InputBox] = List(metadataBox.asInput, commandBox.asInput)
-    val inputList = initBoxes++holdingBoxes
+    val inputList = initBoxes++distributionTx.holdingInputs
     val inputBoxes: Array[InputBox] = inputList.toArray
 
     val feeAddresses = metadataBox.getPoolFees.fees.map(c => c._1.address)
