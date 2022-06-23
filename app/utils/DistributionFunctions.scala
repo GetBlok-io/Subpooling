@@ -35,7 +35,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now querying processed blocks for distribution")
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED)
-      .filter(_.poolTag === params.defaultPoolTag) // TODO: Change this later when older processed blocks are done
+      .filter(_.poolTag === "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b") // TODO: Change this later when older processed blocks are done
       .sortBy(_.created).result)
 
     // TODO: Change pending block num to group exec num
