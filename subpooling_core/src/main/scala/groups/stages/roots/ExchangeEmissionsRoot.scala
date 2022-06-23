@@ -3,7 +3,7 @@ package groups.stages.roots
 
 import boxes.{EmissionsBox, ExchangeEmissionsBox}
 import contracts.holding.HoldingContract
-import global.{AppParameters, Helpers}
+import global.{AppParameters, EIP27Constants, Helpers}
 import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
@@ -66,14 +66,30 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
 
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
+
+        val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
+
+
         val interOutBox = ctx.newTxBuilder().outBoxBuilder().value(blockReward).contract(wallet.contract).build()
         val interFeeOutBox = ctx.newTxBuilder().outBoxBuilder().value(primaryTxFees).contract(wallet.contract).build()
-        val unsignedInterTx = ctx.newTxBuilder()
-          .boxesToSpend(boxesToSpend.asJava)
-          .outputs(interOutBox, interFeeOutBox)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .fee(AppParameters.groupFee * 100)
-          .build()
+        val unsignedInterTx = {
+          if(eip27.optToBurn.isDefined){
+            ctx.newTxBuilder()
+              .boxesToSpend(boxesToSpend.asJava)
+              .outputs(interOutBox, interFeeOutBox, eip27.p2reem.head)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .fee(AppParameters.groupFee * 100)
+              .tokensToBurn(eip27.optToBurn.get)
+              .build()
+          }else{
+            ctx.newTxBuilder()
+              .boxesToSpend(boxesToSpend.asJava)
+              .outputs(interOutBox, interFeeOutBox)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .fee(AppParameters.groupFee * 100)
+              .build()
+          }
+        }
 
         val signedInterTx = wallet.prover.sign(unsignedInterTx)
         val interBox = interOutBox.convertToInputWith(signedInterTx.getId.replace("\"", ""), 0)
