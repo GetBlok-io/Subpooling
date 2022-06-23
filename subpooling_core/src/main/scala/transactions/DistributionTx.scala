@@ -140,7 +140,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       }
     }
     logger.info(s"Total distributed tokens in tx: $totalTokens")
-    var txFee = (commandInputBox.getValue + commandInputBox.shareDistribution.size * Parameters.MinFee) - (Parameters.MinFee * 5)
+    var txFee = (commandInputBox.getValue + commandInputBox.shareDistribution.size * Parameters.MinFee)
     if(_tokenToDistribute != null){
       // Ensure there is enough ERG for change box when a token is being distributed
       txFee = commandInputBox.getValue - (Parameters.MinFee * 5)
