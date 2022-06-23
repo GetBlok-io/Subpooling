@@ -40,7 +40,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     }
 
     val currentPoolFees = metadataBox.getPoolFees
-    var nextDistribution = currentDistribution.dist
+    var nextDistribution = currentDistribution.dist.filter(c => !(c._2.getStored == (0.001 * Parameters.OneErg).toLong && c._2.getScore == 0))
     lastDistribution.dist.foreach{
       ld =>
         if(ld._2.getStored > (0.001 * Parameters.OneErg).toLong && !nextDistribution.exists(c => c._1.address.toString == ld._1.address.toString)){
