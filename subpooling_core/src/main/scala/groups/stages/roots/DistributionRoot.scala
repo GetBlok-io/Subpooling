@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package groups.stages.roots
 
-import global.AppParameters
+import global.{AppParameters, EIP27Constants}
 import global.AppParameters.NodeWallet
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
@@ -52,18 +52,36 @@ class DistributionRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, i
               val nextBox = sortedInputs.next()
               initialInputs = initialInputs.map(_ ++ Seq(nextBox))
               initialSum = initialSum + nextBox.getValue.toLong
+              if(nextBox.getTokens.size() > 0){
+                if(nextBox.getTokens.get(0).getId == EIP27Constants.REEM_TOKEN){
+                  initialSum = initialSum - nextBox.getTokens.get(0).getValue
+                }
+              }
             }
           }
         }
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalFees + totalOutputs).get().asScala.toSeq)
         val txB = ctx.newTxBuilder()
+        val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
 
-        val unsignedTx = txB
-          .boxesToSpend(boxesToSpend.asJava)
-          .fee(totalFees)
-          .outputs(outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1): _*)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .build()
+        val unsignedTx = {
+          if(eip27.optToBurn.isDefined){
+            txB
+              .boxesToSpend(boxesToSpend.asJava)
+              .fee(totalFees)
+              .outputs((outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1) ++ eip27.p2reem): _*)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .tokensToBurn(eip27.optToBurn.get)
+              .build()
+          }else {
+            txB
+              .boxesToSpend(boxesToSpend.asJava)
+              .fee(totalFees)
+              .outputs(outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1): _*)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .build()
+          }
+        }
 
         transaction = Try(wallet.prover.sign(unsignedTx))
         val txId = if(sendTxs) {
