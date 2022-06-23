@@ -96,7 +96,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   }
   def initEIP27 = {
-    val fBlocks = db.run(Tables.PoolBlocksTable.filter(_.blockHeight >= 777217L).result)
+    val fBlocks = db.run(Tables.PoolBlocksTable.filter(b => b.blockHeight >= 777217L && b.reward >= 63.0D).result)
     fBlocks.map{
       blocks =>
         val blockUpdates = blocks.map(b => b.blockheight -> (b.reward - 12.0D))
