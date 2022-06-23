@@ -51,6 +51,12 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
               val input = sortedInputs.dequeue()
               log.info(s"Adding input box with id ${input.getId} and value ${Helpers.nanoErgToErg(input.getValue)} ERG")
               initialSum = initialSum + input.getValue
+              if(input.getTokens.size() > 0){
+                if(input.getTokens.get(0).getId == EIP27Constants.REEM_TOKEN){
+                  initialSum = initialSum - input.getTokens.get(0).getValue
+                  log.info(s"Subtracted ${Helpers.nanoErgToErg(input.getTokens.get(0).getValue)} ERG to conform to EIP-27 rules")
+                }
+              }
               initialInputs = Some(initialInputs.get ++ Seq(input))
             }
           }else{
