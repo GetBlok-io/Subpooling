@@ -30,7 +30,9 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     val storedPayouts = metadataBox.shareDistribution.dist.map(d => d._2.getStored).sum
 
     val holdingBoxes = commandTx.holdingInputs
-
+    if(holdingBoxes.exists(i => i.getValue == Parameters.MinFee)) {
+      commandTx.withHolding(commandTx.holdingContract, commandTx.holdingInputs.slice(0, 1))
+    }
     val currentDistribution = commandTx.cOB.metadataRegisters.shareDist
     val lastDistribution = metadataBox.shareDistribution
 
