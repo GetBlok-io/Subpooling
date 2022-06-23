@@ -94,11 +94,16 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
 
     logger.info(s"Total Holding Box Value: ${BoxHelpers.sumBoxes(holdingInputs)}")
 
-    val holdingBoxes = holdingInputs
+    var holdingBoxes = holdingInputs
 
     val metadataContract = metadataInputBox.getContract
 
     val initBoxes = List(metadataInputBox.asInput, commandInputBox.asInput)
+    if(holdingInputs.forall(h => h.getTokens.size() == 0) && holdingInputs.size > 1){
+      if(holdingBoxes(1).getValue == Parameters.MinFee)
+        holdingBoxes = holdingBoxes.slice(0, 1)
+    }
+
     val inputBoxes = initBoxes++holdingBoxes
 
     metadataOutput(MetadataContract.buildFromCommandBox(mOB, commandInputBox, metadataContract, metadataInputBox.getValue, metadataInputBox.subpoolToken))
@@ -161,6 +166,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       logger.info(s"Total output tokens: ${totalOutTokens}")
       logger.info(s"Total difference: ${totalInputTokens - totalOutTokens}")
     }
+
       this.asUnsignedTxB
       .boxesToSpend(inputBoxes.asJava)
       .outputs(outputBoxes:_*)
