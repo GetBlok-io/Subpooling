@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package payments
 
-import io.getblok.subpooling_core.global.AppParameters
+import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, Share}
 
 class ShareStatistics(miner: String) {
@@ -21,9 +21,9 @@ class ShareStatistics(miner: String) {
    * Used for batched SOLO pools, simply adds a constant value to the share score for each block,
    * thereby allowing for batched block rewards to be proportional to the miners who mined them
    */
-  def addBlock(): ShareStatistics = {
+  def addBlock(blockReward: Long): ShareStatistics = {
     shareNum    = shareNum + 1
-    shareScore  = shareScore + 100000
+    shareScore  = shareScore + blockReward / (Helpers.MinFee) // By making scores proportional to block rewards, we ensure SOLO miners get tx fees associated with their block
     iterations = iterations + 1
     this
   }

@@ -30,10 +30,10 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
   def addToBlockMap(block: SPoolBlock): ShareCollector = {
     if(shareMap.contains(block.miner)){
       log.info(s"Adding ${block.miner} to block map")
-      shareMap(block.miner).addBlock()
+      shareMap(block.miner).addBlock(block.getNanoErgReward)
     }else{
       log.info(s"Adding new ${block.miner} to collector map")
-      shareMap(block.miner) = new ShareStatistics(block.miner).addBlock()
+      shareMap(block.miner) = new ShareStatistics(block.miner).addBlock(block.getNanoErgReward)
     }
     this
   }
