@@ -40,7 +40,7 @@ class ParamsConfig(config: Configuration){
   val groupStart: Int           = config.get[Int]("params.groupStart")
   val singularGroups: Boolean   = config.get[Boolean]("params.singularGroups")
   val sendTransactions: Boolean = config.get[Boolean]("params.sendTxs")
-
+  val senderEmails: Seq[String] = config.get[Seq[String]]("params.emails")
 
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff

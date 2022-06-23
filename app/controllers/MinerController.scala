@@ -160,7 +160,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
       val text = req.body.asText.get
       val split = text.split('|')
       val pay  = PayoutSettings(split(0), split(1).toDouble)
-      val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
+      val minerShares = db.run(Tables.MasterSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
 
       minerShares.transformWith{
         case Success(ms) =>
@@ -200,7 +200,7 @@ class MinerController @Inject()(@Named("quick-db-reader") query: ActorRef,
       val split = text.split('|')
       val sub  = SubPoolSettings(split(0), split(1))
 
-      val minerShares = db.run(Tables.PoolSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
+      val minerShares = db.run(Tables.MasterSharesTable.sortBy(_.created.desc).take(50000).filter(s => s.miner === address).result)
 
       minerShares.transformWith{
         case Success(value) =>

@@ -155,7 +155,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
               val start = lastBlock.created
               val end = block.created
               logger.info(s"Querying miners for pool ${block.poolTag}")
-              val fMiners = db.run(Tables.PoolSharesTable.queryMinerPools)
+              val fMiners = db.run(Tables.MasterSharesTable.queryMinerPools)
               val fInfo   = db.run(Tables.PoolInfoTable.filter(_.poolTag === block.poolTag).result.head)
               for{
                 info <- fInfo
@@ -324,7 +324,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         logger.info("Using PPLNS effort calcs")
         while(offset != -1){
           logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
-          val shares = Await.result(db.run(Tables.PoolSharesTable.queryBetweenDate(startDate, endDate, offset, limit)), 1000 seconds)
+          val shares = Await.result(db.run(Tables.MasterSharesTable.queryBetweenDate(startDate, endDate, offset, limit)), 1000 seconds)
             .filter{
               s =>
                 miners.get(s.miner).flatten.getOrElse(params.defaultPoolTag) == block.poolTag
@@ -347,7 +347,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
 
         while(offset != -1){
           logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
-          val shares = Await.result(db.run(Tables.PoolSharesTable.queryMinerSharesBetweenDate(startDate, endDate, block.miner, offset, limit)), 1000 seconds)
+          val shares = Await.result(db.run(Tables.MasterSharesTable.queryMinerSharesBetweenDate(startDate, endDate, block.miner, offset, limit)), 1000 seconds)
           accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
           logger.info(s"Current accumulated difficulty: ${accumDiff}")
           if(shares.nonEmpty)

@@ -6,7 +6,7 @@ import io.getblok.subpooling_core.persistence.SharesTable
 import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, PoolBlock}
 import models.DatabaseModels.SPoolBlock
 import org.slf4j.LoggerFactory
-import persistence.{PoolSharesTable, Tables}
+import persistence.{MasterSharesTable, Tables}
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader.BatchSelection
 
@@ -24,11 +24,11 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
 
     logger.info(s"Share handler querying to window for block ${block.blockheight} with creation date ${block.created}")
     var offset = 0
-    val miners = Await.result(db.run(Tables.PoolSharesTable.queryMinerPools), 100 seconds).toMap
+    val miners = Await.result(db.run(Tables.MasterSharesTable.queryMinerPools), 100 seconds).toMap
 
     while(collector.totalScore < AppParameters.pplnsWindow && offset != -1){
 
-      val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
+      val fShares = db.run(Tables.MasterSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
       val shares = Await.result(fShares, 400 seconds).filter{
         sh =>
           if(block.poolTag != defaultTag) {
@@ -65,7 +65,7 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
     logger.info(s"Share handler querying for SOLO on block ${block.blockheight} with creation date ${block.created}")
     var offset = 0
 
-    val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
+    val fShares = db.run(Tables.MasterSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
     val shares = Await.result(fShares, 400 seconds).filter{
       sh =>
         sh.miner == blockMiner

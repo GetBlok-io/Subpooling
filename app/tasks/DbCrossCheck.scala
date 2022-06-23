@@ -499,7 +499,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             .update(PoolBlock.PAID -> LocalDateTime.now()))
           val fPoolMembers = (query ? PoolMembersByGEpoch(blocks.head.poolTag, blocks.head.gEpoch)).mapTo[Seq[PoolMember]]
           val fPoolInfo = (query ? QueryPoolInfo(blocks.head.poolTag)).mapTo[PoolInformation]
-          val fPoolMiners = db.run(Tables.PoolSharesTable.queryMinerPools)
+          val fPoolMiners = db.run(Tables.MasterSharesTable.queryMinerPools)
           logger.info("Block status update complete")
           for{
             members <- fPoolMembers
@@ -565,7 +565,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
     logger.info("Payment insertions complete")
     Try {
-      val shareDeletes = Tables.PoolSharesTable.filter(_.created < LocalDateTime.now().minusWeeks(params.keepSharesWindowInWeeks))
+      val shareDeletes = Tables.MasterSharesTable.filter(_.created < LocalDateTime.now().minusWeeks(params.keepSharesWindowInWeeks))
       val statsDeletes = Tables.MinerStats.filter(_.created < LocalDateTime.now().minusWeeks(params.keepMinerStatsWindowInWeeks))
       val shareArcInserts = Tables.SharesArchiveTable forceInsertQuery shareDeletes
       val statsArcInserts = Tables.MinerStatsArchiveTable forceInsertQuery statsDeletes

@@ -14,7 +14,7 @@ object Tables {
   object SubPoolMembers extends TableQuery(new PoolMembersTable(_))
   object MinerStats extends TableQuery(new MinerStatsTable(_))
 
-  object PoolSharesTable extends TableQuery(new PoolSharesTable(_)){
+  object MasterSharesTable extends TableQuery(new MasterSharesTable(_)){
 
     def getEffortDiff(tag: String, defaultTag: String, lastBlock: Long) = {
       import slick.jdbc.PostgresProfile.api._
@@ -55,6 +55,7 @@ object Tables {
 
   }
   object MinerSettingsTable extends TableQuery(new MinerSettingsTable(_))
+  object PoolSharesTable extends TableQuery(new PoolSharesTable(_))
   object SharesArchiveTable extends TableQuery(new SharesArchiveTable(_))
   object MinerStatsArchiveTable extends TableQuery(new MinerStatsArchiveTable(_))
   object PoolInfoTable extends TableQuery(new PoolInfoTable(_))
