@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package groups.stages.roots
 
 import contracts.holding.HoldingContract
-import global.{AppParameters, Helpers}
+import global.{AppParameters, EIP27Constants, Helpers}
 import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
@@ -92,7 +92,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         log.info("Setting boxes to spend")
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs).get().asScala.toSeq)
-
+        val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
 
         boxesToSpend.foreach(i => log.info(s"Id: ${i.getId}, val: ${i.getValue}"))
 
@@ -100,12 +100,24 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
         val outputBoxes = outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1)
         outputBoxes.foreach(o => log.info(s"Output value: ${o.getValue}"))
 
-        val unsignedTx = txB
-          .boxesToSpend(boxesToSpend.asJava)
-          .fee(totalTxFees)
-          .outputs((outputBoxes ++ feeOutputs): _*)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .build()
+        val unsignedTx = {
+          if(eip27.optToBurn.isDefined){
+            txB
+              .boxesToSpend(boxesToSpend.asJava)
+              .fee(totalTxFees)
+              .outputs((outputBoxes ++ feeOutputs ++ eip27.p2reem): _*)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .tokensToBurn(eip27.optToBurn.get)
+              .build()
+          }else {
+            txB
+              .boxesToSpend(boxesToSpend.asJava)
+              .fee(totalTxFees)
+              .outputs((outputBoxes ++ feeOutputs): _*)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .build()
+          }
+        }
 
         transaction = Try(wallet.prover.sign(unsignedTx))
         val txId = {
