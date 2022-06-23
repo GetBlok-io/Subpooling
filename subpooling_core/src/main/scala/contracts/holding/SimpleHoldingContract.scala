@@ -31,6 +31,7 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
 
     val holdingBoxes = commandTx.holdingInputs
     if(holdingBoxes.exists(i => i.getValue == Parameters.MinFee)) {
+      logger.info("Found minval holding box, slicing to allow contract execution")
       commandTx.withHolding(commandTx.holdingContract, commandTx.holdingInputs.slice(0, 1))
     }
     val currentDistribution = commandTx.cOB.metadataRegisters.shareDist
