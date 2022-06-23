@@ -5,7 +5,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.{Contexts, ParamsConfig}
-import io.getblok.subpooling_core.global.Helpers
+import io.getblok.subpooling_core.global.{EIP27Constants, Helpers}
 import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
@@ -104,6 +104,11 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
       val polledBox = loadedBoxes.poll()
       boxesCollected += polledBox
       currentSum = currentSum + polledBox.getValue.toLong
+      if(polledBox.getTokens.size() > 0){
+        if(polledBox.getTokens.get(0).getId == EIP27Constants.REEM_TOKEN){
+          currentSum = currentSum - polledBox.getTokens.get(0).getValue
+        }
+      }
     }
 
     logger.info(s"Collected ${boxesCollected.length} boxes for total value of ${currentSum}. The value needed was ${amountToCollect}")
