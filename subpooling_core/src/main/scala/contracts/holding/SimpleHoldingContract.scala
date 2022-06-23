@@ -43,8 +43,9 @@ class SimpleHoldingContract(holdingContract: ErgoContract) extends HoldingContra
     var nextDistribution = currentDistribution.dist.filter(c => c._2.getStored != Parameters.MinFee)
     lastDistribution.dist.foreach{
       ld =>
-        if(ld._2.getStored > (0.001 * Parameters.OneErg).toLong && !nextDistribution.exists(c => c._1.address.toString == ld._1.address.toString)){
-          nextDistribution = nextDistribution ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong)
+        if(ld._2.getStored > Parameters.MinFee && !nextDistribution.exists(c => c._1.address.toString == ld._1.address.toString)){
+          logger.info(s"Adding lost miner ${ld._1.address} to distribution for subpool ${metadataBox.subpool}")
+          nextDistribution = nextDistribution ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay(Parameters.MinFee)
             .withStored(0L))
         }
     }
