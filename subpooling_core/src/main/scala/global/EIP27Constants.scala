@@ -13,7 +13,7 @@ object EIP27Constants {
       .filter(i => i.getTokens.get(0).getId == REEM_TOKEN)
       .map(i => i.getTokens.get(0).getValue).sum
 
-    if(reemTokens < 0){
+    if(reemTokens <= 0){
       EIP27Results(Seq.empty[OutBox], None)
     }else{
       val outBox = {
