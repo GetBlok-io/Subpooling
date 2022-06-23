@@ -46,7 +46,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
           distinctBlocks += block
         }
       }
-      distinctBlocks.toSeq.take(params.pendingBlockNum)
+      distinctBlocks.filter(_.poolTag == "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b").toSeq.take(params.pendingBlockNum)
         .map(db => BlockSelection(db, Await.result((query ? QueryPoolInfo(db.poolTag)).mapTo[PoolInformation], timeout.duration)))
     }else{
       blocks.take(params.pendingBlockNum)
