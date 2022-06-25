@@ -86,7 +86,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-            initEIP27
+            cleanDupBlocks
         }
     })(contexts.taskContext)
   }
@@ -157,10 +157,13 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def cleanDupBlocks = {
     implicit val timeout: Timeout = Timeout(100 seconds)
-    val fBlocks = db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 777040L).map(_.status).update(PoolBlock.VALIDATING))
+    val fBlocks = db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 779350L).sortBy(_.created).result)
     fBlocks.map{
-      r =>
-        logger.info(s"${r} rows were updated")
+      blocks =>
+        val blockToUse = blocks.head
+        db.run(Tables.PoolBlocksTable
+          .filter(b => b.blockHeight >= 779349L && b.blockHeight <= 779352L).delete)
+        db.run(Tables.PoolBlocksTable += blockToUse)
     }
   }
 
