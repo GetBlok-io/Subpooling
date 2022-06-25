@@ -86,4 +86,5 @@ object Tables {
   }
 
   object PoolBlocksTable extends TableQuery(new PoolBlocksTable(_))
+  object BlocksTable extends TableQuery(new BlocksTable(_))
 }
