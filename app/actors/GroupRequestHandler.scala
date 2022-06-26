@@ -164,7 +164,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
               }
 
             case ConstructHolding(poolTag, poolStates: Seq[PoolState], membersWithInfo: Array[Member], optLastPlacements: Option[Seq[PoolPlacement]],
-            poolInformation, batchSelection, reward) =>
+            poolInformation, batchSelection, reward, sendTxs) =>
               ergoClient.execute {
                 ctx =>
 
@@ -196,7 +196,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                     case PoolInformation.CURR_ERG =>
                       val holdingContract = SimpleHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(poolTag))
                       val root = new HoldingRoot(modifiedPool, ctx, wallet, holdingContract, AppParameters.getBaseFees(reward),
-                        sendTxs = AppParameters.sendTxs)
+                        sendTxs = sendTxs)
                       val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
@@ -212,7 +212,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       val emissionsBox = new EmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An emissions box was found! $emissionsBox")
                       val root = new EmissionRoot(modifiedPool, ctx, wallet, holdingContract, reward,
-                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = AppParameters.sendTxs)
+                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = sendTxs)
                       val builder = new HoldingBuilder(emissionsBox.emissionReward.value, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
@@ -237,7 +237,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       val emissionsBox = new ExchangeEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
                       val root = new ExchangeEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
-                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = AppParameters.sendTxs)
+                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = sendTxs)
                       val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
 
@@ -254,7 +254,7 @@ class GroupRequestHandler @Inject()(config: Configuration) extends Actor{
                       val emissionsBox = new ProportionalEmissionsBox(emissionInput, emissionsContract)
                       logger.info(s"An exchange emissions box was found! $emissionsBox")
                       val root = new ProportionalEmissionsRoot(modifiedPool, ctx, wallet, holdingContract, reward,
-                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = AppParameters.sendTxs)
+                        AppParameters.getBaseFees(reward), emissionsBox, sendTxs = sendTxs)
                       val builder = new HoldingBuilder(reward, holdingContract, AppParameters.getBaseFees(reward), root)
                       GroupCurrencyComponents(holdingContract, root, builder)
                   }
@@ -354,7 +354,7 @@ object GroupRequestHandler {
                                    poolInformation: PoolInformation, block: SPoolBlock) extends GroupRequest
   case class ConstructHolding(poolTag: String, poolStates: Seq[PoolState], membersWithMinPay: Array[Member],
                               optLastPlacements: Option[Seq[PoolPlacement]], poolInformation: PoolInformation, batchSelection: BatchSelection,
-                              reward: Long) extends GroupRequest
+                              reward: Long, sendTxs: Boolean) extends GroupRequest
   // Responses
   case class DistributionResponse(nextMembers: Array[PoolMember], nextStates: Array[PoolState], block: SPoolBlock)
   case class HoldingResponse(nextPlacements: Array[PoolPlacement], batchSelection: BatchSelection)

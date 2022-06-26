@@ -23,7 +23,7 @@ import persistence.shares.ShareCollector
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.{Configuration, Logger}
 import slick.jdbc.PostgresProfile
-import utils.{ConcurrentBoxLoader, DistributionFunctions, PlacementFunctions}
+import utils.{ConcurrentBoxLoader, DistributionFunctions, PlacementFunctions, PrePlacementFunctions}
 import utils.ConcurrentBoxLoader.BlockSelection
 
 import java.time.{LocalDateTime, ZoneOffset}
@@ -62,6 +62,19 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
       logger.info("GroupExecution has begun")
         val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts)
 
+        val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)
+        val tryPrePlacements = Try{
+          prePlacementFunctions.executePrePlacement()
+        }
+
+        tryPrePlacements match {
+          case Success(value) =>
+            logger.info("Synchronous PrePlacement functions executed successfully!")
+          case Failure(exception) =>
+            logger.error("There was a fatal error while executing pre-placements!")
+        }
+
+
         val tryPreCollection = Try {
           boxLoader.preLoadInputBoxes(params.amountToPreCollect)
         }
@@ -69,7 +82,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           if (params.singularGroups) {
-            if (currentRun % 2 == 0) {
+            if (currentRun == 0) {
               val tryPlacement = Try {
                 placementFunctions.executePlacement()
               }
@@ -81,7 +94,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                   logger.error("There was a fatal error thrown during synchronous placement execution", exception)
                   currentRun = currentRun + 1
               }
-            } else {
+            } else if(currentRun == 1) {
               val tryDist = Try {
                 distributionFunctions.executeDistribution()
               }

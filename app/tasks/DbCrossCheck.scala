@@ -145,12 +145,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       .filter(_.status === PoolBlock.PROCESSING).sortBy(_.gEpoch).result)
     fBlocks.map{
       blocks =>
-        write ! DeletePlacementsAtBlock(blocks.head.poolTag, blocks.head.blockheight)
+
         db.run(Tables.PoolBlocksTable
           .filter(b => b.poolTag === blocks.head.poolTag)
           .filter(b => b.gEpoch >= blocks.head.gEpoch && b.gEpoch <= blocks.last.gEpoch)
           .map(b => b.status -> b.updated)
-          .update(PoolBlock.CONFIRMED, LocalDateTime.now()))
+          .update(PoolBlock.PRE_PROCESSED, LocalDateTime.now()))
     }
 
   }
@@ -408,12 +408,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                 if (Instant.now().toEpochMilli - blocks.head.updated.toInstant(ZoneOffset.UTC).toEpochMilli > params.restartPlacements.toMillis) {
                   logger.warn(s"It has been ${params.restartPlacements.toString()} since block was updated," +
                     s" now restarting placements for pool ${blocks.head.poolTag}")
-                  write ! DeletePlacementsAtBlock(blocks.head.poolTag, blocks.head.blockheight)
+                  // write ! DeletePlacementsAtBlock(blocks.head.poolTag, blocks.head.blockheight)
                   db.run(Tables.PoolBlocksTable
                     .filter(b => b.poolTag === blocks.head.poolTag)
                     .filter(b => b.gEpoch >= blocks.head.gEpoch && b.gEpoch <= blocks.last.gEpoch)
                     .map(b => b.status -> b.updated)
-                    .update(PoolBlock.CONFIRMED, LocalDateTime.now()))
+                    .update(PoolBlock.PRE_PROCESSED, LocalDateTime.now()))
                 } else {
                   logger.warn("ExplorerReqBus returned no Output, but restartPlacements time has not passed for this block!")
                 }

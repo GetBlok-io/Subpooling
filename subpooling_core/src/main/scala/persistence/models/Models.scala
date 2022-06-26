@@ -206,6 +206,7 @@ object Models {
     val VALIDATING     = "validating"
     val CONFIRMING     = "confirming"
     val CONFIRMED      = "confirmed"
+    val PRE_PROCESSED  = "preprocessed"
     val PROCESSING     = "processing"
     val PROCESSED      = "processed"
     val INITIATED      = "initiated"
