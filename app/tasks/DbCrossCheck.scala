@@ -157,7 +157,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def cleanDupBlocks = {
     implicit val timeout: Timeout = Timeout(100 seconds)
-    db.run(Tables.PoolBlocksTable.filter(b => b.id === 1647L && b.blockHeight === 779350L && b.nonce === "a298000a838cc328").delete)
+    val fBlocks = db.run(Tables.PoolBlocksTable.filter(b => b.blockHeight === 780182L && b.nonce === "229a0003db8a1034").result)
+    fBlocks.map{
+      b =>
+        db.run(Tables.PoolBlocksTable.filter(b => b.blockHeight === 780182L && b.nonce === "229a0003db8a1034").delete)
+        db.run(Tables.PoolBlocksTable += b.head)
+    }
   }
 
   def regenerateDB = {
