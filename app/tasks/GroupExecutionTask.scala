@@ -61,17 +61,32 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
 
       logger.info("GroupExecution has begun")
         val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts)
+        if(params.singularGroups) {
+          if(params.groupStart == 2) {
+            val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)
+            val tryPrePlacements = Try {
+              prePlacementFunctions.executePrePlacement()
+            }
 
-        val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)
-        val tryPrePlacements = Try{
-          prePlacementFunctions.executePrePlacement()
-        }
+            tryPrePlacements match {
+              case Success(value) =>
+                logger.info("Synchronous PrePlacement functions executed successfully!")
+              case Failure(exception) =>
+                logger.error("There was a fatal error while executing pre-placements!")
+            }
+          }
+        }else{
+          val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)
+          val tryPrePlacements = Try {
+            prePlacementFunctions.executePrePlacement()
+          }
 
-        tryPrePlacements match {
-          case Success(value) =>
-            logger.info("Synchronous PrePlacement functions executed successfully!")
-          case Failure(exception) =>
-            logger.error("There was a fatal error while executing pre-placements!")
+          tryPrePlacements match {
+            case Success(value) =>
+              logger.info("Synchronous PrePlacement functions executed successfully!")
+            case Failure(exception) =>
+              logger.error("There was a fatal error while executing pre-placements!")
+          }
         }
 
 

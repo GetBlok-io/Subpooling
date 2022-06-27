@@ -109,6 +109,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
 
           val placeUpdates = for(place <- response.nextPlacements.toSeq) yield {
             db.run(Tables.PoolPlacementsTable
+              .filter(p => p.subpool === response.batchSelection.info.poolTag)
               .filter(p => p.block === response.batchSelection.blocks.minBy(b => b.gEpoch).blockheight)
               .filter(p => p.miner === place.miner)
               .map(p => (p.subpool_id, p.epoch, p.holdingId, p.holdingVal, p.amount, p.minpay, p.epochsMined, p.updated))
