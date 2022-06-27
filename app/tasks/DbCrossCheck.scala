@@ -166,7 +166,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def resetBlock = {
-    db.run(Tables.BlocksTable.filter(b => b.blockHeight === 780182L).map(b => b.status).update(Block.PENDING))
+    db.run(Tables.PoolBlocksTable.filter(b => b.blockHeight === 780182L).map(b => b.gEpoch).update(304L))
   }
 
   def regenerateDB = {
