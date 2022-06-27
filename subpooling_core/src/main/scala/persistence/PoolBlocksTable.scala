@@ -126,13 +126,12 @@ class PoolBlocksTable(dbConn: DbConn) extends DataTable[PoolBlock](dbConn) {
         execUpdate
       case NodeHandler.OrphanBlock(reward, txConf, hash) =>
         implicit val ps: PreparedStatement = state(update, thisTable, set, fields("status", "reward",
-          "transactionconfirmationdata", "hash", "updated"), where, fieldOf("blockheight"), eq, param)
+          "hash", "updated"), where, fieldOf("blockheight"), eq, param)
         setStr(1, PoolBlock.ORPHANED)
         setDec(2, reward)
-        setStr(3, txConf)
-        setStr(4, hash)
-        setDate(5, LocalDateTime.now())
-        setLong(6, height)
+        setStr(3, hash)
+        setDate(4, LocalDateTime.now())
+        setLong(5, height)
         execUpdate
     }
 
