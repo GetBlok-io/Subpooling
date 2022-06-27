@@ -81,12 +81,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
         }else {
           logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
-//          Try(execRegen(params.regenType)).recoverWith {
-//            case ex =>
-//              logger.error("There was a critical error while re-generating dbs!", ex)
-//              Failure(ex)
-//          }
-          resetBlock
+          Try(execRegen(params.regenType)).recoverWith {
+            case ex =>
+              logger.error("There was a critical error while re-generating dbs!", ex)
+              Failure(ex)
+          }
         }
     })(contexts.taskContext)
   }
@@ -275,7 +274,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(_.block === params.regenPlaceBlock.toLong ).result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
-      val poolTag = "b242eab6b734dd8da70b37a5f70f40f392af401f5971b6b36815bf28b26b128b"
+      val poolTag = "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047"
       if(poolPlace._1 == poolTag){
         val fTx = (expReq ? TxById(ErgoId.create(params.regenPlaceTx))).mapTo[Option[TransactionData]]
         fTx.map{
