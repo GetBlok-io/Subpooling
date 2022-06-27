@@ -86,7 +86,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-            cleanDupBlocks
+          resetBlock
         }
     })(contexts.taskContext)
   }
@@ -163,6 +163,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         db.run(Tables.PoolBlocksTable.filter(b => b.blockHeight === 780182L && b.nonce === "229a0003db8a1034").delete)
         db.run(Tables.PoolBlocksTable += b.head)
     }
+  }
+
+  def resetBlock = {
+    db.run(Tables.BlocksTable.filter(b => b.blockHeight === 780182L).map(b => b.status).update(Block.PENDING))
   }
 
   def regenerateDB = {
