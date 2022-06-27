@@ -107,27 +107,29 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
             .map(b => b.status -> b.updated)
             .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
 
-          val placeUpdates = for(place <- response.nextPlacements.toSeq) yield {
+          val placeDeletes = {
             db.run(Tables.PoolPlacementsTable
-              .filter(p => p.subpool === response.batchSelection.info.poolTag)
+              .filter(p => p.subpool === response.batchSelection.blocks.head.poolTag)
               .filter(p => p.block === response.batchSelection.blocks.minBy(b => b.gEpoch).blockheight)
-              .filter(p => p.miner === place.miner)
-              .map(p => (p.subpool_id, p.epoch, p.holdingId, p.holdingVal, p.amount, p.minpay, p.epochsMined, p.updated))
-              .update((place.subpool_id, place.epoch, place.holding_id, place.holding_val,
-                place.amount, place.minpay, place.epochs_mined, LocalDateTime.now())))
+              .delete)
           }
+          val placeUpdates = placeDeletes.map {
+              i =>
+                logger.info(s"A total of ${i} rows were deleted from last placements")
+                logger.info("Now inserting new placement rows!")
+                db.run(Tables.PoolPlacementsTable ++= response.nextPlacements)
+          }.flatten
 
-          val allPlacementUpdates = Future.sequence(placeUpdates)
           val rowsUpdated = for{
             blockRowsUpdated <- blockUpdate
-            placeRowsInserted <- allPlacementUpdates
+            placeRowsInserted <- placeUpdates
           } yield {
             if(blockRowsUpdated > 0)
               logger.info(s"${blockRowsUpdated} rows were updated for ${response.batchSelection.blocks.length} blocks")
             else
               logger.error(s"No rows were updated for ${response.batchSelection.blocks.length} blocks!")
-            if(placeRowsInserted.sum > 0)
-              logger.info(s"${placeRowsInserted.sum} rows were inserted for placements for pool ${response.nextPlacements.head.subpool}")
+            if(placeRowsInserted.getOrElse(0) > 0)
+              logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${response.nextPlacements.head.subpool}")
             else
               logger.error(s"No placements were inserted for pool ${response.nextPlacements.head.subpool}")
           }
