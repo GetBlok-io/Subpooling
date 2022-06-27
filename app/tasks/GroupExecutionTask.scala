@@ -71,8 +71,10 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
             tryPrePlacements match {
               case Success(value) =>
                 logger.info("Synchronous PrePlacement functions executed successfully!")
+                currentRun = 0
               case Failure(exception) =>
                 logger.error("There was a fatal error while executing pre-placements!")
+                currentRun = 0
             }
           }
         }else{
