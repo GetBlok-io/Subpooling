@@ -275,7 +275,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val placements = Await.result(db.run(Tables.PoolPlacementsTable.filter(_.block === params.regenPlaceBlock.toLong ).result), 1000 seconds)
     val poolPlaces = placements.groupBy(p => p.subpool).map(p => p._1 -> p._2.sortBy(s => s.subpool_id))
     for(poolPlace <- poolPlaces){
-      val poolTag = "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047"
+      val poolTag = "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7"
       if(poolPlace._1 == poolTag){
         val fTx = (expReq ? TxById(ErgoId.create(params.regenPlaceTx))).mapTo[Option[TransactionData]]
         fTx.map{
@@ -308,6 +308,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                     }
 
                 }
+              }
+              if(stateUpdates.forall(_._2)){
+                db.run(Tables.PoolBlocksTable
+                  .filter(_.poolTag === poolTag)
+                  .filter(_.gEpoch >= 376L)
+                  .filter(_.gEpoch <=380L )
+                  .map(b => b.status -> b.updated)
+                  .update(PoolBlock.INITIATED -> LocalDateTime.now()))
               }
               logger.info(s"Completed placement regen for pool ${poolTag}")
             }else{
