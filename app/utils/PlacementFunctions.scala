@@ -34,7 +34,9 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
                          contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
                          boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
   val logger: Logger = LoggerFactory.getLogger("PlacementFunctions")
+
   import slick.jdbc.PostgresProfile.api._
+
   def executePlacement(): Unit = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
@@ -43,7 +45,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with confirmed status")
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
-    if(blocks.nonEmpty) {
+    if (blocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = true)
       val blockBoxMap = collectHoldingInputs(selectedBlocks)
       val holdingComponents = constructHoldingComponents(selectedBlocks)
@@ -75,10 +77,10 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
             components.builder.inputBoxes = Some(inputBoxes)
             val holdResponse = (groupHandler ? ExecuteHolding(components)).mapTo[HoldingResponse]
             evalHoldingResponse(holdResponse)
-        }
+          }
 
           val allComplete = executions
-          allComplete.onComplete{
+          allComplete.onComplete {
             case Success(value) =>
               logger.info("All placement executions completed!")
             case Failure(exception) =>
@@ -87,7 +89,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         case Failure(exception) =>
           logger.error("There was an error collecting holding components!", exception)
       }
-    }else{
+    } else {
       logger.info("No confirmed blocks found for placements, now exiting placement execution.")
     }
   }
@@ -95,9 +97,9 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   def evalHoldingResponse(holdingResponse: Future[HoldingResponse]): Future[HoldingResponse] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    holdingResponse.onComplete{
+    holdingResponse.onComplete {
       case Success(response) =>
-        if(response.nextPlacements.nonEmpty) {
+        if (response.nextPlacements.nonEmpty) {
           logger.info(s"Holding execution was success for batch starting with ${response.batchSelection.blocks.head.blockheight} and pool ${response.nextPlacements.head}")
           logger.info("Now updating batched blocks to processing status and inserting placements into placements table")
           val blockUpdate = (db.run(Tables.PoolBlocksTable
@@ -114,21 +116,21 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
               .delete)
           }
           val placeUpdates = placeDeletes.map {
-              i =>
-                logger.info(s"A total of ${i} rows were deleted from last placements")
-                logger.info("Now inserting new placement rows!")
-                db.run(Tables.PoolPlacementsTable ++= response.nextPlacements)
+            i =>
+              logger.info(s"A total of ${i} rows were deleted from last placements")
+              logger.info("Now inserting new placement rows!")
+              db.run(Tables.PoolPlacementsTable ++= response.nextPlacements)
           }.flatten
 
-          val rowsUpdated = for{
+          val rowsUpdated = for {
             blockRowsUpdated <- blockUpdate
             placeRowsInserted <- placeUpdates
           } yield {
-            if(blockRowsUpdated > 0)
+            if (blockRowsUpdated > 0)
               logger.info(s"${blockRowsUpdated} rows were updated for ${response.batchSelection.blocks.length} blocks")
             else
               logger.error(s"No rows were updated for ${response.batchSelection.blocks.length} blocks!")
-            if(placeRowsInserted.getOrElse(0) > 0)
+            if (placeRowsInserted.getOrElse(0) > 0)
               logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${response.nextPlacements.head.subpool}")
             else
               logger.error(s"No placements were inserted for pool ${response.nextPlacements.head.subpool}")
@@ -155,10 +157,10 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
       val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
 
-      val holdingComponents = for{
+      val holdingComponents = for {
         poolStates <- poolStateResp
         minerSettings <- poolMinersResp
-        placements     <- currentPlacements
+        placements <- currentPlacements
       } yield modifyHoldingData(poolStates, minerSettings, placements, batchSelection)
       holdingComponents.flatten
     }
@@ -190,7 +192,8 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
   def modifyHoldingData(poolStates: Seq[PoolState], minerSettings: Seq[SMinerSettings], placements: Seq[PoolPlacement], batch: BatchSelection): Future[HoldingComponents] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-
+    val poolTag = batch.info.poolTag
+    val poolInformation = batch.info
     //collector.shareMap.retain((m, s) => minerSettings.exists(ms => ms.address == ms.))
 
     // Collect new min payments for this placement
@@ -199,18 +202,24 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
         // Double wrap option to account for null values
         val minPay = Option(minerSettings.find(s => s.address == m.address.toString).map(_.paymentthreshold).getOrElse(0.01))
         if(batch.info.payment_type != PoolInformation.PAY_SOLO){
-          m.copy( memberInfo =
-          m.memberInfo.withMinPay(
-            (minPay.getOrElse(0.01) * BigDecimal(Helpers.OneErg)).longValue()
-          ))
+          if(poolTag == "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7") {
+            m.copy(memberInfo =
+              m.memberInfo.withMinPay(
+                (minPay.getOrElse(0.001) * BigDecimal(Helpers.OneErg)).longValue()
+              ))
+          }else{
+            m.copy(memberInfo =
+              m.memberInfo.withMinPay(
+                (minPay.getOrElse(0.01) * BigDecimal(Helpers.OneErg)).longValue()
+              ))
+          }
         }else{
           m.copy(
             memberInfo = m.memberInfo.withMinPay((0.001 * BigDecimal(Helpers.OneErg)).longValue())
           )
         }
     }.toArray
-    val poolTag = batch.info.poolTag
-    val poolInformation = batch.info
+
 
     logger.info("Num members: " + members.length)
 
@@ -219,11 +228,11 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       .mapTo[Seq[PoolPlacement]]
     lastPlacementResp.flatMap {
       placements =>
-        if(placements.nonEmpty) {
+        if (placements.nonEmpty) {
           logger.info(s"Last placements at gEpoch ${batch.blocks.head.gEpoch - 5} were found for pool ${poolTag}")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
             members, Some(placements), poolInformation, batch, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum), AppParameters.sendTxs)).mapTo[HoldingComponents]
-        }else {
+        } else {
           logger.warn(s"No last placement was found for pool ${poolTag} and block ${batch.blocks.head} ")
           (groupHandler ? ConstructHolding(poolTag, poolStates,
             members, None, poolInformation, batch, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum), AppParameters.sendTxs)).mapTo[HoldingComponents]
