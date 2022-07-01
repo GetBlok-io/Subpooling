@@ -186,7 +186,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       case PoolInformation.CURR_TEST_TOKENS =>
         EmissionsTransactions.makeTestTokenTx(tag)
       case PoolInformation.CURR_NETA =>
-        val emMintBox = makeTokenTx(1L, "NETA Emission Box NFT", "Token representing the NETA Emission Box", 0, Helpers.MinFee*2)
+        val emMintBox = makeTokenTx(1L, "Phase 2 NETA Emission Box NFT", "Token representing the Phase 2 NETA Emission Box", 0, Helpers.MinFee*2)
         EmissionsTransactions.makeNetaEmissionTx(tag, emMintBox)
       case PoolInformation.CURR_ERG_COMET =>
         logger.info("Making emissions for COMET pool")
@@ -257,7 +257,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
             val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpNFT, template.distToken)
             logger.info("Emissions Contract generated")
 
-            val tokenInputs = ctx.getBoxesById("207bdd352da82ba75c381dcddcffbb7f6491588108a3f96a95fdebbfaa5dec65")
+            val tokenInputs = ctx.getBoxesById("ed29641a2b8c896c47dac878132e9b75d86c4043f1816d3fba103938e86b93c8")
             val totalDistributionToken = tokenInputs.head.getTokens.get(0)
             logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
             logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
