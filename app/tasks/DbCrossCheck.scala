@@ -86,9 +86,6 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-            db.run(Tables.PoolInfoTable
-              .filter(p => p.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7")
-              .map(p => p.emissionsId).update(PoolInformation.NoEmissions))
         }
     })(contexts.taskContext)
   }
