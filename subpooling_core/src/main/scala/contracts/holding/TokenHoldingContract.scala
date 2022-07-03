@@ -58,7 +58,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val totalValAfterFees = (feeList.toArray.foldLeft(totalRewards){
       (accum, poolFeeVal) => accum - poolFeeVal._2
     })
-    val totalShares = currentDistribution.dist.map(d => d._2.getScore).sum
+
     logger.info("Now updating consensus")
     var shareScoreLeft = 0L
     var updatedConsensus = currentDistribution.dist
@@ -72,7 +72,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     }
     val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
     updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
-
+    val totalShares = updatedConsensus.map(d => d._2.getScore).sum
     updatedConsensus = updatedConsensus.map{
       consVal =>
         val shareNum = consVal._2.getScore
