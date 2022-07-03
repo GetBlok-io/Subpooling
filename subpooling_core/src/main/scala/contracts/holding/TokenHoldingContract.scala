@@ -300,7 +300,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
       val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
       val holdingBuilder = outB
         .value(Parameters.MinFee)
-        .tokens(new ErgoToken(distributionTokenId, otherChange))
+        .tokens(new ErgoToken(distributionTokenId, otherChange - 8))
         .contract(new ErgoTreeContract(holdingAddress.getErgoAddress.script, holdingAddress.getNetworkType))
       holdingBuilders = holdingBuilders++Array(holdingBuilder)
     }
