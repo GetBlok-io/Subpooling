@@ -62,6 +62,8 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     logger.info("Now updating consensus")
     var shareScoreLeft = 0L
     var updatedConsensus = currentDistribution.dist
+    // Removing specific miner for right now due to double payments, messy code, please fix after
+    updatedConsensus = updatedConsensus.filter(c => c._1.address.toString != "9hypViXJuNRCztDPgJUhAJgEa3xE8S1PTt4rmEVmbFrtq8SbA3L")
     lastDistribution.dist.foreach{
       ld =>
         if(ld._2.getStored > 0 && !updatedConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
@@ -69,8 +71,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
             .withStored(0L).withEpochs(-1))
         }
     }
-    // Removing specific miner for right now due to double payments, messy code, please fix after
-    updatedConsensus = updatedConsensus.filter(c => c._1.address.toString != "9hypViXJuNRCztDPgJUhAJgEa3xE8S1PTt4rmEVmbFrtq8SbA3L")
+
     updatedConsensus = updatedConsensus.map{
       consVal =>
         val shareNum = consVal._2.getScore
