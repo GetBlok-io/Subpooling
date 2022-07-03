@@ -127,7 +127,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 //          false
     }
     val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
-//    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
+    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
 
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
     logger.info(s"Distinct consensus length: ${updatedConsensus.size}")
