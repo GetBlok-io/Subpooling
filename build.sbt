@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-slick-evolutions" % "5.0.0",
   "com.typesafe.slick" %% "slick" % "3.3.3",
   "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3",
-
+  "io.getblok" %% "getblok_plasma" % "0.5"
 )
 lazy val core = Project(id = "subpooling_core", base = file("subpooling_core"))
 lazy val root = Project(id = "subpooling_service", base = file(".")).enablePlugins(PlayScala).dependsOn(core)
@@ -24,7 +24,8 @@ lazy val root = Project(id = "subpooling_service", base = file(".")).enablePlugi
 resolvers ++= Seq(
   "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/",
   "SonaType" at "https://oss.sonatype.org/content/groups/public",
-  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+  "Bintray" at "https://jcenter.bintray.com/"
 )
 topLevelDirectory := Some("subpooling_service")
 

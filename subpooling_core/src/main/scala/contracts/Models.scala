@@ -21,6 +21,9 @@ object Models {
 
     private val propEmissionsSrc      = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ProportionalEmissions.ergo")
     private val propEmissionsTestSrc      = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ProportionalEmissionsTest.ergo")
+
+    private val shareStateSrc         = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ShareState.ergo")
+
     val METADATA_SCRIPT:            String = metadataSrc.mkString
     val METADATA_TEST_SCRIPT:       String = metadataTestSrc.mkString
     val SIMPLE_HOLDING_SCRIPT:      String = holdingSrc.mkString
@@ -32,6 +35,8 @@ object Models {
     val EX_EMISSIONS_TEST_SCRIPT:   String = exEmissionsTestSrc.mkString
     val PROP_EMISSIONS_SCRIPT:      String = propEmissionsSrc.mkString
     val PROP_EMISSIONS_TEST_SCRIPT: String = propEmissionsTestSrc.mkString
+    val SHARE_STATE_SCRIPT:         String = shareStateSrc.mkString
+
     metadataSrc.close()
     metadataTestSrc.close()
     holdingSrc.close()
@@ -43,5 +48,6 @@ object Models {
     exEmissionsTestSrc.close()
     propEmissionsSrc.close()
     propEmissionsTestSrc.close()
+    shareStateSrc.close()
   }
 }

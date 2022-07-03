@@ -1,0 +1,67 @@
+{
+  val shareState = SELF.R4[AvlTree].get
+  val maxScore   = SELF.R5[Int].get
+
+
+  val rewardBox  = INPUTS(1)
+  val updateBox  = INPUTS(2)
+  val proofBoxes: Coll[Box]   = Coll[Box](INPUTS(3), INPUTS(4), INPUTS(5))
+  val proofShards: Coll[Coll[Byte]] = proofBoxes.map{ (box: Box) => box.R4[Coll[Byte]].get }
+
+  val initialValue  = rewardBox.R4[Long].get
+  val stateUpdates  = updateBox.R4[Coll[( Coll[Byte], Coll[Byte] )]].get
+  val initProof: Coll[Byte] = Coll[Byte]()
+
+  val proof: Coll[Byte]         = proofShards.fold(initProof, {
+    (z: Coll[Byte], p: Coll[Byte]) =>
+      z.append(p)
+  })
+  val keys          = stateUpdates.map{ (kv: (Coll[Byte], Coll[Byte])) => kv._1}
+
+  val paymentBoxes: Coll[Box] = OUTPUTS.slice(2, keys.size + 2)
+  val totalPaid    = paymentBoxes.fold(0L, { (z: Long, box: Box) => z + box.value })
+
+  // val validReward = SELF.tokens(0)._1 == rewardBox.tokens(0)._1
+
+  val oldScores   = shareState.getMany(keys, proof)
+
+  val validStateTransition = keys.forall{
+    (key: Coll[Byte]) =>
+      val prefix: Coll[Byte] = Coll( 0.toByte, 0.toByte, 0.toByte, 0.toByte )
+      val index =   keys.indexOf(key, 0)
+      val output = OUTPUTS(index + 2)
+      val oldScoreState: Coll[Byte]  = oldScores(index).get
+      // val key       = stateUpdates(index)._1
+      val updated: Coll[Byte]   = stateUpdates(index)._2
+
+    //  val shareScore: Long  = byteArrayToLong( prefix.append( updated.slice(0, 4) ) )
+      val oldScoreBytes = updated.slice(0, 8)
+
+      val shareScore = byteArrayToLong( oldScoreBytes )
+      val paymentIsValid = output.value == (shareScore * initialValue) / maxScore.toLong
+      val wasNotPaid     = oldScoreState.slice(8, 9)(0) == 0.toByte
+      val isNowPaid      = updated.slice(8, 9)(0) == 1.toByte
+      val scoresAreEqual = shareScore == byteArrayToLong(updated.slice(0, 8))
+      val boxIsCorrect   = blake2b256(output.propositionBytes) == key
+      allOf(Coll(
+        paymentIsValid,
+        wasNotPaid,
+        isNowPaid,
+        scoresAreEqual,
+        boxIsCorrect
+      ))
+
+  }
+  val nextShareState  = shareState.update(stateUpdates, proof).get
+  val nextRewardValid = OUTPUTS(1).value == rewardBox.value - totalPaid
+  val nextShareStateValid = OUTPUTS(0).R4[AvlTree].get.digest == nextShareState.digest
+
+  val validSpend = allOf(
+    Coll(
+      nextRewardValid,
+      nextShareStateValid,
+      validStateTransition
+    )
+  )
+  sigmaProp(validSpend)
+}
