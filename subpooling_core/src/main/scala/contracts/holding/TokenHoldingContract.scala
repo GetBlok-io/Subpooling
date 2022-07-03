@@ -62,8 +62,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     logger.info("Now updating consensus")
     var shareScoreLeft = 0L
     var updatedConsensus = currentDistribution.dist
-    // Removing specific miner for right now due to double payments, messy code, please fix after
-    updatedConsensus = updatedConsensus.filter(c => c._1.address.toString != "9hypViXJuNRCztDPgJUhAJgEa3xE8S1PTt4rmEVmbFrtq8SbA3L")
+
     lastDistribution.dist.foreach{
       ld =>
         if(ld._2.getStored > 0 && !updatedConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
@@ -128,10 +127,10 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 //          false
     }
     val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
-    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
+//    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
 
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
-    logger.info(s"Distinct consensus length: ${distinctConsensus.size}")
+    logger.info(s"Distinct consensus length: ${updatedConsensus.size}")
   //  logger.info(s"Next consensus length: ${nextConsensus.size}")
     val newShareDistribution = new ShareDistribution(updatedConsensus.toMap)
     val newMetadataRegisters = commandTx.cOB.metadataRegisters.copy(shareDist = newShareDistribution)
