@@ -70,6 +70,8 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
             .withStored(0L).withEpochs(-1))
         }
     }
+    val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
+    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
 
     updatedConsensus = updatedConsensus.map{
       consVal =>
@@ -126,8 +128,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 //        else
 //          false
     }
-    val distinctConsensus = updatedConsensus.map(c => c._1.address.toString).toSeq.distinct
-    updatedConsensus = distinctConsensus.map(d => updatedConsensus.find(uc => uc._1.address.toString == d).get).toMap
+
 
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
     logger.info(s"Distinct consensus length: ${updatedConsensus.size}")
@@ -163,7 +164,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
           accum + box.getTokens.get(0).getValue
         }else
           accum
-    } + 4
+    }
     logger.info("Total Token Value Held: " + totalTokenValue)
 
     val lastConsensus = metadataBox.shareDistribution
@@ -301,7 +302,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
       val outB = new HoldingSetBuilder(distributionTx.asUnsignedTxB.outBoxBuilder())
       val holdingBuilder = outB
         .value(Parameters.MinFee)
-        .tokens(new ErgoToken(distributionTokenId, otherChange - 20))
+        .tokens(new ErgoToken(distributionTokenId, changeValue))
         .contract(new ErgoTreeContract(holdingAddress.getErgoAddress.script, holdingAddress.getNetworkType))
       holdingBuilders = holdingBuilders++Array(holdingBuilder)
     }
