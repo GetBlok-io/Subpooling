@@ -322,7 +322,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     info.payment_type match {
       case PoolInformation.PAY_PPLNS =>
         logger.info("Using PPLNS effort calcs")
-        while(offset != -1 && offset < 750000){
+        while(offset != -1 && offset < 7500000){
           logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
           val shares = Await.result(db.run(Tables.PoolSharesTable.queryBetweenDate(startDate, endDate, offset, limit)), 1000 seconds)
             .filter{
