@@ -15,7 +15,7 @@ class HoldingGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, block
   override var completedGroups: Map[Subpool, SignedTransaction] = Map.empty[Subpool, SignedTransaction]
   override var failedGroups: Map[Subpool, Throwable] = Map.empty[Subpool, Throwable]
   override val groupName: String = "HoldingGroup"
-  val poolPlacements: ArrayBuffer[PoolPlacement] = ArrayBuffer.empty[PoolPlacement]
+  var poolPlacements: ArrayBuffer[PoolPlacement] = ArrayBuffer.empty[PoolPlacement]
   private val logger = LoggerFactory.getLogger(groupName)
 
 
@@ -82,6 +82,9 @@ class HoldingGroup(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, block
         completedGroups = pool.subPools.map(p => p -> pool.rootTx).toMap
         this
     }
+    val distinctMiners = poolPlacements.map(_.miner).distinct
+    poolPlacements = distinctMiners.map(d => poolPlacements.find(p => p.miner == d).get)
+    this
   }
 
 }
