@@ -1,0 +1,80 @@
+{
+  val balanceState = SELF.R4[AvlTree].get
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+
+  val rewardBox  = INPUTS(1)
+
+  val initialValue  = rewardBox.R4[Long].get
+
+  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val proof         = getVar[Coll[Byte]](1).get
+  val commandBytes  = getVar[Coll[Byte]](2).get
+  val keys          = stateUpdates.map{ (kv: (Coll[Byte], Coll[Byte])) => kv._1}
+
+  val insertMiners = {
+    if(commandBytes == Coll(0)){
+
+      val emptyInserts = stateData.forall{
+        (keyVal: (Coll[Byte], Coll[Byte])) =>
+          val balance = byteArrayToLong(keyVal._2)
+          balance == 0L
+      }
+      val nextState = balanceState.insert(stateData, proof).get
+      val validStateTransition = nextBalanceState.digest == nextState.digest
+
+      val validInsertion = allOf(
+        Coll(
+          emptyInserts,
+          validStateTransition,
+          SELF.value == OUTPUTS(0).value
+        )
+      )
+
+      validInsertion
+    }else{
+      false
+    }
+  }
+
+  val updateBalances = {
+    if(commandBytes == Coll(1)){
+
+      // val validReward = SELF.tokens(0)._1 == rewardBox.tokens(0)._1
+
+      val oldBalances   = balanceState.getMany(keys, proof)
+      val totalPaid    = oldBalances.fold(0L, { (z: Long, keyVal: (Coll[Byte], Coll[Byte])) => z + byteArrayToLong( keyVal._2 ) })
+
+      val validStateTransition = keys.forall{
+        (key: Coll[Byte]) =>
+          val index =   keys.indexOf(key, 0)
+          val oldMinerBalance: Coll[Byte]  = oldBalances(index).get
+          val nextMinerBalance: Coll[Byte]   = stateUpdates(index)._2
+
+          val lastBalance = byteArrayToLong( oldMinerBalance )
+          val nextBalance = byteArrayToLong( nextMinerBalance )
+
+          val balanceGained = nextBalance > lastBalance
+
+          balanceGained
+      }
+      val updatedBalanceState  = balanceState.update(stateUpdates, proof).get
+      val nextRewardValid = OUTPUTS(1).value == rewardBox.value - totalPaid
+      val nextBalanceStateValid = nextBalanceState == updatedBalanceState
+
+      val validUpdate = allOf(
+        Coll(
+          nextRewardValid,
+          nextShareStateValid,
+          validStateTransition,
+        )
+      )
+      validUpdate
+    }else{
+      false
+    }
+  }
+
+
+
+  sigmaProp(insertMiners || updateBalances)
+}
