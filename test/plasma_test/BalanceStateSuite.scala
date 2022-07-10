@@ -1,41 +1,39 @@
 package plasma_test
 
-import io.getblok.subpooling_core.contracts.plasma.ShareStateContract
+import io.getblok.subpooling_core.contracts.plasma.{BalanceStateContract, InsertBalanceContract, PayoutBalanceContract, ShareStateContract, UpdateBalanceContract}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{ShareState, StateMiner, StateScore}
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoProver, NetworkType, OutBox, RestApiErgoClient, SecretString}
+import io.getblok.subpooling_core.plasma.{BalanceState, ShareState, StateBalance, StateMiner, StateScore}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoProver, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
-import plasma_test.ShareStateSuite.{NUM_MINERS, creatorAddress, dummyProver, ergoClient, logger, mockData, partialMockData, toInput}
+import plasma_test.BalanceStateSuite._
+import scorex.crypto.authds.avltree.batch.Insert
 
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
-class ShareStateSuite extends AnyFunSuite{
-  val shareState = new ShareState("test", 0)
+class BalanceStateSuite extends AnyFunSuite{
+  val balanceState = new BalanceState("test", 0)
   val initBlockReward = Helpers.OneErg * 55
-  val totalScore = mockData.map(_._2.score).sum.toInt
 
-
-  shareState.loadState(partialMockData)
-  logger.info(s"Score bytes: ${partialMockData.head._2.toBytes.length}")
   testTx()
+  updateTx()
+  payoutTx()
+  // updateTx()
+  // payoutTx()
   def testTx(): Unit = {
     ergoClient.execute {
       ctx =>
-        val initStateBox = ShareStateContract.applyContextVars(toInput(ShareStateContract.buildStateBox(ctx, shareState, totalScore)),
-          shareState, partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
-        val initRewardBox = toInput(ShareStateContract.buildRewardBox(ctx, initBlockReward, initBlockReward, creatorAddress.toErgoContract))
-        val feeBox = toInput(ShareStateContract.buildFeeBox(ctx, Helpers.MinFee * 10, creatorAddress.toErgoContract))
-        val nextStateBox = ShareStateContract.buildStateBox(ctx, shareState, totalScore)
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
+        val insertBox = InsertBalanceContract.applyInsertionContextVars(toInput(InsertBalanceContract.buildInsertBox(ctx, Some(Helpers.MinFee * 10L))),
+          balanceState,
+          partialMockData.sortBy(m => BigInt(m._1.bytes)).map(_._1).take(NUM_MINERS))
 
-        val paymentBoxes = ShareStateContract.buildPaymentBoxes(ctx, mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes))
-          .take(NUM_MINERS), initBlockReward, totalScore)
+        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState)
 
-        val nextRewardBox = ShareStateContract.buildRewardBox(ctx, initBlockReward - (paymentBoxes.map(_.getValue).sum), initBlockReward, creatorAddress.toErgoContract)
-        val inputBoxes = (Seq(initStateBox, initRewardBox, feeBox)).asJava
+        val inputBoxes = (Seq(initStateBox, insertBox)).asJava
         val uTx = ctx.newTxBuilder()
           .boxesToSpend(inputBoxes)
-          .outputs((Seq(nextStateBox, nextRewardBox) ++ paymentBoxes): _*)
+          .outputs(nextStateBox)
           .fee(Helpers.MinFee * 10)
           .sendChangeTo(creatorAddress.getErgoAddress)
           .build()
@@ -49,56 +47,119 @@ class ShareStateSuite extends AnyFunSuite{
     }
   }
 
-  def sendTx(): Unit = {
+  def updateTx(): Unit = {
     ergoClient.execute {
       ctx =>
-        val initStateBox = ShareStateContract.buildStateBox(ctx, shareState, totalScore)
-        val initRewardBox = ShareStateContract.buildRewardBox(ctx, initBlockReward, initBlockReward, creatorAddress.toErgoContract)
-        val feeBox = ShareStateContract.buildFeeBox(ctx, Helpers.MinFee * 1000, creatorAddress.toErgoContract)
+        val balanceChangeSum = partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS).map(_._2.balance).sum
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
+        val updateBoxResults = UpdateBalanceContract.applyUpdateContextVars(toInput(UpdateBalanceContract.buildUpdateBox(ctx, Some(balanceChangeSum + Helpers.MinFee * 10L))),
+          balanceState,
+          partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
+        val updateBox = updateBoxResults._1
+        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, Some(updateBoxResults._2 + Helpers.MinFee))
 
-        val initInputs = ctx.getBoxesById("25748e7479998e1e108258c30a164e3989a6f27651f403f36f1fda5061b4dc0b")
-        val initOutputs = Seq(initStateBox, initRewardBox, feeBox)
-        val initUTx = ctx.newTxBuilder()
-          .boxesToSpend(initInputs.toSeq.asJava)
-          .outputs(initOutputs:_*)
+        val inputBoxes = (Seq(initStateBox, updateBox)).asJava
+        val uTx = ctx.newTxBuilder()
+          .boxesToSpend(inputBoxes)
+          .outputs(nextStateBox)
           .fee(Helpers.MinFee * 10)
           .sendChangeTo(creatorAddress.getErgoAddress)
           .build()
 
-        val initSTx = dummyProver.sign(initUTx)
+        val sTx = dummyProver.sign(uTx)
+        // logger.info(sTx.toJson(true))
+        logger.info(s"Total data: ${mockData.length} entries")
+        logger.info(s"Cost: ${sTx.getCost}")
 
-        logger.info(s"Initial tx json: ${initSTx.toJson(true)}")
-        val initTxId = initSTx.getId.replace("\"", "")
+    }
+  }
 
-        val inputBoxes = initOutputs.slice(1, initOutputs.length).zipWithIndex.map(o => o._1.convertToInputWith(initTxId, (o._2 + 1).toShort))
-        val extendedStateBox = ShareStateContract.applyContextVars(initOutputs.head.convertToInputWith(initTxId, 0.toShort), shareState,
-          partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
+  def payoutTx(): Unit = {
+    ergoClient.execute {
+      ctx =>
+        val totalSum = mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes) ).map(_._2).take(NUM_MINERS).map(_.balance).sum
 
-        val boxesToSpend = Seq(extendedStateBox) ++ inputBoxes
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, Some(totalSum + Helpers.MinFee)))
+        val payoutBoxResults = PayoutBalanceContract.applyPayoutContextVars(
+          toInput(PayoutBalanceContract.buildPayoutBox(ctx, Some(Helpers.MinFee * 10L))),
+          balanceState,
+          mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes)).take(NUM_MINERS).map(_._1))
+        val payoutBox = payoutBoxResults._1
+        val totalRemoved = payoutBoxResults._2.map(_._2.balance).sum
+        logger.info(s"Total removed: ${totalRemoved}")
+        logger.info(s"Total sum: ${totalSum}")
+        val feeBox = toInput(ShareStateContract.buildFeeBox(ctx, (Helpers.MinFee * 10), creatorAddress.toErgoContract))
 
-        val nextStateBox = ShareStateContract.buildStateBox(ctx, shareState, totalScore)
-
-        val paymentBoxes = ShareStateContract.buildPaymentBoxes(ctx, mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes)).take(NUM_MINERS), initBlockReward, totalScore)
-        val nextRewardBox = ShareStateContract.buildRewardBox(ctx, initBlockReward - (paymentBoxes.map(_.getValue).sum), initBlockReward, creatorAddress.toErgoContract)
-        require(paymentBoxes.forall(o => o.getValue > Helpers.MinFee))
+        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, Some(Helpers.MinFee))
+        val payoutBoxes = BalanceStateContract.buildPaymentBoxes(ctx, payoutBoxResults._2)
+        val inputBoxes = (Seq(initStateBox, payoutBox)).asJava
+        val outputBoxes = Seq(nextStateBox) ++ payoutBoxes
         val uTx = ctx.newTxBuilder()
-          .boxesToSpend(boxesToSpend.asJava)
-          .outputs((Seq(nextStateBox, nextRewardBox) ++ paymentBoxes): _*)
-          .fee(Helpers.MinFee * 1000)
+          .boxesToSpend(inputBoxes)
+          .outputs(outputBoxes:_*)
+          .fee(Helpers.MinFee * 10)
           .sendChangeTo(creatorAddress.getErgoAddress)
           .build()
 
         val sTx = dummyProver.sign(uTx)
-        logger.info(sTx.toJson(true))
+        // logger.info(sTx.toJson(true))
         logger.info(s"Total data: ${mockData.length} entries")
         logger.info(s"Cost: ${sTx.getCost}")
-      ctx.sendTransaction(initSTx)
-        logger.info(initSTx.getId)
-        Thread.sleep(3000)
-      ctx.sendTransaction(sTx)
-        logger.info(sTx.getId)
+
+
     }
   }
+
+//  def sendTx(): Unit = {
+//    ergoClient.execute {
+//      ctx =>
+//        val initStateBox = ShareStateContract.buildStateBox(ctx, shareState, totalScore)
+//        val initRewardBox = ShareStateContract.buildRewardBox(ctx, initBlockReward, initBlockReward, creatorAddress.toErgoContract)
+//        val feeBox = ShareStateContract.buildFeeBox(ctx, Helpers.MinFee * 1000, creatorAddress.toErgoContract)
+//
+//        val initInputs = ctx.getBoxesById("25748e7479998e1e108258c30a164e3989a6f27651f403f36f1fda5061b4dc0b")
+//        val initOutputs = Seq(initStateBox, initRewardBox, feeBox)
+//        val initUTx = ctx.newTxBuilder()
+//          .boxesToSpend(initInputs.toSeq.asJava)
+//          .outputs(initOutputs:_*)
+//          .fee(Helpers.MinFee * 10)
+//          .sendChangeTo(creatorAddress.getErgoAddress)
+//          .build()
+//
+//        val initSTx = dummyProver.sign(initUTx)
+//
+//        logger.info(s"Initial tx json: ${initSTx.toJson(true)}")
+//        val initTxId = initSTx.getId.replace("\"", "")
+//
+//        val inputBoxes = initOutputs.slice(1, initOutputs.length).zipWithIndex.map(o => o._1.convertToInputWith(initTxId, (o._2 + 1).toShort))
+//        val extendedStateBox = ShareStateContract.applyContextVars(initOutputs.head.convertToInputWith(initTxId, 0.toShort), shareState,
+//          partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
+//
+//        val boxesToSpend = Seq(extendedStateBox) ++ inputBoxes
+//
+//        val nextStateBox = ShareStateContract.buildStateBox(ctx, shareState, totalScore)
+//
+//        val paymentBoxes = ShareStateContract.buildPaymentBoxes(ctx, mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes)).take(NUM_MINERS), initBlockReward, totalScore)
+//        val nextRewardBox = ShareStateContract.buildRewardBox(ctx, initBlockReward - (paymentBoxes.map(_.getValue).sum), initBlockReward, creatorAddress.toErgoContract)
+//        require(paymentBoxes.forall(o => o.getValue > Helpers.MinFee))
+//        val uTx = ctx.newTxBuilder()
+//          .boxesToSpend(boxesToSpend.asJava)
+//          .outputs((Seq(nextStateBox, nextRewardBox) ++ paymentBoxes): _*)
+//          .fee(Helpers.MinFee * 1000)
+//          .sendChangeTo(creatorAddress.getErgoAddress)
+//          .build()
+//
+//        val sTx = dummyProver.sign(uTx)
+//        logger.info(sTx.toJson(true))
+//        logger.info(s"Total data: ${mockData.length} entries")
+//        logger.info(s"Cost: ${sTx.getCost}")
+//      ctx.sendTransaction(initSTx)
+//        logger.info(initSTx.getId)
+//        Thread.sleep(3000)
+//      ctx.sendTransaction(sTx)
+//        logger.info(sTx.getId)
+//    }
+//  }
 
   ///====NO PROOF COMPRESSION====
     // 2200 Miner Pool
@@ -116,27 +177,19 @@ class ShareStateSuite extends AnyFunSuite{
   // 14854 byte proof size
 }
 
-object ShareStateSuite {
-  val NUM_MINERS = 200
+object BalanceStateSuite {
+  val NUM_MINERS = 198
   val mockData = {
     MockAddresses.addresses.sortBy(a => BigInt(StateMiner(a).toPartialStateMiner.bytes)).zipWithIndex.map {
       ad =>
         val randomRange = {
-          if (ad._2 <= NUM_MINERS) {
-            15
-          } else {
-            10
-          }
+          Helpers.OneErg * 20
         }
 
         val randomFloor = {
-          if(ad._2 <= NUM_MINERS) {
-            15
-          }else{
-            10
-          }
+          Helpers.OneErg
         }
-        StateMiner(ad._1) -> StateScore(((Math.random() * randomRange) + randomFloor).toLong, false)
+        StateMiner(ad._1) -> StateBalance(((Math.random() * randomRange) + randomFloor).toLong)
     }
   }
 
@@ -161,3 +214,5 @@ object ShareStateSuite {
   def logger: Logger = LoggerFactory.getLogger("PlasmaTesting")
 
 }
+
+

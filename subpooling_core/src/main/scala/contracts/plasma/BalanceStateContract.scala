@@ -1,38 +1,38 @@
 package io.getblok.subpooling_core
 package contracts.plasma
-import contracts.MetadataContract
-import contracts.Models.Scripts
 
-import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoType, ErgoValue, InputBox, OutBox}
-import sigmastate.Values
-import io.getblok.getblok_plasma.collections.{PlasmaMap, Proof}
+import io.getblok.getblok_plasma.collections.Proof
+import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{PartialStateMiner, ShareState, StateMiner, StateScore}
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, StateBalance, StateMiner, StateScore}
+import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
+import scorex.crypto.authds.avltree.batch.Insert
+import sigmastate.Values
 import sigmastate.eval.Colls
 
 
-case class ShareStateContract(contract: ErgoContract){
-  import ShareStateContract._
+case class BalanceStateContract(contract: ErgoContract){
+  import BalanceStateContract._
   def getConstants:                             Constants       = contract.getConstants
   def getErgoScript:                            String          = script
   def substConstant(name: String, value: Any):  ErgoContract    = contract.substConstant(name, value)
   def getErgoTree:                              Values.ErgoTree = contract.getErgoTree
 }
 
-object ShareStateContract {
+object BalanceStateContract {
   private val constants = ConstantsBuilder.create().build()
-  val script: String = Scripts.SHARE_STATE_SCRIPT
-  private val logger: Logger = LoggerFactory.getLogger("ShareStateContract")
+  val script: String = Scripts.BALANCE_STATE_SCRIPT
+  private val logger: Logger = LoggerFactory.getLogger("BalanceStateContract")
   def generateStateContract(ctx: BlockchainContext): ErgoContract = {
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
 
-  def buildStateBox(ctx: BlockchainContext, shareState: ShareState, maxScore: Int): OutBox = {
+  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
-      .value(Helpers.MinFee)
-      .registers(shareState.map.ergoValue, ErgoValue.of(maxScore))
+      .value(optValue.getOrElse(Helpers.MinFee))
+      .registers(balanceState.map.ergoValue)
       .contract(generateStateContract(ctx))
       .build()
   }
@@ -45,40 +45,6 @@ object ShareStateContract {
       .build()
   }
 
-  def buildDataBoxes(ctx: BlockchainContext, shareState: ShareState, updates: Seq[(PartialStateMiner, StateScore)],
-                     updateContract: ErgoContract, proofContract: ErgoContract): Seq[OutBox] = {
-    val updateType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val updateBox = ctx.newTxBuilder().outBoxBuilder()
-      .value(Helpers.MinFee * 10)
-      .registers(ErgoValue.of(Colls.fromArray(updates.map(u => u._1 -> u._2.copy(paid = true)).toArray.map(u => u._1.toColl -> u._2.toColl))(updateType.getRType), updateType))
-      .contract(updateContract)
-      .build()
-
-    val proof = shareState.map.update(updates.map(u => u._1 -> u._2.copy(paid = true)):_*).proof
-
-    val proofs = {
-      if(proof.bytes.length > 4000){
-        val fullProofShards = proof.bytes.length / 4000
-        val partialShard = proof.bytes.length % 4000
-
-        var shards = for(i <- 0 until fullProofShards) yield Proof(proof.bytes.slice(i * 4000, ((i + 1) * 4000)))
-        if(partialShard > 0)
-          shards = shards ++ Seq(Proof(proof.bytes.slice(proof.bytes.length - partialShard, proof.bytes.length)))
-        shards
-      }else
-        Seq(proof)
-    }
-    val proofBoxes = for(p <- proofs) yield {
-      ctx.newTxBuilder().outBoxBuilder()
-        .value(Helpers.MinFee * 10)
-        .registers(p.ergoValue)
-        .contract(proofContract)
-        .build()
-    }
-
-    Seq(updateBox) ++ proofBoxes
-  }
-
   def buildFeeBox(ctx: BlockchainContext, value: Long, contract: ErgoContract): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(value)
@@ -86,22 +52,57 @@ object ShareStateContract {
       .build()
   }
 
-  def applyContextVars(stateBox: InputBox, shareState: ShareState, updates: Seq[(PartialStateMiner, StateScore)]): InputBox = {
-    val updateType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val updateErgoVal = ErgoValue.of(Colls.fromArray(updates.map(u => u._1 -> u._2.copy(paid = true)).toArray.map(u => u._1.toColl -> u._2.toColl))(updateType.getRType), updateType)
-    val result = shareState.map.update(updates.map(u => u._1 -> u._2.copy(paid = true)):_*)
-    logger.info(s"Updating ${updates.length} share states")
+  def applyInsertionContextVars(stateBox: InputBox, balanceState: BalanceState, inserts: Seq[PartialStateMiner]): InputBox = {
+    val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(inserts.map(u => u -> StateBalance(0L)).toArray.map(u => u._1.toColl -> u._2.toColl)
+    )(insertType.getRType), insertType)
+    val result = balanceState.map.insert(inserts.map(u => u -> StateBalance(0L)):_*)
+    logger.info(s"Inserting ${inserts.length} share states")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
-    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue))
+    logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
+    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue),
+      ContextVar.of(2.toByte, ErgoValue.of(Colls.fromArray(Array(0.toByte)), ErgoType.byteType())))
   }
 
-  def buildPaymentBoxes(ctx: BlockchainContext, updates: Seq[(StateMiner, StateScore)], blockReward: Long, maxScore: Int): Seq[OutBox] = {
-    for(u <- updates) yield {
+  def applyUpdateContextVars(stateBox: InputBox, balanceState: BalanceState, balanceChanges: Seq[(PartialStateMiner, StateBalance)]): (InputBox, Long) = {
+    val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(balanceChanges.map(u => u._1.toColl -> u._2.toColl).toArray
+    )(insertType.getRType), insertType)
+    val result = balanceState.map.update(balanceChanges:_*)
+    logger.info(s"${balanceChanges.head.toString()}")
+    logger.info(s"Updating ${balanceChanges.length} share states")
+    logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
+    logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
+    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue),
+      ContextVar.of(2.toByte, ErgoValue.of(Colls.fromArray(Array(1.toByte)), ErgoType.byteType()))) -> balanceChanges.map(_._2.balance).sum
+  }
+
+  def applyPayoutContextVars(stateBox: InputBox, balanceState: BalanceState, payouts: Seq[StateMiner]) = {
+    val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
+    val lastBalances = balanceState.map.lookUp((payouts.map(_.toPartialStateMiner)):_*).response.map(_.opt.get)
+    val lastBalanceMap = payouts.indices.map(i => payouts(i) -> lastBalances(i))
+    val nextBalanceMap = payouts.map(u => u.toPartialStateMiner -> StateBalance(0L))
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(nextBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
+    )(insertType.getRType), insertType)
+    val result = balanceState.map.update(nextBalanceMap:_*)
+    logger.info(s"${nextBalanceMap.head.toString()}")
+    logger.info(s"Updating ${nextBalanceMap.length} balance states")
+    logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
+    logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
+    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue),
+      ContextVar.of(2.toByte, ErgoValue.of(Colls.fromArray(Array(2.toByte)), ErgoType.byteType()))) -> lastBalanceMap
+  }
+
+  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, StateBalance)]): Seq[OutBox] = {
+    for(u <- payouts) yield {
+      logger.info(s"Balance: ${u._2}")
       ctx.newTxBuilder().outBoxBuilder()
-        .value( (u._2.score * blockReward) / maxScore)
+        .value( u._2.balance )
         .contract(u._1.address.toErgoContract)
         .build()
     }
   }
 }
+
+
 

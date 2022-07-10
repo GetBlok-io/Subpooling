@@ -18,6 +18,12 @@ object StateConversions {
     override def convertFromBytes(bytes: Array[Byte]): StateScore = StateScore(Longs.fromByteArray(bytes.slice(0, 8)), getPaid(bytes.slice(8, 9).head))
   }
 
+  implicit val balanceConversion: ByteConversion[StateBalance] = new ByteConversion[StateBalance] {
+    override def convertToBytes(t: StateBalance): Array[Byte] = t.toBytes
+
+    override def convertFromBytes(bytes: Array[Byte]): StateBalance = StateBalance(Longs.fromByteArray(bytes.slice(0, 8)))
+  }
+
   def getPaid(byte: Byte): Boolean = {
    byte match {
      case 0 =>

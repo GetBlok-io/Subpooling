@@ -1,0 +1,46 @@
+{
+  val balanceState = INPUTS(0).R4[AvlTree].get
+  val nextStateBox = OUTPUTS(0)
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+
+  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val proof         = getVar[Coll[Byte]](1).get
+
+  val keys = stateData.map{ (keyVal: (Coll[Byte], Coll[Byte])) => keyVal._1 }
+  val updateBalances = {
+    val oldBalances   = balanceState.getMany(keys, proof)
+    val totalPaid     = stateData.fold(0L, {
+      (z: Long, keyVal: (Coll[Byte], Coll[Byte])) =>
+        val minerBalanceChange: Long = byteArrayToLong( keyVal._2 )
+        z + minerBalanceChange
+      }
+    )
+
+    val newBalances: Coll[(Coll[Byte], Coll[Byte])] = stateData.map{
+      (keyVal: (Coll[Byte], Coll[Byte])) =>
+        val index =   keys.indexOf(keyVal._1, 0)
+        val oldMinerBalance: Coll[Byte]      = oldBalances(index).get
+        val balanceChangeBytes: Coll[Byte]   = keyVal._2
+
+        val lastBalance = byteArrayToLong( oldMinerBalance )
+        val minerBalanceChange = byteArrayToLong( balanceChangeBytes )
+        val nextBalance = minerBalanceChange + lastBalance
+
+        (keyVal._1, longToByteArray( nextBalance ))
+    }
+
+    val updatedBalanceState  = balanceState.update(newBalances, proof).get
+    val nextRewardValid = nextStateBox.value == INPUTS(0).value + totalPaid
+    val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
+
+    val validUpdate = allOf(
+      Coll(
+        nextRewardValid,
+        nextBalanceStateValid
+      )
+    )
+    validUpdate
+  }
+
+  sigmaProp(updateBalances)
+}

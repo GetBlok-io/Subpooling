@@ -23,6 +23,10 @@ object Models {
     private val propEmissionsTestSrc      = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ProportionalEmissionsTest.ergo")
 
     private val shareStateSrc         = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ShareState.ergo")
+    private val balanceStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/BalanceState.ergo")
+    private val insertStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/InsertBalance.ergo")
+    private val updateStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/UpdateBalance.ergo")
+    private val payoutBalanceSrc     = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/PayoutBalance.ergo")
 
     val METADATA_SCRIPT:            String = metadataSrc.mkString
     val METADATA_TEST_SCRIPT:       String = metadataTestSrc.mkString
@@ -36,7 +40,10 @@ object Models {
     val PROP_EMISSIONS_SCRIPT:      String = propEmissionsSrc.mkString
     val PROP_EMISSIONS_TEST_SCRIPT: String = propEmissionsTestSrc.mkString
     val SHARE_STATE_SCRIPT:         String = shareStateSrc.mkString
-
+    val BALANCE_STATE_SCRIPT:       String = balanceStateSrc.mkString
+    val INSERT_BALANCE_SCRIPT:      String = insertStateSrc.mkString
+    val UPDATE_BALANCE_SCRIPT:      String = updateStateSrc.mkString
+    val PAYOUT_BALANCE_SCRIPT:      String = payoutBalanceSrc.mkString
     metadataSrc.close()
     metadataTestSrc.close()
     holdingSrc.close()
@@ -49,5 +56,9 @@ object Models {
     propEmissionsSrc.close()
     propEmissionsTestSrc.close()
     shareStateSrc.close()
+    balanceStateSrc.close()
+    insertStateSrc.close()
+    updateStateSrc.close()
+    payoutBalanceSrc.close()
   }
 }
