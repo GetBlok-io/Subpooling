@@ -24,7 +24,15 @@
 
         val lastBalance = byteArrayToLong( oldMinerBalance )
         val minerBalanceChange = byteArrayToLong( balanceChangeBytes )
-        val nextBalance = minerBalanceChange + lastBalance
+
+        // Correct miner balance to always ensure that negative values are not entered
+        val correctedBalance = {
+          if(minerBalanceChange < 0)
+            minerBalanceChange * -1
+          else
+            minerBalanceChange
+        }
+        val nextBalance = correctedBalance + lastBalance
 
         (keyVal._1, longToByteArray( nextBalance ))
     }
