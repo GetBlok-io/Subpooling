@@ -86,6 +86,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
+          db.run(Tables.PoolBlocksTable.filter(_.gEpoch === 729L).map(_.gEpoch).update(-1L))
         }
     })(contexts.taskContext)
   }
