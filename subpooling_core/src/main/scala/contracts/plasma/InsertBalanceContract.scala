@@ -22,19 +22,20 @@ object InsertBalanceContract {
   private val constants = ConstantsBuilder.create().build()
   val script: String = Scripts.INSERT_BALANCE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("BalanceStateContract")
-  def generateInsertContract(ctx: BlockchainContext): ErgoContract = {
+  
+  def generate(ctx: BlockchainContext): ErgoContract = {
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
 
-  def buildInsertBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
+  def buildBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
-      .contract(generateInsertContract(ctx))
+      .contract(generate(ctx))
       .build()
   }
 
-  def applyInsertionContextVars(updateBox: InputBox, balanceState: BalanceState, inserts: Seq[PartialStateMiner]): InputBox = {
+  def applyContext(updateBox: InputBox, balanceState: BalanceState, inserts: Seq[PartialStateMiner]): InputBox = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
     val updateErgoVal = ErgoValue.of(Colls.fromArray(inserts.map(u => u -> StateBalance(0L)).toArray.map(u => u._1.toColl -> u._2.toColl)
     )(insertType.getRType), insertType)

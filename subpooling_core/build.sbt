@@ -10,7 +10,7 @@ libraryDependencies ++= Seq(
   "org.postgresql" % "postgresql" % "42.3.4",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test",
 //  "org.slf4j" % "slf4j-simple" % "1.7.36"
-  "io.github.getblok-io" %% "getblok_plasma" % "0.0.1"
+  "io.github.getblok-io" %% "getblok_plasma" % "0.0.2"
 )
 
 resolvers ++= Seq(

@@ -3,7 +3,7 @@
   val nextStateBox = OUTPUTS(0)
   val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
 
-  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val stateData        = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
   val getProof         = getVar[Coll[Byte]](1).get
   val delProof         = getVar[Coll[Byte]](2).get
   val keys = stateData.map{ (keyVal: (Coll[Byte], Coll[Byte])) => keyVal._1 }

@@ -15,16 +15,19 @@ class BalanceStateSuite extends AnyFunSuite{
   val balanceState = new BalanceState("test", 0)
   val initBlockReward = Helpers.OneErg * 55
 
-  testTx()
-  updateTx()
-  payoutTx()
+//  testTx()
+//  updateTx()
+//  payoutTx()
+
+  val result = balanceState.map.lookUp( (mockData.take(400).map(_._1.toPartialStateMiner)):_*)
+  logger.info(s"Response: ${result.response}")
   // updateTx()
   // payoutTx()
   def testTx(): Unit = {
     ergoClient.execute {
       ctx =>
         val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
-        val insertBox = InsertBalanceContract.applyInsertionContextVars(toInput(InsertBalanceContract.buildInsertBox(ctx, Some(Helpers.MinFee * 10L))),
+        val insertBox = InsertBalanceContract.applyContext(toInput(InsertBalanceContract.buildBox(ctx, Some(Helpers.MinFee * 10L))),
           balanceState,
           partialMockData.sortBy(m => BigInt(m._1.bytes)).map(_._1).take(NUM_MINERS))
 
@@ -52,7 +55,7 @@ class BalanceStateSuite extends AnyFunSuite{
       ctx =>
         val balanceChangeSum = partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS).map(_._2.balance).sum
         val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
-        val updateBoxResults = UpdateBalanceContract.applyUpdateContextVars(toInput(UpdateBalanceContract.buildUpdateBox(ctx, Some(balanceChangeSum + Helpers.MinFee * 10L))),
+        val updateBoxResults = UpdateBalanceContract.applyContext(toInput(UpdateBalanceContract.buildBox(ctx, Some(balanceChangeSum + Helpers.MinFee * 10L))),
           balanceState,
           partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
         val updateBox = updateBoxResults._1
@@ -80,8 +83,8 @@ class BalanceStateSuite extends AnyFunSuite{
         val totalSum = mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes) ).map(_._2).take(NUM_MINERS).map(_.balance).sum
 
         val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, Some(totalSum + Helpers.MinFee)))
-        val payoutBoxResults = PayoutBalanceContract.applyPayoutContextVars(
-          toInput(PayoutBalanceContract.buildPayoutBox(ctx, Some(Helpers.MinFee * 10L))),
+        val payoutBoxResults = PayoutBalanceContract.applyContext(
+          toInput(PayoutBalanceContract.buildBox(ctx, Some(Helpers.MinFee * 10L))),
           balanceState,
           mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes)).take(NUM_MINERS).map(_._1))
         val payoutBox = payoutBoxResults._1

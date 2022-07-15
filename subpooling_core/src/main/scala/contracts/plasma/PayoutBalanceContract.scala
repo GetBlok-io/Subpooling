@@ -25,21 +25,21 @@ object PayoutBalanceContract {
   private val constants = ConstantsBuilder.create().build()
   val script: String = Scripts.PAYOUT_BALANCE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("PayoutBalanceContract")
-  def generatePayoutContract(ctx: BlockchainContext): ErgoContract = {
+  def generate(ctx: BlockchainContext): ErgoContract = {
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
 
-  def buildPayoutBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
+  def buildBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
-      .contract(generatePayoutContract(ctx))
+      .contract(generate(ctx))
       .build()
   }
 
-  def applyPayoutContextVars(stateBox: InputBox, balanceState: BalanceState, payouts: Seq[StateMiner]): (InputBox, immutable.IndexedSeq[(StateMiner, StateBalance)]) = {
+  def applyContext(stateBox: InputBox, balanceState: BalanceState, payouts: Seq[StateMiner]): (InputBox, immutable.IndexedSeq[(StateMiner, StateBalance)]) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val lastBalances = balanceState.map.lookUp((payouts.map(_.toPartialStateMiner)):_*).response.map(_.opt.get)
+    val lastBalances = balanceState.map.lookUp((payouts.map(_.toPartialStateMiner)):_*).response.map(_.tryOp.get)
     val lastBalanceMap = payouts.indices.map(i => payouts(i) -> lastBalances(i).get)
     val nextBalanceMap = payouts.map(u => u.toPartialStateMiner -> StateBalance(0L))
     val updateErgoVal = ErgoValue.of(Colls.fromArray(nextBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
@@ -50,6 +50,17 @@ object PayoutBalanceContract {
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
     logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
     stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> lastBalanceMap
+  }
+
+  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, StateBalance)]): Seq[OutBox] = {
+    logger.info("Building payout boxes: ")
+    for(u <- payouts) yield {
+      logger.info(s"${u._1.toString}: ${u._2}")
+      ctx.newTxBuilder().outBoxBuilder()
+        .value( u._2.balance )
+        .contract(u._1.address.toErgoContract)
+        .build()
+    }
   }
 }
 

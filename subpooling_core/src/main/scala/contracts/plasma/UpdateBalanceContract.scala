@@ -22,23 +22,34 @@ object UpdateBalanceContract {
   private val constants = ConstantsBuilder.create().build()
   val script: String = Scripts.UPDATE_BALANCE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("UpdateBalanceContract")
-  def generateUpdateContract(ctx: BlockchainContext): ErgoContract = {
+  def generate(ctx: BlockchainContext): ErgoContract = {
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
 
-  def buildUpdateBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
+  def buildBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
-      .contract(generateUpdateContract(ctx))
+      .contract(generate(ctx))
       .build()
   }
 
-  def applyUpdateContextVars(stateBox: InputBox, balanceState: BalanceState, balanceChanges: Seq[(PartialStateMiner, StateBalance)]): (InputBox, Long) = {
+  def applyContext(stateBox: InputBox, balanceState: BalanceState, balanceChanges: Seq[(PartialStateMiner, StateBalance)]): (InputBox, Long) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
     val updateErgoVal = ErgoValue.of(Colls.fromArray(balanceChanges.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
-    val result = balanceState.map.update(balanceChanges:_*)
+
+    val oldBalances = balanceState.map.lookUp(balanceChanges.map(_._1):_*).response
+
+    val updates = balanceChanges.indices.map{
+      idx =>
+        val keyChange = balanceChanges(idx)
+        val oldBalance = oldBalances(idx).tryOp.get.get
+
+        (keyChange._1 -> keyChange._2.copy(balance = keyChange._2.balance + oldBalance.balance))
+    }
+
+    val result = balanceState.map.update(updates:_*)
     logger.info(s"${balanceChanges.head.toString()}")
     logger.info(s"Updating ${balanceChanges.length} share states")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")

@@ -3,8 +3,11 @@ package states.models
 
 import plasma.{StateBalance, StateMiner}
 
-import org.ergoplatform.appkit.{ErgoContract, InputBox}
+import io.getblok.subpooling_core.global.AppParameters.NodeWallet
+import org.ergoplatform.appkit.{BlockchainContext, ErgoContract, InputBox, SignedTransaction}
 
-abstract class StateTransition(state: State, commandState: CommandState){
-  def transform: State
+import scala.util.Try
+
+abstract class StateTransition(val ctx: BlockchainContext, val wallet: NodeWallet, val commandState: CommandState){
+  def transform(state: State): Try[TransformResult]
 }
