@@ -1,22 +1,23 @@
-package utils
+package plasma_utils
 
 import actors.BlockingDbWriter._
 import actors.ExplorerRequestBus.ExplorerRequests.GetCurrentHeight
 import actors.GroupRequestHandler._
-import actors.QuickDbReader.{PlacementsByBlock, PoolBlocksByStatus, QueryAllSubPools, QueryLastPlacement}
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolPlacement, PoolState}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import slick.jdbc.PostgresProfile
-import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
+import utils.ConcurrentBoxLoader
+import utils.ConcurrentBoxLoader.BatchSelection
 
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
@@ -24,9 +25,9 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, groupHandler: ActorRef,
-                            contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
-                            boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
+class PaymentDistributor(query: ActorRef, write: ActorRef, expReq: ActorRef, groupHandler: ActorRef,
+                         contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
+                         boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
   val logger: Logger = LoggerFactory.getLogger("DistributionFunctions")
   import slick.jdbc.PostgresProfile.api._
 
@@ -74,15 +75,6 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
           logger.error("No updates being made")
         } else {
           var nextStates = dr.nextStates.map(_.copy(g_epoch = dr.block.gEpoch))
-
-          // Did not edit this to use slick db, re-evaluate later
-          if(params.autoConfirmGroups){
-            logger.info("Auto confirm groups is on, setting pool states to confirmed and blocks to paid")
-            nextStates = dr.nextStates.map(s => s.copy(status = PoolState.CONFIRMED))
-            write ! UpdatePoolBlockStatus(PoolBlock.PAID, dr.nextStates.head.block)
-            logger.info(s"Now deleting placements for block ${dr.nextStates.head.block}")
-            write ! DeletePlacementsAtBlock(dr.nextStates.head.subpool, dr.nextStates.head.block)
-          }
 
           val stateUpdates = nextStates.map{
             ns =>
@@ -170,10 +162,7 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
         // TODO: Make these trys in order to prevent whole group failure when multiple groups from same pool are used
 
         val constructDistResp = {
-          if(placements.isEmpty){
-            logger.error("Placements were empty for this block! Setting back to confirmed.")
-            // db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
-          }
+
           require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
           logger.info(s"Construction distributions for block ${block.blockheight}")
           logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
@@ -188,46 +177,8 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
             constructionResponse
           case failedPlacements: FailedPlacements =>
             logger.warn(s"Placements were failed for pool ${poolTag} at block ${failedPlacements.block.blockheight}")
-            if(params.autoConfirmGroups) {
-              val lastPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag).sortBy(_.block.desc).result.headOption))
-                .mapTo[Option[PoolPlacement]]
-              lastPlacements.onComplete {
-                case Success(optPlacement) =>
-                  optPlacement match {
-                    case Some(placed) =>
-                      if (placed.block == failedPlacements.block.blockheight) {
-                        logger.info("Last placement and failed placement are the same")
-                        if (height - placed.block > 100){
-                          logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
-                            "and setting blocks status to confirmed again!")
-//                          db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
-//                          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-//                            .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
-                        }else{
-                          logger.warn(s"Current height $height is not large enough to restart placements")
-                        }
-                      } else {
-                        logger.warn("Last placement and failed placements were not the same, now deleting placements at block " +
-                          "and setting blocks status to confirmed again!")
-//                        db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === failedPlacements.block.blockheight).delete)
-//                        db.run(Tables.PoolBlocksTable.filter(_.blockHeight === failedPlacements.block.blockheight).map(b => b.status -> b.updated)
-//                          .update(PoolBlock.CONFIRMED -> LocalDateTime.now()))
-                      }
-                    case None =>
-                      logger.error("This path should never be executed, something went wrong!")
-                  }
 
-                case Failure(exception) =>
-                  logger.error("There was an error while attempting to get last placements. No changes will be made to the database",
-                    exception)
-              }
-            }else{
-              logger.warn("Failed placements were found, now setting block back to processing status to have DbCrossCheck re-evaluate")
-//              db.run(Tables.PoolBlocksTable
-//                .filter(b => b.poolTag === failedPlacements.block.poolTag)
-//                .filter(b => b.gEpoch >= failedPlacements.block.gEpoch && b.gEpoch < failedPlacements.block.gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE).map(b => b.status -> b.updated)
-//                .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
-            }
+
             logger.error("There was a fatal error during distribution due to invalid placements!")
             throw new Exception("Placements failed!")
           case _ =>
@@ -243,7 +194,8 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
 
   // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
   def collectDistributionInputs(batchSelection: BatchSelection): Map[BatchSelection, Seq[InputBox]] = {
-    Map(batchSelection -> boxLoader.collectFromLoaded(DistributionRoot.getMaxInputs))
+    val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
+    Map(batchSelection -> boxLoader.collectFromLoaded(blockSum))
   }
 
 }

@@ -33,7 +33,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
 
 
-  def selectBlocks(blocks: Seq[SPoolBlock], distinctOnly: Boolean): BatchSelection = {
+  def selectBlocks(blocks: Seq[SPoolBlock], strictBatch: Boolean): BatchSelection = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now selecting blocks with unique pool tags")
@@ -58,7 +58,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
       require(blockList.nonEmpty, s"No pools found with ${BLOCK_BATCH_SIZE} blocks")
       val tryHead = blockList.head
       val poolBlocks = blockList.filter(_.poolTag == tryHead.poolTag)
-      if(poolBlocks.size < 5){
+      if(poolBlocks.size < BLOCK_BATCH_SIZE && strictBatch){
         logger.info(s"Removing pool ${tryHead.poolTag} from selection due to lacking ${BLOCK_BATCH_SIZE} confirmed blocks")
         blockList --= poolBlocks
       }else{

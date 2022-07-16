@@ -4,11 +4,13 @@ import group_test.MockData.ergoClient
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.groups.PayoutGroup
 import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, State}
 import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.InputBox
 import org.scalatest.funsuite.AnyFunSuite
 import plasma_test.FullStateTransformationSuite._
@@ -30,7 +32,15 @@ class PayoutGroupSuite extends AnyFunSuite{
   setup()
   setupTx()
   executeCommands()
-  printMembers()
+
+  logger.info(s"initDigest: ${Hex.toHexString(payoutGroup.transformer.initDigest)}")
+  logger.info(s"digest: ${payoutGroup.currentState.balanceState.map.toString()}")
+  logger.info(s"currentDigest: ${balanceState.map.toString()}")
+  logger.info(s"manifestDigest: ${balanceState.map.toPlasmaMap.getManifest(255).digestString}")
+
+  logger.info(s"transform digests:")
+ 
+ // printMembers()
   // updateTx()
   // payoutTx()
 

@@ -5,7 +5,7 @@ import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.Models.{PoolMember, PoolPlacement}
 import io.getblok.subpooling_core.plasma.BalanceState
 import io.getblok.subpooling_core.states.StateTransformer
-import io.getblok.subpooling_core.states.groups.PayoutGroup.TestInfo
+import io.getblok.subpooling_core.states.groups.PayoutGroup.GroupInfo
 import io.getblok.subpooling_core.states.models.CommandTypes.{Command, INSERT, PAYOUT, UPDATE}
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
 import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
@@ -27,7 +27,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   private val logger: Logger = LoggerFactory.getLogger("PayoutGroup")
 
-  val infoBuffer: ArrayBuffer[TestInfo] = ArrayBuffer()
+  val infoBuffer: ArrayBuffer[GroupInfo] = ArrayBuffer()
   var commandQueue: Seq[CommandState] = _
   var transformResults: Seq[Try[TransformResult]] = Seq.empty[Try[TransformResult]]
 
@@ -63,7 +63,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val result = transformer.apply(insertTransform)
     currentState = result.nextState
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += TestInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }
 
   def updateTx(commandState: CommandState): Unit = {
@@ -72,7 +72,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val result = transformer.apply(updateTransform)
     currentState = result.nextState
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += TestInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }
 
   def payoutTx(commandState: CommandState): Unit = {
@@ -82,7 +82,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
     currentState = result.nextState
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += TestInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }
 
   def setup(): Unit = {
@@ -150,7 +150,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
 
 object PayoutGroup {
-  case class TestInfo(transform: Command, txId: String, cost: Long, txSize: Long){
+  case class GroupInfo(transform: Command, txId: String, cost: Long, txSize: Long){
     override def toString: String = s"${transform}: ${txId} ->  ${cost} tx cost -> ${txSize} bytes"
   }
 }

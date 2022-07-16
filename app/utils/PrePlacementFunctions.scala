@@ -42,7 +42,7 @@ class PrePlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     logger.info(s"Querying blocks with confirmed status")
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
     if(blocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(blocks, distinctOnly = true)
+      val selectedBlocks = boxLoader.selectBlocks(blocks, strictBatch = true)
       val blockBoxMap = createFakeBoxMap(selectedBlocks)
       val holdingComponents = constructHoldingComponents(selectedBlocks)
 
