@@ -35,4 +35,9 @@ object DatabaseModels {
       SPoolBlock(id, blockheight, netDiff, status, confirmation, effort, txConfirmation, miner, reward, hash, created, "c6b75f607ff08d76ae1acb78564e5b928ccd96b8b4dbcad161d6206db7e608c0", -1, created)
     }
   }
+
+  case class StateHistory(poolTag: String, gEpoch: Long, box: String, tx: String, commandBox: String, command: String,
+                          status: String, step: Int, digest: String, manifest: String,
+                          subTree_1: String, subTree_2: String, subTree_3: String, subTree_4: String,
+                          block: Long, created: LocalDateTime, updated: LocalDateTime)
 }

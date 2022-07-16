@@ -12,7 +12,7 @@ import scorex.crypto.authds.avltree.batch.Insert
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 class BalanceStateSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test", 0)
+  val balanceState = new BalanceState("test")
   val initBlockReward = Helpers.OneErg * 55
 
 //  testTx()

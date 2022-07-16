@@ -17,11 +17,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
-                  balanceState: BalanceState, gEpoch: Long, block: Long, poolTag: String) {
+                  balanceState: BalanceState, gEpoch: Long, block: Long, poolTag: String) extends StateGroup {
   val initState: State = State(poolBox, balanceState, inputBoxes)
   var currentState: State = initState
   val transformer: StateTransformer = new StateTransformer(ctx, initState)
-  val setupState: CommandState = CommandState(poolBox, miners, CommandTypes.SETUP)
+  val setupState: CommandState = CommandState(poolBox, miners, CommandTypes.SETUP, -1)
 
   final val MINER_BATCH_SIZE = 150
 
@@ -29,9 +29,9 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   val infoBuffer: ArrayBuffer[GroupInfo] = ArrayBuffer()
   var commandQueue: Seq[CommandState] = _
-  var transformResults: Seq[Try[TransformResult]] = Seq.empty[Try[TransformResult]]
+  override var transformResults: Seq[Try[TransformResult]] = Seq.empty[Try[TransformResult]]
 
-  def applyTransformations(): Try[Unit] = {
+  override def applyTransformations(): Try[Unit] = {
     val applied = {
       Try {
         commandQueue.foreach {
@@ -52,7 +52,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     applied
   }
 
-  def sendTransactions: Seq[Try[TransformResult]] = {
+  override def sendTransactions: Seq[Try[TransformResult]] = {
     transformResults = transformer.execute()
     transformResults
   }

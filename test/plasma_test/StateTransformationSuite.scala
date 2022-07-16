@@ -21,7 +21,7 @@ import scala.jdk.CollectionConverters.seqAsJavaListConverter
 import io.getblok.getblok_plasma.collections.Manifest
 import org.bouncycastle.util.encoders.Hex
 class StateTransformationSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test", 0)
+  val balanceState = new BalanceState("test")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer = _
@@ -72,7 +72,7 @@ class StateTransformationSuite extends AnyFunSuite{
       ctx =>
 
         val initCommandBox = toInput(InsertBalanceContract.buildBox(ctx))
-        val commandState = CommandState(initCommandBox, slicedData(dataSlice), INSERT)
+        val commandState = CommandState(initCommandBox, slicedData(dataSlice), INSERT, dataSlice)
         val insertTransform = InsertTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(insertTransform)
         lastState = result.nextState
@@ -87,7 +87,7 @@ class StateTransformationSuite extends AnyFunSuite{
       ctx =>
 
         val initCommandBox = toInput(UpdateBalanceContract.buildBox(ctx, Some(slicedData(dataSlice).map(_.amountAdded).sum + Helpers.MinFee * 10)))
-        val commandState = CommandState(initCommandBox, slicedData(dataSlice), UPDATE)
+        val commandState = CommandState(initCommandBox, slicedData(dataSlice), UPDATE, dataSlice)
         val updateTransform = UpdateTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(updateTransform)
 
@@ -103,7 +103,7 @@ class StateTransformationSuite extends AnyFunSuite{
       ctx =>
 
         val initCommandBox = toInput(PayoutBalanceContract.buildBox(ctx, Some(Helpers.MinFee * 10)))
-        val commandState = CommandState(initCommandBox,slicedData(dataSlice), PAYOUT)
+        val commandState = CommandState(initCommandBox,slicedData(dataSlice), PAYOUT, dataSlice)
         val payoutTransform = PayoutTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(payoutTransform)
 

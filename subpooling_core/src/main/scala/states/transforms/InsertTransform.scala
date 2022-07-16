@@ -35,7 +35,7 @@ case class InsertTransform(override val ctx: BlockchainContext, override val wal
       val nextInputState = nextStateBox.convertToInputWith(signedTx.getId.replace("\"", ""), 0)
       val nextState = state.copy(box = nextInputState)
       val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
-      TransformResult(nextState, signedTx, commandState.data, CommandTypes.INSERT, Some(manifest))
+      TransformResult(nextState, signedTx, commandState.data, CommandTypes.INSERT, Some(manifest), commandState.index, commandState)
     }
   }
 

@@ -74,20 +74,20 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       val insertCommands = insertOutBoxes
         .map(o => o._1.convertToInputWith(txId, o._2.toShort))
         .zipWithIndex
-        .map(i => CommandState(i._1, insertBatches(i._2), INSERT))
+        .map(i => CommandState(i._1, insertBatches(i._2), INSERT, i._2))
 
       val updateCommands = updateOutBoxes
         .map(o => o._1.convertToInputWith(txId, o._2.toShort))
         .zipWithIndex
-        .map(i => CommandState(i._1, updateBatches(i._2), UPDATE))
+        .map(i => CommandState(i._1, updateBatches(i._2), UPDATE, insertCommands.length + i._2))
 
       val payoutCommands = payoutOutBoxes
         .map(o => o._1.convertToInputWith(txId, o._2.toShort))
         .zipWithIndex
-        .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT))
+        .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
 
       commandQueue = insertCommands ++ updateCommands ++ payoutCommands
-      TransformResult(state, signedTx, commandState.data, SETUP)
+      TransformResult(state, signedTx, commandState.data, SETUP, None, -1, commandState)
     }
   }
 

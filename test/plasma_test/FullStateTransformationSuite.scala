@@ -18,7 +18,7 @@ import plasma_test.FullStateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 
 class FullStateTransformationSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test", 0)
+  val balanceState = new BalanceState("state_transform_suite")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer = _
@@ -56,7 +56,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
   def setupTx() = {
     ergoClient.execute {
       ctx =>
-        val dummyCommandState = CommandState(stateBox, mockData, SETUP)
+        val dummyCommandState = CommandState(stateBox, mockData, SETUP, -1)
         val setupTransform = SetupTransform(ctx, dummyWallet, dummyCommandState, NUM_MINERS)
         val result = transformer.apply(setupTransform)
         commandQueue = setupTransform.commandQueue

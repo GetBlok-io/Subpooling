@@ -18,7 +18,7 @@ import plasma_test.FullStateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 
 class PayoutGroupSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test", 0)
+  val balanceState = new BalanceState("test/payout_group_pool_test")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer = _

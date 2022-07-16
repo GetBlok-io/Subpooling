@@ -50,7 +50,7 @@ case class PayoutTransform(override val ctx: BlockchainContext, override val wal
       val nextInputState = nextStateBox.convertToInputWith(signedTx.getId.replace("\"", ""), 0)
       val nextState = state.copy(box = nextInputState)
       val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
-      TransformResult(nextState, signedTx, commandState.data, CommandTypes.PAYOUT, Some(manifest))
+      TransformResult(nextState, signedTx, commandState.data, CommandTypes.PAYOUT, Some(manifest), commandState.index, commandState)
     }
   }
 
