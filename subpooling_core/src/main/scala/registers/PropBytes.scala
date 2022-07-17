@@ -1,7 +1,8 @@
 package io.getblok.subpooling_core
 package registers
 
-import org.ergoplatform.appkit.{Address, ErgoType, ErgoValue, NetworkType}
+import org.ergoplatform.appkit.JavaHelpers.JByteRType
+import org.ergoplatform.appkit.{Address, ErgoType, ErgoValue, Iso, NetworkType}
 import sigmastate.Values
 import sigmastate.Values.ErgoTree
 import sigmastate.eval.Colls
@@ -10,11 +11,11 @@ import special.collection.Coll
 /**
  * RegisterCollection representing PropositionalBytes of a contract
  */
-class PropBytes(val arr: Array[Byte])(implicit networkType: NetworkType) extends RegisterCollection[Byte](arr){
+class PropBytes(val arr: Array[Byte])(implicit networkType: NetworkType) extends RegisterCollection[java.lang.Byte](arr.map(Iso.jbyteToByte.from)){
 
-  def ergoType: ErgoType[Byte]        = ErgoType.byteType()
-  def coll:     Coll[Byte]            = Colls.fromArray(arr)
-  def ergoVal:  ErgoValue[Coll[Byte]] = ErgoValue.of(coll, ergoType)
+  def ergoType: ErgoType[java.lang.Byte]        = ErgoType.byteType()
+  def coll:     Coll[java.lang.Byte]            = Colls.fromArray(arr.map(Iso.jbyteToByte.from))
+  def ergoVal:  ErgoValue[Coll[java.lang.Byte]] = ErgoValue.of(Colls.fromArray(arr.map(Iso.jbyteToByte.from)), ErgoType.byteType())
   def address:  Address               = Address.fromErgoTree(serializer.deserializeErgoTree(arr), networkType)
 
   def ergoTree: Values.ErgoTree       = serializer.deserializeErgoTree(arr)
@@ -28,8 +29,8 @@ class PropBytes(val arr: Array[Byte])(implicit networkType: NetworkType) extends
         asArray.asInstanceOf[Array[Byte]] sameElements arr
       case asColl if obj.isInstanceOf[Coll[Byte]] =>
         asColl.asInstanceOf[Coll[Byte]] == coll
-      case asErgo if obj.isInstanceOf[ErgoValue[Coll[Byte]]] =>
-        asErgo.asInstanceOf[ErgoValue[Coll[Byte]]].getValue == coll
+      case asErgo if obj.isInstanceOf[ErgoValue[Coll[java.lang.Byte]]] =>
+        asErgo.asInstanceOf[ErgoValue[Coll[java.lang.Byte]]].getValue == coll
       case asPropBytes if obj.isInstanceOf[PropBytes] =>
         asPropBytes.asInstanceOf[PropBytes].coll == coll
       case _ =>
@@ -39,8 +40,8 @@ class PropBytes(val arr: Array[Byte])(implicit networkType: NetworkType) extends
 
 object PropBytes {
 
-  def ofColl(coll: Coll[Byte])(implicit networkType: NetworkType) =
-    new PropBytes(coll.toArray)
+  def ofColl(coll: Coll[java.lang.Byte])(implicit networkType: NetworkType) =
+    new PropBytes(coll.map(Iso.jbyteToByte.to).toArray)
 
   def ofAddress(addr: Address)(implicit networkType: NetworkType) =
     new PropBytes(addr.getErgoAddress.script.bytes)
@@ -48,6 +49,6 @@ object PropBytes {
   def ofErgoTree(ergoTree: ErgoTree)(implicit networkType: NetworkType) =
     new PropBytes(ergoTree.bytes)
 
-  def ofErgo(ergoValue: ErgoValue[Coll[Byte]])(implicit networkType: NetworkType) =
-    new PropBytes(ergoValue.getValue.toArray)
+  def ofErgo(ergoValue: ErgoValue[Coll[java.lang.Byte]])(implicit networkType: NetworkType) =
+    new PropBytes(ergoValue.getValue.toArray.map(Iso.jbyteToByte.to))
 }

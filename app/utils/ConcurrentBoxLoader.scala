@@ -5,6 +5,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.{EIP27Constants, Helpers}
 import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation}
 import models.DatabaseModels.SPoolBlock
@@ -27,7 +28,7 @@ import scala.language.postfixOps
  * Returns a single box per page
  */
 
-class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: ParamsConfig, contexts: Contexts) {
+class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: ParamsConfig, contexts: Contexts, wallet: NodeWallet) {
 
   val logger: Logger = LoggerFactory.getLogger("ConcurrentBoxLoader")
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
@@ -107,7 +108,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     logger.info(s"Now preLoading input boxes with a total of ${Helpers.nanoErgToErg(amountToFind)} ERG")
     val collectedInputs = ArrayBuffer() ++ ergoClient.execute {
       ctx =>
-        ctx.getWallet.getUnspentBoxes(amountToFind).get()
+        wallet.boxes(ctx, amountToFind).get
     }.asScala.toSeq.sortBy(b => b.getValue.toLong).reverse
     collectedInputs.foreach{
       ib => loadedBoxes.add(ib)

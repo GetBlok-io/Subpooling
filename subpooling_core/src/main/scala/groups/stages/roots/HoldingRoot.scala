@@ -97,7 +97,7 @@ class HoldingRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdin
 
         log.info("Setting boxes to spend")
 
-        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + totalOutputs).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(wallet.boxes(ctx, totalTxFees + totalBaseFees + totalOutputs).get.asScala.toSeq)
         val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
 
         boxesToSpend.foreach(i => log.info(s"Id: ${i.getId}, val: ${i.getValue}"))

@@ -14,10 +14,10 @@ import java.{lang, util}
 abstract class InputTemplate(inputBox: InputBox) extends InputBox{
   final val asInput = this.inputBox
   implicit val networkType: NetworkType = AppParameters.networkType
-  val shareDistribution: ShareDistribution = ShareDistribution.ofColl(asInput.getRegisters.get(0).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Long])]])
-  val poolFees: PoolFees = PoolFees.ofColl(asInput.getRegisters.get(1).getValue.asInstanceOf[Coll[(Coll[Byte], Int)]])
-  val poolInfo: PoolInfo = PoolInfo.ofColl(asInput.getRegisters.get(2).getValue.asInstanceOf[Coll[Long]])
-  val poolOps: PoolOperators = PoolOperators.ofColl(asInput.getRegisters.get(3).getValue.asInstanceOf[Coll[Coll[Byte]]])
+  val shareDistribution: ShareDistribution = ShareDistribution.ofColl(asInput.getRegisters.get(0).getValue.asInstanceOf[Coll[(Coll[java.lang.Byte], Coll[java.lang.Long])]])
+  val poolFees: PoolFees = PoolFees.ofColl(asInput.getRegisters.get(1).getValue.asInstanceOf[Coll[(Coll[java.lang.Byte], java.lang.Integer)]])
+  val poolInfo: PoolInfo = PoolInfo.ofColl(asInput.getRegisters.get(2).getValue.asInstanceOf[Coll[java.lang.Long]])
+  val poolOps: PoolOperators = PoolOperators.ofColl(asInput.getRegisters.get(3).getValue.asInstanceOf[Coll[Coll[java.lang.Byte]]])
   val contract: ErgoContract = new ErgoTreeContract(asInput.getErgoTree, networkType)
   val metadataRegisters: MetadataRegisters = MetadataRegisters(shareDistribution, poolFees, poolInfo, poolOps)
 

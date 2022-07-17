@@ -4,14 +4,31 @@ package global
 import boxes.BoxHelpers
 
 import org.ergoplatform.appkit._
-import org.ergoplatform.appkit.impl.ErgoTreeContract
+import org.ergoplatform.appkit.impl.{ErgoTreeContract, InputBoxImpl, NodeAndExplorerDataSourceImpl}
 import sigmastate.Values.ErgoTree
+
+import java.util
+import scala.jdk.CollectionConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 
 object AppParameters {
 
   case class NodeWallet(pk: PK, prover: ErgoProver) {
     val p2pk: Address = pk.p2pk
     val contract: ErgoContract = pk.contract
+
+    def boxes(ctx: BlockchainContext, amount: Long): Option[util.List[InputBox]] = {
+      val dataSource = ctx.getDataSource.asInstanceOf[NodeAndExplorerDataSourceImpl]
+      val response = dataSource.getNodeWalletApi.walletBoxes(0, 0).execute()
+      val boxes = response.body().asScala.toSeq
+      val asInputs: Seq[InputBox] = boxes.map(b => new InputBoxImpl(b.getBox))
+
+      val boxList = BoxSelectorsJavaHelpers.selectBoxes(asInputs.asJava, amount, Seq().asJava)
+
+      if(boxList.isEmpty)
+        None
+      else
+        Some(boxList)
+    }
   }
 
   case class PK(p2pk: Address) {

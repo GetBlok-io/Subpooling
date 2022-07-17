@@ -1,11 +1,12 @@
 package io.getblok.subpooling_core
 package registers
 
-import org.ergoplatform.appkit.{ErgoType, ErgoValue}
+import org.ergoplatform.appkit.JavaHelpers.JLongRType
+import org.ergoplatform.appkit.{ErgoType, ErgoValue, Iso}
 import sigmastate.eval.Colls
 import special.collection.Coll
 
-class MemberInfo(val arr: Array[Long]) extends RegisterCollection[Long](arr){
+class MemberInfo(val arr: Array[Long]) extends RegisterCollection[java.lang.Long](arr.map(Iso.jlongToLong.from)){
 
   final val SCORE_IDX         = 0
   final val MINPAY_IDX        = 1
@@ -16,9 +17,9 @@ class MemberInfo(val arr: Array[Long]) extends RegisterCollection[Long](arr){
 
   require(arr.length >= 4, "There must be at least 5 elements within a MemberInfo instance!")
 
-  def ergoType: ErgoType[Long]          = ErgoType.longType()
-  def coll:     Coll[Long]              = Colls.fromArray(arr)
-  def ergoVal:  ErgoValue[Coll[Long]]   = ErgoValue.of(coll, ergoType)
+  def ergoType: ErgoType[java.lang.Long]          = ErgoType.longType()
+  def coll:     Coll[java.lang.Long]              = Colls.fromArray(arr.map(Iso.jlongToLong.from))
+  def ergoVal:  ErgoValue[Coll[java.lang.Long]]   = ErgoValue.of(coll, ergoType)
 
   def getScore:       Long              = arr(SCORE_IDX)
   def getMinPay:      Long              = arr(MINPAY_IDX)
@@ -42,10 +43,10 @@ class MemberInfo(val arr: Array[Long]) extends RegisterCollection[Long](arr){
     obj match {
       case asArray if obj.isInstanceOf[Array[Long]] =>
         asArray.asInstanceOf[Array[Long]] sameElements arr
-      case asColl if obj.isInstanceOf[Coll[Long]] =>
-        asColl.asInstanceOf[Coll[Long]] == coll
-      case asErgo if obj.isInstanceOf[ErgoValue[Coll[Long]]] =>
-        asErgo.asInstanceOf[ErgoValue[Coll[Long]]].getValue == coll
+      case asColl if obj.isInstanceOf[Coll[java.lang.Long]] =>
+        asColl.asInstanceOf[Coll[java.lang.Long]] == coll
+      case asErgo if obj.isInstanceOf[ErgoValue[Coll[java.lang.Long]]] =>
+        asErgo.asInstanceOf[ErgoValue[Coll[java.lang.Long]]].getValue == coll
       case asMemberInfo if obj.isInstanceOf[MemberInfo] =>
         asMemberInfo.asInstanceOf[MemberInfo].coll == coll
       case _ =>
@@ -54,11 +55,11 @@ class MemberInfo(val arr: Array[Long]) extends RegisterCollection[Long](arr){
 }
 
 object MemberInfo {
-  def ofColl(coll: Coll[Long]) =
-    new MemberInfo(coll.toArray)
+  def ofColl(coll: Coll[java.lang.Long]) =
+    new MemberInfo(coll.map(Iso.jlongToLong.to).toArray)
 
-  def ofErgo(ergoValue: ErgoValue[Coll[Long]]) =
-    new MemberInfo(ergoValue.getValue.toArray)
+  def ofErgo(ergoValue: ErgoValue[Coll[java.lang.Long]]) =
+    new MemberInfo(ergoValue.getValue.toArray.map(Iso.jlongToLong.to))
 }
 
 

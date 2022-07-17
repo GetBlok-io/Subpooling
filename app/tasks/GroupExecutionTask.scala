@@ -60,7 +60,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
       () =>
 
       logger.info("GroupExecution has begun")
-        val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts)
+        val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts, wallet)
         if(params.singularGroups) {
           if(params.groupStart == 2) {
             val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)

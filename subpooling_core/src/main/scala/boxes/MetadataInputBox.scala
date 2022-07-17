@@ -41,4 +41,6 @@ class MetadataInputBox(inputBox: InputBox, val subpoolToken: ErgoId) extends Inp
   }
 
   override def getBytes: Array[Byte] = asInput.getBytes
+
+  override def getAttachment: BoxAttachment = asInput.getAttachment
 }

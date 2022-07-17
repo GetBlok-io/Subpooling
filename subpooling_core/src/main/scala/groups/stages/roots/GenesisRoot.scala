@@ -23,7 +23,7 @@ class GenesisRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, numSub
       Try {
         val totalValue = numSubpools * metadataVal + (AppParameters.groupFee * 2)
         val createSubpoolTokenTx = new CreateSubpoolTokenTx(ctx.newTxBuilder())
-        val boxes: Seq[InputBox] = ctx.getWallet.getUnspentBoxes(totalValue).get().asScala.toSeq
+        val boxes: Seq[InputBox] = wallet.boxes(ctx, totalValue).get.asScala.toSeq
 
         val unsignedTx = createSubpoolTokenTx
           .numSubpools(numSubpools)

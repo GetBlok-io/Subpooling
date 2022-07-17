@@ -6,7 +6,7 @@ maintainer := "ksingh@getblok.io"
 scalaVersion := "2.12.10"
 
 libraryDependencies ++= Seq(
-  "org.ergoplatform" %% "ergo-appkit" % "4.0.8",
+  "org.ergoplatform" %% "ergo-appkit" % "4.0.10",
   "org.postgresql" % "postgresql" % "42.3.4",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test",
   "io.swagger" % "swagger-annotations" % "1.6.5",
@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-slick-evolutions" % "5.0.0",
   "com.typesafe.slick" %% "slick" % "3.3.3",
   "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3",
-  "io.github.getblok-io" %% "getblok_plasma" % "0.0.2"
+  "io.github.getblok-io" %% "getblok_plasma" % "0.0.3"
 )
 lazy val core = Project(id = "subpooling_core", base = file("subpooling_core"))
 lazy val root = Project(id = "subpooling_service", base = file(".")).enablePlugins(PlayScala).dependsOn(core)

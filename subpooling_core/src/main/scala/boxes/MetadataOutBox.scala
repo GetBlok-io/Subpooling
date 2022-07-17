@@ -31,4 +31,6 @@ class MetadataOutBox(val outBox: OutBox, metadataRegisters: MetadataRegisters, s
   override def getErgoTree: Values.ErgoTree = asOutBox.getErgoTree
 
   override def getBytesWithNoRef: Array[Byte] = asOutBox.getBytesWithNoRef
+
+  override def getAttachment: BoxAttachment = asOutBox.getAttachment
 }

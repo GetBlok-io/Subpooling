@@ -1,14 +1,15 @@
 package io.getblok.subpooling_core
 package registers
 
-import org.ergoplatform.appkit.{ErgoType, ErgoValue}
+import org.ergoplatform.appkit.JavaHelpers.JLongRType
+import org.ergoplatform.appkit.{ErgoType, ErgoValue, Iso}
 import sigmastate.eval.Colls
 import special.collection.Coll
 
 /**
  * RegisterCollection representing collection of longs holding pool info
  */
-class PoolFlags(val arr: Array[Long]) extends RegisterCollection[Long](arr){
+class PoolFlags(val arr: Array[Long]) extends RegisterCollection[java.lang.Long](arr.map(Iso.jlongToLong.from)){
 
   final val EPOCH_IDX         = 0
   final val HEIGHT_IDX        = 1
@@ -19,9 +20,9 @@ class PoolFlags(val arr: Array[Long]) extends RegisterCollection[Long](arr){
 
   require(arr.length > 4, "There must be at least 5 elements within a PoolInfo instance!")
 
-  def ergoType:         ErgoType[Long]        = ErgoType.longType()
-  def coll:             Coll[Long]            = Colls.fromArray(arr)
-  def ergoVal:          ErgoValue[Coll[Long]] = ErgoValue.of(coll, ergoType)
+  def ergoType:         ErgoType[java.lang.Long]        = ErgoType.longType()
+  def coll:             Coll[java.lang.Long]            = Colls.fromArray(arr.map(Iso.jlongToLong.from))
+  def ergoVal:          ErgoValue[Coll[java.lang.Long]] = ErgoValue.of(coll, ergoType)
   def apply(idx: Int):  Long                  = arr(idx)
 
   def getEpoch:         Long = this(EPOCH_IDX)
@@ -47,10 +48,10 @@ class PoolFlags(val arr: Array[Long]) extends RegisterCollection[Long](arr){
     obj match {
       case asArray if obj.isInstanceOf[Array[Long]] =>
         asArray.asInstanceOf[Array[Long]] sameElements arr
-      case asColl if obj.isInstanceOf[Coll[Long]] =>
-        asColl.asInstanceOf[Coll[Long]] == coll
-      case asErgo if obj.isInstanceOf[ErgoValue[Coll[Long]]] =>
-        asErgo.asInstanceOf[ErgoValue[Coll[Long]]].getValue == coll
+      case asColl if obj.isInstanceOf[Coll[java.lang.Long]] =>
+        asColl.asInstanceOf[Coll[java.lang.Long]] == coll
+      case asErgo if obj.isInstanceOf[ErgoValue[Coll[java.lang.Long]]] =>
+        asErgo.asInstanceOf[ErgoValue[Coll[java.lang.Long]]].getValue == coll
       case asPoolInfo if obj.isInstanceOf[PoolFlags] =>
         asPoolInfo.asInstanceOf[PoolFlags].coll == coll
       case _ =>
@@ -59,11 +60,11 @@ class PoolFlags(val arr: Array[Long]) extends RegisterCollection[Long](arr){
 }
 
 object PoolFlags {
-  def ofColl(coll: Coll[Long]) =
-    new PoolFlags(coll.toArray)
+  def ofColl(coll: Coll[java.lang.Long]) =
+    new PoolFlags(coll.toArray.map(Iso.jlongToLong.to))
 
-  def ofErgo(ergoValue: ErgoValue[Coll[Long]]) =
-    new PoolFlags(ergoValue.getValue.toArray)
+  def ofErgo(ergoValue: ErgoValue[Coll[java.lang.Long]]) =
+    new PoolFlags(ergoValue.getValue.toArray.map(Iso.jlongToLong.to))
 }
 
 
