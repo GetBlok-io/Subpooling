@@ -55,6 +55,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 //    }
     var blockList: ArrayBuffer[SPoolBlock] = ArrayBuffer(blocks:_*)
     var firstBlock: Option[SPoolBlock] = None
+
     while(firstBlock.isEmpty){
       require(blockList.nonEmpty, s"No pools found with ${BLOCK_BATCH_SIZE} blocks")
       val tryHead = blockList.head

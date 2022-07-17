@@ -21,6 +21,7 @@ import org.ergoplatform.appkit.{Address, ErgoId, InputBox, Parameters}
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import persistence.shares.{ShareCollector, ShareHandler}
+import plasma_utils.payments.PaymentRouter
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
 
@@ -42,11 +43,17 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
     implicit val taskContext: ExecutionContext = contexts.taskContext
 
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PRE_PROCESSED).sortBy(_.created).result)
+    val infoResp = db.run(Tables.PoolInfoTable.result)
+
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with confirmed status")
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
-    if (blocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(blocks, strictBatch = true)
+
+    val infos = Await.result(infoResp, 1000 seconds)
+
+    val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = false)
+    if (normalBlocks.nonEmpty) {
+      val selectedBlocks = boxLoader.selectBlocks(normalBlocks, strictBatch = true)
       val blockBoxMap = collectHoldingInputs(selectedBlocks)
       val holdingComponents = constructHoldingComponents(selectedBlocks)
 

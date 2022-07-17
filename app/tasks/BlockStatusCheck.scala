@@ -320,7 +320,25 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     var accumDiff = BigDecimal(0)
     logger.info(s"Querying shares for effort between ${startDate} and ${endDate}")
     info.payment_type match {
-      case PoolInformation.PAY_PPLNS =>
+      case PoolInformation.PAY_SOLO || PoolInformation.PAY_PLASMA_SOLO =>
+        logger.info("Using SOLO effort calcs")
+
+        while(offset != -1){
+          logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
+          val shares = Await.result(db.run(Tables.PoolSharesTable.queryMinerSharesBetweenDate(startDate, endDate, block.miner, offset, limit)), 1000 seconds)
+          accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
+          logger.info(s"Current accumulated difficulty: ${accumDiff}")
+          if(shares.nonEmpty)
+            offset = offset + limit
+          else
+            offset = -1
+          if((accumDiff / block.netDiff) * 100 > 500){
+            offset = -1
+          }
+        }
+        logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
+        accumDiff
+      case _ =>
         logger.info("Using PPLNS effort calcs")
         while(offset != -1){
           logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
@@ -342,25 +360,6 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
         accumDiff
-      case PoolInformation.PAY_SOLO =>
-        logger.info("Using SOLO effort calcs")
-
-        while(offset != -1){
-          logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
-          val shares = Await.result(db.run(Tables.PoolSharesTable.queryMinerSharesBetweenDate(startDate, endDate, block.miner, offset, limit)), 1000 seconds)
-          accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
-          logger.info(s"Current accumulated difficulty: ${accumDiff}")
-          if(shares.nonEmpty)
-            offset = offset + limit
-          else
-            offset = -1
-          if((accumDiff / block.netDiff) * 100 > 500){
-            offset = -1
-          }
-        }
-        logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
-        accumDiff
-
     }
 
   }

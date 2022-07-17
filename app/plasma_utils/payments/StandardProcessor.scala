@@ -17,7 +17,7 @@ case class StandardProcessor(settings: Seq[SMinerSettings], collector: ShareColl
     val nextPlacements =  members.map{
       m =>
         val minPay = {
-          if(batch.info.payment_type != PoolInformation.PAY_SOLO)
+          if(batch.info.payment_type != PoolInformation.PAY_PLASMA_SOLO)
             settings.find(_.address == m.address.toString).map(p => (p.paymentthreshold * Helpers.OneErg).toLong)
           else
             Some(Helpers.MinFee)

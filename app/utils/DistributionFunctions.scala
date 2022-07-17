@@ -15,6 +15,7 @@ import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
+import plasma_utils.payments.PaymentRouter
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader.{BatchSelection, BlockSelection}
 
@@ -35,11 +36,17 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now querying processed blocks for distribution")
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).result)
+    val infoResp = db.run(Tables.PoolInfoTable.result)
+
     // TODO: Change pending block num to group exec num
     logger.info(s"Querying blocks with processed status")
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
-    if(blocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(blocks, strictBatch = true)
+
+    val infos = Await.result(infoResp, 1000 seconds)
+
+    val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = false)
+    if(normalBlocks.nonEmpty) {
+      val selectedBlocks = boxLoader.selectBlocks(normalBlocks, strictBatch = true)
       val blockBoxMap = collectDistributionInputs(selectedBlocks)
       val collectedComponents = constructDistComponents(selectedBlocks)
 

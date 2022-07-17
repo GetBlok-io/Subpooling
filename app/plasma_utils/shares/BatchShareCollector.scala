@@ -1,4 +1,4 @@
-package plasma_utils
+package plasma_utils.shares
 
 import configs.ParamsConfig
 import io.getblok.subpooling_core.payments.Models.PaymentType
@@ -23,7 +23,7 @@ class BatchShareCollector(batchSelection: BatchSelection, db: PostgresProfile#Ba
 
     val fCollectors = Future.sequence{
 
-      if(batchSelection.info.payment_type != PoolInformation.PAY_SOLO){
+      if(batchSelection.info.payment_type != PoolInformation.PAY_PLASMA_SOLO){
         val collectors = for(shareBlock <- batchSelection.blocks) yield {
           val shareHandler = getShareHandler(shareBlock, batchSelection.info)
           Future(shareHandler.queryToWindow(shareBlock, params.defaultPoolTag))
@@ -44,7 +44,7 @@ class BatchShareCollector(batchSelection: BatchSelection, db: PostgresProfile#Ba
     }
 
     val fCollector = {
-      if(batchSelection.info.payment_type != PoolInformation.PAY_SOLO) {
+      if(batchSelection.info.payment_type != PoolInformation.PAY_PLASMA_SOLO) {
         fCollectors.map {
           collectors =>
             val merged = collectors.slice(1, collectors.length).foldLeft(collectors.head) {
@@ -69,9 +69,9 @@ class BatchShareCollector(batchSelection: BatchSelection, db: PostgresProfile#Ba
 
   def getShareHandler(block: SPoolBlock, information: PoolInformation): ShareHandler = {
     information.payment_type match {
-      case PoolInformation.PAY_PPLNS =>
+      case PoolInformation.PAY_PLASMA_PPLNS =>
         new ShareHandler(PaymentType.PPLNS_WINDOW, block.miner, db)
-      case PoolInformation.PAY_SOLO =>
+      case PoolInformation.PAY_PLASMA_SOLO =>
         new ShareHandler(PaymentType.SOLO_BATCH, block.miner, db) // TODO: Use solo batch payments
       case PoolInformation.PAY_EQ =>
         new ShareHandler(PaymentType.EQUAL_PAY, block.miner, db)

@@ -5,7 +5,7 @@ import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.Models.{MinerSettings, PoolInformation}
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.PlasmaMiner
-import models.DatabaseModels.SMinerSettings
+import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import persistence.shares.ShareCollector
 import utils.ConcurrentBoxLoader.BatchSelection
@@ -29,6 +29,20 @@ object PaymentRouter {
           batch.blocks.head.blockheight, batch.info.poolTag)
       case _ =>
         throw new Exception("Unsupported currency found during StateGroup routing!")
+    }
+  }
+
+  def routePlasmaBlocks(blocks: Seq[SPoolBlock], infos: Seq[PoolInformation], routePlasma: Boolean): Seq[SPoolBlock] = {
+    val plasmaPayers = Seq(PoolInformation.PAY_PLASMA_SOLO, PoolInformation.PAY_PLASMA_PPLNS)
+
+    if(routePlasma){
+      val plasmaInfos = infos.filter(i => plasmaPayers.contains(i.payment_type))
+      val plasmaBlocks = blocks.filter(b => plasmaInfos.exists(pi => pi.poolTag == b.poolTag))
+      plasmaBlocks
+    }else{
+      val normalInfos = infos.filter(i => !plasmaPayers.contains(i.payment_type))
+      val normalBlocks = blocks.filter(b => normalInfos.exists(pi => pi.poolTag == b.poolTag))
+      normalBlocks
     }
   }
 }

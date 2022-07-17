@@ -90,7 +90,7 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
   def toMembers: Array[Member] = {
     shareMap.retain((a, s) => Try(Address.create(a)).isSuccess)
     paymentType match {
-      case PaymentType.PPLNS_WINDOW =>
+      case PaymentType.PPLNS_WINDOW || PaymentType.PLASMA_PPLNS_WINDOW =>
         val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(a._2.adjustedScore.longValue(), 0L, 0L, 0L, 0L))))
         members.toArray
       case PaymentType.PPS_WINDOW =>
@@ -102,7 +102,7 @@ class ShareCollector(paymentType: PaymentType, blockMiner: String) {
       case PaymentType.EQUAL_PAY =>
         val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(10000L, 0L, 0L, 0L, 0L))))
         members.toArray
-      case PaymentType.SOLO_BATCH =>
+      case PaymentType.SOLO_BATCH || PaymentType.PLASMA_SOLO_BATCH =>
         val members = shareMap.map(a => Member(Address.create(a._1), new MemberInfo(Array(a._2.shareScore.longValue(), 0L, 0L, 0L, 0L))))
         members.toArray
       case PaymentType.SOLO_SHARES =>

@@ -148,6 +148,8 @@ object Models {
     val PAY_EQ    = "EQUAL"
     val PAY_SOLO  = "SOLO"
 
+    val PAY_PLASMA_PPLNS = "PPLNS_PLASMA"
+    val PAY_PLASMA_SOLO  = "SOLO_PLASMA"
     val TokenExchangeEmissions = "Exchange"
     val ProportionalEmissions  = "Proportional"
     val NoEmissions   = "none"

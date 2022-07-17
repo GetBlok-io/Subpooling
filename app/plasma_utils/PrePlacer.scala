@@ -18,8 +18,9 @@ import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import persistence.shares.{ShareCollector, ShareHandler}
 import plasma_utils.payments.PaymentRouter
+import plasma_utils.shares.BatchShareCollector
 import slick.jdbc.PostgresProfile
-import utils.ConcurrentBoxLoader
+import utils.{ConcurrentBoxLoader, PoolTemplates}
 import utils.ConcurrentBoxLoader.BatchSelection
 
 import java.time.LocalDateTime
@@ -40,11 +41,16 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
   def preparePlacements(): Unit = {
 
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.CONFIRMED).sortBy(_.created).result)
+    val infoResp = db.run(Tables.PoolInfoTable.result)
 
     logger.info(s"Querying blocks with confirmed status")
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
-    if(blocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(blocks, strictBatch = true)
+    val infos = Await.result(infoResp, 1000 seconds)
+
+    val plasmaBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = true)
+
+    if(plasmaBlocks.nonEmpty) {
+      val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true)
       val prePlacement = collectShares(selectedBlocks)
       writePrePlacement(prePlacement)
     }
