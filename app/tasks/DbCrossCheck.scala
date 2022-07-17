@@ -18,6 +18,7 @@ import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPool
 import models.ResponseModels.writesChangeKeys
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, NetworkType}
 import persistence.Tables
+import plasma_utils.TransformValidator
 import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.Json
@@ -80,6 +81,15 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               logger.error("There was a critical error while checking distributions!", ex)
               Failure(ex)
           }
+          Try {
+            val transformValidator = new TransformValidator(expReq, contexts, params, db)
+            transformValidator.checkInitiated()
+          }.recoverWith{
+            case ex =>
+              logger.error("There was a critical error while validating transforms!", ex)
+              Failure(ex)
+          }
+
         }else {
 //          logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
 //          Try(execRegen(params.regenType)).recoverWith {
