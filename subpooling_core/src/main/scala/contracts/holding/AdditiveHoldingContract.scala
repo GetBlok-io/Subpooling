@@ -61,6 +61,16 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
 
     val totalValAfterFees = accumFees - currentTxFee
     var updatedConsensus = currentDistribution.dist
+
+    updatedConsensus = updatedConsensus.map{
+      uc =>
+        if(uc._2.getEpochsMined < 0){
+          (uc._1 -> uc._2.withMinPay(Parameters.OneErg * 10))
+        }else{
+          uc
+        }
+    }
+
     val totalShares = updatedConsensus.map(d => d._2.getScore).sum
     val tokenRate = BigDecimal(holdingBoxes.head.getTokens.get(0).getValue) / holdingBoxes.head.getValue
     logger.info(s"Current token rate, (tokens per nanoErg): ${tokenRate}")
