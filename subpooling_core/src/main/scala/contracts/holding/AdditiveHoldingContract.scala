@@ -45,7 +45,7 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
     val totalOwedPayouts =
       lastDistribution.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
 
-    val totalRewards = holdingBoxValues - totalOwedPayouts
+    val totalRewards = holdingBoxValues - totalOwedPayouts - Parameters.MinFee
     val feeList = currentPoolFees.fees.map{
       // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
@@ -148,7 +148,7 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
 
     val totalOwedPayouts =
       lastConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
-    val totalRewards = TOTAL_HOLDED_VALUE - totalOwedPayouts
+    val totalRewards = TOTAL_HOLDED_VALUE - totalOwedPayouts - Parameters.MinFee
 
     val feeList = currentPoolFees.fees.map{
       f =>
