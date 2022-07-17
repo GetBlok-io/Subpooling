@@ -45,7 +45,7 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
     val totalOwedPayouts =
       lastDistribution.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
 
-    val totalRewards = holdingBoxValues - totalOwedPayouts - Parameters.MinFee
+    val totalRewards = holdingBoxValues - totalOwedPayouts
     val feeList = currentPoolFees.fees.map{
       // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
@@ -61,13 +61,6 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
 
     val totalValAfterFees = accumFees - currentTxFee
     var updatedConsensus = currentDistribution.dist
-    lastDistribution.dist.foreach{
-      ld =>
-        if(ld._2.getStored > 0 && !updatedConsensus.exists(c => c._1.address.toString == ld._1.address.toString)){
-          updatedConsensus = updatedConsensus ++ Seq(ld._1 -> ld._2.withScore(0L).withMinPay((0.001 * Parameters.OneErg).toLong / 10)
-            .withStored(0L).withEpochs(-1))
-        }
-    }
     val totalShares = updatedConsensus.map(d => d._2.getScore).sum
     val tokenRate = BigDecimal(holdingBoxes.head.getTokens.get(0).getValue) / holdingBoxes.head.getValue
     logger.info(s"Current token rate, (tokens per nanoErg): ${tokenRate}")
@@ -148,7 +141,7 @@ class AdditiveHoldingContract(holdingContract: ErgoContract) extends HoldingCont
 
     val totalOwedPayouts =
       lastConsensus.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
-    val totalRewards = TOTAL_HOLDED_VALUE - totalOwedPayouts - Parameters.MinFee
+    val totalRewards = TOTAL_HOLDED_VALUE - totalOwedPayouts
 
     val feeList = currentPoolFees.fees.map{
       f =>
