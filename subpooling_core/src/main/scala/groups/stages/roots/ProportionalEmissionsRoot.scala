@@ -3,7 +3,7 @@ package groups.stages.roots
 
 import boxes.{BoxHelpers, ExchangeEmissionsBox, ProportionalEmissionsBox}
 import contracts.holding.HoldingContract
-import global.{AppParameters, Helpers}
+import global.{AppParameters, EIP27Constants, Helpers}
 import global.AppParameters.{NodeWallet, PK}
 import groups.entities.{Pool, Subpool}
 import groups.models.TransactionStage
@@ -56,20 +56,43 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
               val nextBox = sortedInputs.next()
               initialInputs = initialInputs.map(_ ++ Seq(nextBox))
               initialSum = initialSum + nextBox.getValue.toLong
+              if(nextBox.getTokens.size() > 0){
+                if(nextBox.getTokens.get(0).getId == EIP27Constants.REEM_TOKEN){
+                  initialSum = initialSum - nextBox.getValue.toLong
+                  initialSum = initialSum + (nextBox.getValue.toLong - nextBox.getTokens.get(0).getValue.toLong)
+                }
+              }
+
             }
           }
         }
         logger.info(s"Filtered input box length: ${initialInputs.map(_.size).toString}")
 
         val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
+        val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
+
         val interOutBox = ctx.newTxBuilder().outBoxBuilder().value(blockReward).contract(wallet.contract).build()
         val interFeeOutBox = ctx.newTxBuilder().outBoxBuilder().value(primaryTxFees).contract(PK(AppParameters.getFeeAddress).contract).build()
-        val unsignedInterTx = ctx.newTxBuilder()
-          .boxesToSpend(boxesToSpend.asJava)
-          .outputs(interOutBox, interFeeOutBox)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .fee(AppParameters.groupFee)
-          .build()
+
+        val unsignedInterTx = {
+
+          if(eip27.optToBurn.isDefined){
+            ctx.newTxBuilder()
+              .boxesToSpend(boxesToSpend.asJava)
+              .outputs(interOutBox, interFeeOutBox, eip27.p2reem.head)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .fee(AppParameters.groupFee)
+              .tokensToBurn(eip27.optToBurn.get)
+              .build()
+          }else {
+            ctx.newTxBuilder()
+              .boxesToSpend(boxesToSpend.asJava)
+              .outputs(interOutBox, interFeeOutBox)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .fee(AppParameters.groupFee)
+              .build()
+          }
+        }
 
         val signedInterTx = wallet.prover.sign(unsignedInterTx)
         val interBox = interOutBox.convertToInputWith(signedInterTx.getId.replace("\"", ""), 0)
