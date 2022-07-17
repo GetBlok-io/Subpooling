@@ -9,7 +9,7 @@ object PoolTemplates {
                           currency: String, epochKick: Long, maxMembers: Long, tokenName: String, tokenDesc: String,
                           feeOp: Option[Address] = None)
 
-  case class UninitializedPool(poolMade: Boolean, emissionsMade: Option[Boolean], template: PoolTemplate)
+  case class UninitializedPool(poolMade: Boolean, emissionsMade: Option[Boolean], template: PoolTemplate, isPlasma: Boolean = false)
   val STANDARD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Smart Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 5L, 10L,
     "GetBlok.io Default Smart Pool", "This token represents the default Smart Pool on GetBlok.io",
@@ -33,9 +33,13 @@ object PoolTemplates {
     "COMET Smart Pool",
     "COMET Smart Pool identification token",
     Some(Address.create("9h6Ao31CVSsYisf4pWTM43jv6k3BaXV3jovGfaRj9PrqfYms6Rf")))
-
+  val PLASMA_STD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Plasma Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
+    PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 5L, 10L,
+    "GetBlok.io Default Plasma Pool", "This token represents the default Plasma Pool on GetBlok.io",
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
 
   val templates: Array[UninitializedPool] = Array(
+    UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, STANDARD_POOL),
     UninitializedPool(poolMade = false, None, SOLO_POOL),
     UninitializedPool(poolMade = false, Some(false), COMET_POOL),

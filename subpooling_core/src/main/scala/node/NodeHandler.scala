@@ -55,8 +55,12 @@ class NodeHandler(apiClient: ApiClient, ergoClient: ErgoClient) {
             val coinbaseTx = fullBlock.get.getBlockTransactions.getTransactions.get(0)
             val rewardAddress = fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getErgoTree
             val txReward = {
-              fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue -
-                fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getAssets.get(0).getAmount
+              if(AppParameters.enableEIP27) {
+                fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue -
+                  fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getAssets.get(0).getAmount
+              }else{
+                fullBlock.get.getBlockTransactions.getTransactions.get(0).getOutputs.get(1).getValue.longValue()
+              }
             }
             var fullReward = txReward
             logger.info(s"Current number of transactions for fullBlock: ${fullBlock.get.getBlockTransactions.getTransactions.size()}")

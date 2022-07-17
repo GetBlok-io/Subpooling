@@ -10,7 +10,7 @@ import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State}
 import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
 import org.ergoplatform.appkit.impl.ErgoTreeContract
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoProver, InputBox, NetworkType, OutBox, RestApiErgoClient}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, InputBox, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 import plasma_test.FullStateTransformationSuite._
@@ -47,7 +47,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         logger.info(mockData.map(_.amountAdded).sum + " total value")
-        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
+        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId))
         val initState = State(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg * 1000000L)))
         transformer = new StateTransformer(ctx, initState)
     }
@@ -132,7 +132,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
 }
 
 object FullStateTransformationSuite {
-  val NUM_MINERS = 150
+  val NUM_MINERS = 200
   val mockData = {
     MockAddresses.addresses.sortBy(a => BigInt(StateMiner(a).toPartialStateMiner.bytes)).zipWithIndex.map {
       ad =>
@@ -164,7 +164,8 @@ object FullStateTransformationSuite {
   val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
   val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
-
+  val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
+  val dummyTokenId = ErgoId.create(dummyToken)
   def toInput(outBox: OutBox) = outBox.convertToInputWith(dummyTxId, 0)
 
   def dummyProver: ErgoProver = {

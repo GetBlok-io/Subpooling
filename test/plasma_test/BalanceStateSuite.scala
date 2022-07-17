@@ -3,7 +3,7 @@ package plasma_test
 import io.getblok.subpooling_core.contracts.plasma.{BalanceStateContract, InsertBalanceContract, PayoutBalanceContract, ShareStateContract, UpdateBalanceContract}
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, ShareState, StateBalance, StateMiner, StateScore}
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoProver, NetworkType, OutBox, RestApiErgoClient}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 import plasma_test.BalanceStateSuite._
@@ -26,12 +26,12 @@ class BalanceStateSuite extends AnyFunSuite{
   def testTx(): Unit = {
     ergoClient.execute {
       ctx =>
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId))
         val insertBox = InsertBalanceContract.applyContext(toInput(InsertBalanceContract.buildBox(ctx, Some(Helpers.MinFee * 10L))),
           balanceState,
           partialMockData.sortBy(m => BigInt(m._1.bytes)).map(_._1).take(NUM_MINERS))
 
-        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState)
+        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId)
 
         val inputBoxes = (Seq(initStateBox, insertBox)).asJava
         val uTx = ctx.newTxBuilder()
@@ -54,12 +54,12 @@ class BalanceStateSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         val balanceChangeSum = partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS).map(_._2.balance).sum
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId))
         val updateBoxResults = UpdateBalanceContract.applyContext(toInput(UpdateBalanceContract.buildBox(ctx, Some(balanceChangeSum + Helpers.MinFee * 10L))),
           balanceState,
           partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
         val updateBox = updateBoxResults._1
-        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, Some(updateBoxResults._2 + Helpers.MinFee))
+        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState,dummyTokenId, Some(updateBoxResults._2 + Helpers.MinFee))
 
         val inputBoxes = (Seq(initStateBox, updateBox)).asJava
         val uTx = ctx.newTxBuilder()
@@ -82,7 +82,7 @@ class BalanceStateSuite extends AnyFunSuite{
       ctx =>
         val totalSum = mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes) ).map(_._2).take(NUM_MINERS).map(_.balance).sum
 
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, Some(totalSum + Helpers.MinFee)))
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState,dummyTokenId, Some(totalSum + Helpers.MinFee)))
         val payoutBoxResults = PayoutBalanceContract.applyContext(
           toInput(PayoutBalanceContract.buildBox(ctx, Some(Helpers.MinFee * 10L))),
           balanceState,
@@ -93,7 +93,7 @@ class BalanceStateSuite extends AnyFunSuite{
         logger.info(s"Total sum: ${totalSum}")
         val feeBox = toInput(ShareStateContract.buildFeeBox(ctx, (Helpers.MinFee * 10), creatorAddress.toErgoContract))
 
-        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, Some(Helpers.MinFee))
+        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, Some(Helpers.MinFee))
         val payoutBoxes = BalanceStateContract.buildPaymentBoxes(ctx, payoutBoxResults._2)
         val inputBoxes = (Seq(initStateBox, payoutBox)).asJava
         val outputBoxes = Seq(nextStateBox) ++ payoutBoxes
@@ -200,7 +200,8 @@ object BalanceStateSuite {
   val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
   val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
-
+  val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
+  val dummyTokenId = ErgoId.create(dummyToken)
   def toInput(outBox: OutBox) = outBox.convertToInputWith(dummyTxId, 0)
 
   def dummyProver: ErgoProver = {

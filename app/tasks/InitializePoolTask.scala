@@ -11,6 +11,7 @@ import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, ProportionalEmissionsContract}
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, TokenHoldingContract}
+import io.getblok.subpooling_core.contracts.plasma.BalanceStateContract
 import io.getblok.subpooling_core.explorer.Models.{Output, TransactionData}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
@@ -20,6 +21,7 @@ import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
 import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.plasma.BalanceState
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{Balance, BalanceChange, Payment}
 import models.ResponseModels.PoolGenerated
@@ -33,6 +35,7 @@ import slick.jdbc.PostgresProfile
 import utils.{EmissionTemplates, PoolTemplates}
 import utils.PoolTemplates.{PoolTemplate, UninitializedPool}
 
+import java.io.File
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 import javax.inject.{Inject, Named, Singleton}
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
@@ -105,7 +108,10 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         val nextPool = incomplete.head
         logger.info("Now creating next pool!")
         if (!nextPool.poolMade) {
-          createPool(nextPool.template)
+          if(nextPool.isPlasma)
+            createPlasmaPool(nextPool.template)
+          else
+            createPool(nextPool.template)
         }
       }
     }else{
@@ -179,6 +185,53 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         }
     }
 
+  }
+
+  def createPlasmaPool(template: PoolTemplate) = {
+      client.execute{
+        ctx =>
+          logger.info(s"Making Plasma Pool for pool with name ${template.title}")
+          val tokenBox = makeTokenTx(1, template.tokenName, template.tokenDesc, 0, Helpers.MinFee * 2)
+          val tokenId = tokenBox.getTokens.get(0).getId
+          val file = new File(AppParameters.plasmaStoragePath + s"/${tokenId.toString}").mkdir()
+          val balanceState = new BalanceState(tokenId.toString)
+          val stateBox = BalanceStateContract.buildStateBox(ctx, balanceState, tokenId)
+          val uTx = ctx.newTxBuilder()
+            .boxesToSpend(Seq(tokenBox).asJava)
+            .outputs(stateBox)
+            .fee(Helpers.MinFee)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+
+          val signed = wallet.prover.sign(uTx)
+          ctx.sendTransaction(signed)
+
+
+          val currentTime = LocalDateTime.now()
+          val poolState =
+             PoolState(tokenId.toString, 0L, template.title, signed.getOutputsToSpend.get(0).getId.toString, signed.getId.replace("\"", ""),
+              0L, 0L, ctx.getHeight.toLong, ctx.getHeight.toLong, PoolState.CONFIRMED, 0, 0L, template.feeOp.map(_.toString).getOrElse(creator), "none", 0L,
+              currentTime, currentTime)
+          logger.info("Creating new pool with tag " + tokenId)
+
+          Future.sequence(Tables.makePoolPartitions(tokenId.toString).map(db.run(_)))
+
+          val infoInsert = Tables.PoolInfoTable += PoolInformation(tokenId.toString, 0L, template.numSubpools, 0L, 0L, 0L, 0L,
+            template.currency, PoolTemplates.getPaymentStr(template.paymentType), (template.fee * PoolFees.POOL_FEE_CONST).toLong, official = true,
+            template.epochKick, template.maxMembers, template.title, template.feeOp.map(_.toString).getOrElse(creator), LocalDateTime.now(), LocalDateTime.now(), PoolInformation.NoEmissions,
+            template.emissionsType)
+          val stateInserts = Tables.PoolStatesTable += poolState
+          val infoRows = db.run(infoInsert)
+          val stateRows = db.run(stateInserts)
+
+          for(rows <- infoRows) yield logger.info(s"Partitions")
+          stateRows.onComplete{
+            case Success(value) =>
+              logger.info(s"${value.toString} was the result of batch inserting pool states")
+            case Failure(exception) =>
+              logger.error("There was a fatal exception while insert pool states!", exception)
+          }
+      }
   }
 
   def createEmissions(tag: String, currency: String) = {
@@ -338,11 +391,11 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
   def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long): InputBox = {
     client.execute{
       ctx =>
-        logger.info("Making NFT for comet emissions box")
+        logger.info("Making token tx")
         val inputBoxes     = wallet.boxes(ctx, outVal + Helpers.MinFee).get
-        logger.info("Found boxes for NFT")
+        logger.info("Found boxes for token")
         val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
-        logger.info("Building NFT minting transaction")
+        logger.info("Building token minting transaction")
         val outBox = ctx.newTxBuilder().outBoxBuilder()
           .value(outVal)
           .tokens(newToken)

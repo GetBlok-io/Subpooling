@@ -1,6 +1,6 @@
 package plasma_test
 
-import group_test.MockData.{creatorAddress, ergoClient}
+import group_test.MockData.{creatorAddress, dummyTokenId, ergoClient}
 import group_test.dummyProver
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
@@ -61,7 +61,7 @@ class StateTransformationSuite extends AnyFunSuite{
   def setup() = {
     ergoClient.execute {
       ctx =>
-        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
+        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId))
         val initState = State(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg)))
         transformer = new StateTransformer(ctx, initState)
     }

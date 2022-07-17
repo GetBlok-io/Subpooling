@@ -8,6 +8,7 @@ import scala.util.Try
 
 trait StateGroup {
   var transformResults: Seq[Try[TransformResult]]
+  def setup(): Unit
   def applyTransformations(): Try[Unit]
   def sendTransactions: Seq[Try[TransformResult]]
   def getMembers: Seq[PoolMember]

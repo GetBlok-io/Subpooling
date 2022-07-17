@@ -85,7 +85,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }
 
-  def setup(): Unit = {
+  override def setup(): Unit = {
     logger.info("Now setting up payout group")
     val setupTransform = SetupTransform(ctx, wallet, setupState, MINER_BATCH_SIZE)
     transformer.apply(setupTransform)

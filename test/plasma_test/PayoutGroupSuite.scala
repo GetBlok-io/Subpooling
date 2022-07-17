@@ -47,8 +47,8 @@ class PayoutGroupSuite extends AnyFunSuite{
   def setup() = {
     ergoClient.execute {
       ctx =>
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState))
-        payoutGroup = new PayoutGroup(ctx, dummyWallet, mockData, initStateBox, Seq(buildUserBox(Helpers.OneErg * 5000)), balanceState, 0, 0, "testpool")
+        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId))
+        payoutGroup = new PayoutGroup(ctx, dummyWallet, mockData, initStateBox, Seq(buildUserBox(Helpers.OneErg * 500000)), balanceState, 0, 0, "testpool")
     }
   }
 

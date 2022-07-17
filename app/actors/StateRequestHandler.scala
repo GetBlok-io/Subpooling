@@ -67,6 +67,9 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
               }
             case ExecuteDist(constDist, sendTxs) =>
               val stateGroup = constDist.stateGroup
+              logger.info("Now setting up StateGroup")
+              stateGroup.setup()
+
               logger.info("Now applying transformations!")
               val tryTransform = stateGroup.applyTransformations()
 

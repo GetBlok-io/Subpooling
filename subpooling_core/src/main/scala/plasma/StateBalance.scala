@@ -13,6 +13,6 @@ case class StateBalance(balance: Long) {
   val ergoType: ErgoType[java.lang.Byte] = ErgoType.byteType()
   def toErgoValue: ErgoValue[Coll[java.lang.Byte]] = ErgoValue.of(Colls.fromArray(toBytes.map(Iso.jbyteToByte.from)), ErgoType.byteType())
   def toBytes: Array[Byte] = Longs.toByteArray(balance)
-  def toColl: Coll[java.lang.Byte] = Colls.fromArray(toBytes.map(Iso.jbyteToByte.from))
+  def toColl: Coll[java.lang.Byte] = Colls.fromArray(toBytes).map(Iso.jbyteToByte.from)
   override def toString: String = s"StBalance[${balance}](${Hex.toHexString(toBytes)})"
 }

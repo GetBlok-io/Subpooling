@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
 class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
                          contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
                          boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
-  val logger: Logger = LoggerFactory.getLogger("DistributionFunctions")
+  val logger: Logger = LoggerFactory.getLogger("PaymentDistributor")
   import slick.jdbc.PostgresProfile.api._
 
   def executeDistribution(): Unit = {

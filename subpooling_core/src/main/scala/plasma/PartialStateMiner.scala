@@ -12,7 +12,7 @@ import special.collection.Coll
 
 case class PartialStateMiner(bytes: Array[Byte]) {
   val ergoType: ErgoType[java.lang.Byte] = ErgoType.byteType()
-  def toColl: Coll[java.lang.Byte] = Colls.fromArray(bytes.map(Iso.jbyteToByte.from))
+  def toColl: Coll[java.lang.Byte] = Colls.fromArray(bytes).map(Iso.jbyteToByte.from)
   def toErgoValue: ErgoValue[Coll[java.lang.Byte]] = ErgoValue.of(toColl, ergoType)
   override def toString: String = Hex.toHexString(bytes)
 }

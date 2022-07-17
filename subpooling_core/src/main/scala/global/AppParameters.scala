@@ -52,6 +52,8 @@ object AppParameters {
   var feePerc    = 1.0
   var baseFeePerc = Map(Address.create(feeAddress) -> feePerc)
   var sendTxs = true
+  var plasmaStoragePath = ""
+  var enableEIP27 = false
   def getFeeAddress: Address = Address.create(feeAddress)
   def getBaseFees(blockReward: Long): Map[Address, Long] = baseFeePerc.map(f => f._1 -> BoxHelpers.removeDust((BigDecimal(blockReward) * (f._2 / 100)).longValue()))
 }

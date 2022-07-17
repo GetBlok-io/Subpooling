@@ -5,7 +5,7 @@ import io.getblok.getblok_plasma.collections.Proof
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, StateBalance, StateMiner, StateScore}
-import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoType, ErgoValue, InputBox, OutBox}
+import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import scorex.crypto.authds.avltree.batch.Insert
 import sigmastate.Values
@@ -29,11 +29,12 @@ object BalanceStateContract {
     contract
   }
 
-  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, optValue: Option[Long] = None): OutBox = {
+  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, poolTag: ErgoId ,optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .registers(balanceState.map.ergoValue)
       .contract(generateStateContract(ctx))
+      .tokens(new ErgoToken(poolTag, 1L))
       .build()
   }
 
