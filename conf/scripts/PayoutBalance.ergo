@@ -2,6 +2,7 @@
   val balanceState = INPUTS(0).R4[AvlTree].get
   val nextStateBox = OUTPUTS(0)
   val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+  val poolNFT = INPUTS(0).tokens(0)._1
 
   val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
   val proof         = getVar[Coll[Byte]](1).get
@@ -43,12 +44,13 @@
     val updatedBalanceState  = balanceState.update(stateData, proof).get
     val nextRewardValid = nextStateBox.value == INPUTS(0).value - totalPaid
     val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
-
+    val secureSpend = poolNFT == const_poolNFT
     val validPayout = allOf(
       Coll(
         validStateTransition,
         nextRewardValid,
-        nextBalanceStateValid
+        nextBalanceStateValid,
+        secureSpend
       )
     )
     validPayout

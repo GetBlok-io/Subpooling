@@ -5,7 +5,7 @@ import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.contracts.plasma.BalanceStateContract.logger
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
-import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoType, ErgoValue, InputBox, OutBox}
+import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import sigmastate.Values
 import sigmastate.eval.Colls
@@ -19,18 +19,19 @@ case class UpdateBalanceContract(contract: ErgoContract) {
   def getErgoTree:                              Values.ErgoTree = contract.getErgoTree
 }
 object UpdateBalanceContract {
-  private val constants = ConstantsBuilder.create().build()
   val script: String = Scripts.UPDATE_BALANCE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("UpdateBalanceContract")
-  def generate(ctx: BlockchainContext): ErgoContract = {
+
+  def generate(ctx: BlockchainContext, poolNFT: ErgoId): ErgoContract = {
+    val constants = ConstantsBuilder.create().item("const_poolNFT", Colls.fromArray(poolNFT.getBytes)).build()
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
 
-  def buildBox(ctx: BlockchainContext, optValue: Option[Long] = None): OutBox = {
+  def buildBox(ctx: BlockchainContext, poolNFT: ErgoId, optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
-      .contract(generate(ctx))
+      .contract(generate(ctx, poolNFT))
       .build()
   }
 

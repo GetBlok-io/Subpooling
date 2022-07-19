@@ -5,7 +5,7 @@ import io.getblok.getblok_plasma.collections.Proof
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, StateBalance, StateMiner, StateScore}
-import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
+import org.ergoplatform.appkit.{Address, BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import scorex.crypto.authds.avltree.batch.Insert
 import sigmastate.Values
@@ -21,19 +21,21 @@ case class BalanceStateContract(contract: ErgoContract){
 }
 
 object BalanceStateContract {
-  private val constants = ConstantsBuilder.create().build()
+
   val script: String = Scripts.BALANCE_STATE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("BalanceStateContract")
-  def generateStateContract(ctx: BlockchainContext): ErgoContract = {
+
+  def generateStateContract(ctx: BlockchainContext, poolOp: Address): ErgoContract = {
+    val constants = ConstantsBuilder.create().item("const_poolOpPK", poolOp.getPublicKey).build()
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
 
-  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, poolTag: ErgoId ,optValue: Option[Long] = None): OutBox = {
+  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, poolTag: ErgoId, poolOp: Address ,optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .registers(balanceState.map.ergoValue)
-      .contract(generateStateContract(ctx))
+      .contract(generateStateContract(ctx, poolOp))
       .tokens(new ErgoToken(poolTag, 1L))
       .build()
   }

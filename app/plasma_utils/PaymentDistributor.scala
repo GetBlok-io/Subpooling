@@ -20,9 +20,10 @@ import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import plasma_utils.payments.PaymentRouter
+import plasma_utils.stats.StatsRecorder
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader
-import utils.ConcurrentBoxLoader.BatchSelection
+import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection}
 
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
@@ -149,6 +150,8 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
           db.run(Tables.StateHistoryTables ++= Tables.StateHistoryTables.fromTransforms(transforms, gEpoch, members.head.block))
           logger.info("Finished writing transforms to StateHistory Table!")
+
+          StatsRecorder.writePoolBalances(poolTag, dr.poolBalanceStates, db)
 
           logger.info(s"Finished all updates for distribution of pool ${poolTag}")
         }

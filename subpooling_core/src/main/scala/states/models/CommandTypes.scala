@@ -7,5 +7,6 @@ object CommandTypes {
   case object INSERT extends Command
   case object UPDATE extends Command
   case object PAYOUT extends Command
+  case object DELETE extends Command
   case object SETUP extends  Command
 }

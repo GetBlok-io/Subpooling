@@ -8,7 +8,7 @@ import slick.lifted.Tag
 import java.time.LocalDateTime
 
 class StateHistoryTable(tag: Tag) extends Table[StateHistory](tag, "state_history") {
-  def poolTag       = column[String]("poolTag")
+  def poolTag       = column[String]("pool_tag")
   def gEpoch        = column[Long]("g_epoch")
   def box           = column[String]("box")
   def tx            = column[String]("tx")

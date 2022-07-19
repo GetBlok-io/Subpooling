@@ -82,12 +82,19 @@ object Tables {
           val subTrees = t.manifest.map(_.subtreeStrings).getOrElse(Seq("none", "none", "none", "none"))
 
           StateHistory(poolTag, gEpoch, box, tx, commandBox, command, PoolState.SUCCESS, step, digest, manifest,
-            subTrees(0), subTrees(1), subTrees(2), subTrees(3), block, LocalDateTime.now(), LocalDateTime.now())
+            subTrees.applyOrElse(0, (a: Int) => "none"), subTrees.applyOrElse(1, (a: Int) => "none"),
+            subTrees.applyOrElse(2, (a: Int) => "none"), subTrees.applyOrElse(3, (a: Int) => "none"),
+            block, LocalDateTime.now(), LocalDateTime.now())
       }
       histories
     }
 
   }
+
+  object PoolBalanceStateTable extends TableQuery(new PoolBalanceStateTable(_)) {
+
+  }
+
 
   def makePartition(tableName: String, part: String) = {
     import slick.jdbc.PostgresProfile.api._

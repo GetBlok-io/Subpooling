@@ -2,6 +2,7 @@ package io.getblok.subpooling_core
 package states.groups
 
 import io.getblok.subpooling_core.persistence.models.Models.PoolMember
+import io.getblok.subpooling_core.plasma.PoolBalanceState
 import io.getblok.subpooling_core.states.models.TransformResult
 
 import scala.util.Try
@@ -12,4 +13,5 @@ trait StateGroup {
   def applyTransformations(): Try[Unit]
   def sendTransactions: Seq[Try[TransformResult]]
   def getMembers: Seq[PoolMember]
+  def getPoolBalanceStates: Seq[PoolBalanceState]
 }

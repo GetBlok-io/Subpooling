@@ -29,7 +29,7 @@ case class UpdateTransform(override val ctx: BlockchainContext, override val wal
       logger.info(s"Paying transaction fee of ${appliedCommand._1.getValue - appliedCommand._2}")
       require(appliedCommand._1.getValue - appliedCommand._2 <= Helpers.OneErg, "A tx fee greater than 1 erg is being paid!")
       val inputBoxes = Seq(state.box, appliedCommand._1).asJava
-      val nextStateBox = state.output(ctx, Some(state.box.getValue.toLong + appliedCommand._2))
+      val nextStateBox = state.output(ctx, wallet.p2pk, Some(state.box.getValue.toLong + appliedCommand._2))
       val unsignedTx = ctx.newTxBuilder()
         .boxesToSpend(inputBoxes)
         .outputs(nextStateBox)

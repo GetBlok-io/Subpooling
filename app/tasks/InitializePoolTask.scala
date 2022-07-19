@@ -195,7 +195,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
           val tokenId = tokenBox.getTokens.get(0).getId
           val file = new File(AppParameters.plasmaStoragePath + s"/${tokenId.toString}").mkdir()
           val balanceState = new BalanceState(tokenId.toString)
-          val stateBox = BalanceStateContract.buildStateBox(ctx, balanceState, tokenId)
+          val stateBox = BalanceStateContract.buildStateBox(ctx, balanceState, tokenId, wallet.p2pk)
           val uTx = ctx.newTxBuilder()
             .boxesToSpend(Seq(tokenBox).asJava)
             .outputs(stateBox)

@@ -27,6 +27,7 @@ object Models {
     private val insertStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/InsertBalance.ergo")
     private val updateStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/UpdateBalance.ergo")
     private val payoutBalanceSrc     = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/PayoutBalance.ergo")
+    private val deleteBalanceSrc     = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/DeleteBalance.ergo")
 
     val METADATA_SCRIPT:            String = metadataSrc.mkString
     val METADATA_TEST_SCRIPT:       String = metadataTestSrc.mkString
@@ -44,6 +45,7 @@ object Models {
     val INSERT_BALANCE_SCRIPT:      String = insertStateSrc.mkString
     val UPDATE_BALANCE_SCRIPT:      String = updateStateSrc.mkString
     val PAYOUT_BALANCE_SCRIPT:      String = payoutBalanceSrc.mkString
+    val DELETE_BALANCE_SCRIPT:      String = deleteBalanceSrc.mkString
     metadataSrc.close()
     metadataTestSrc.close()
     holdingSrc.close()
@@ -60,5 +62,6 @@ object Models {
     insertStateSrc.close()
     updateStateSrc.close()
     payoutBalanceSrc.close()
+    deleteBalanceSrc.close()
   }
 }

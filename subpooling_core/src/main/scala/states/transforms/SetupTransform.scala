@@ -3,20 +3,22 @@ package states.transforms
 
 import contracts.plasma.{InsertBalanceContract, PayoutBalanceContract, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
-import global.{AppParameters, Helpers}
+import global.{AppParameters, EIP27Constants, Helpers}
 import states.models.{CommandState, State, StateTransition, TransformResult}
 
+import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
+import io.getblok.subpooling_core.registers.PoolFees
 import io.getblok.subpooling_core.states.models.CommandTypes.{INSERT, PAYOUT, SETUP, UPDATE}
 import org.ergoplatform.appkit.BlockchainContext
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.seqAsJavaListConverter
+import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 import scala.util.Try
 
 
 case class SetupTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState,
-                          minerBatchSize: Int)
+                          minerBatchSize: Int, fee: Long, reward: Long)
   extends StateTransition(ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("SetupTransform")
 
@@ -40,33 +42,62 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
 
       val insertOutBoxes = insertBatches.indices.map{
         idx =>
-          InsertBalanceContract.buildBox(ctx, Some(AppParameters.groupFee * 20)) -> idx
+          InsertBalanceContract.buildBox(ctx, state.poolNFT, Some(AppParameters.groupFee * 20)) -> idx
       }
       val updateOutBoxes = updateBatches.indices.map{
         idx =>
           val amountToPayout = updateBatches(idx).map(_.amountAdded).sum
           logger.info(s"Building update box with total balances of ${amountToPayout} nanoErg")
-          UpdateBalanceContract.buildBox(ctx, Some(amountToPayout + (AppParameters.groupFee * 20))) -> (insertBatches.size + idx)
+          UpdateBalanceContract.buildBox(ctx, state.poolNFT, Some(amountToPayout + (AppParameters.groupFee * 20))) -> (insertBatches.size + idx)
       }
       val payoutOutBoxes = payoutBatches.indices.map{
         idx =>
-          PayoutBalanceContract.buildBox(ctx, Some(AppParameters.groupFee * 20)) -> (insertBatches.size + updateBatches.size + idx)
+          PayoutBalanceContract.buildBox(ctx, state.poolNFT, Some(AppParameters.groupFee * 20)) -> (insertBatches.size + updateBatches.size + idx)
       }
 
       val indexedOutputs = insertOutBoxes ++ updateOutBoxes ++ payoutOutBoxes
-      val outputs = indexedOutputs.map(_._1)
+
       logger.info(s"Paying transaction fee of ${commandState.box.getValue} nanoERG")
       val txFee = AppParameters.groupFee * 20
+
+      var inputBoxes = state.boxes.asJava
+
+      val feePercent: BigDecimal = BigDecimal(fee) / PoolFees.POOL_FEE_CONST
+      val feeReward: Long = (reward * feePercent).toLong
+
+      val feeBox = ctx.newTxBuilder().outBoxBuilder().value(feeReward).contract(AppParameters.getFeeAddress.toErgoContract).build()
+
+      val outputs = indexedOutputs.map(_._1) ++ Seq(feeBox)
       require(state.boxes.map(_.getValue).sum > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
 
-      val inputBoxes = state.boxes.asJava
-
-      val unsignedTx = ctx.newTxBuilder()
-        .boxesToSpend(inputBoxes)
-        .outputs(outputs: _*)
-        .fee(txFee)
-        .sendChangeTo(wallet.p2pk.getErgoAddress)
-        .build()
+      val unsignedTx = {
+        if(AppParameters.enableEIP27){
+          val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), inputBoxes.asScala.toSeq)
+          if(eip27.optToBurn.isDefined){
+            ctx.newTxBuilder()
+              .boxesToSpend(inputBoxes)
+              .outputs((outputs ++ eip27.p2reem): _*)
+              .fee(txFee)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .tokensToBurn(eip27.optToBurn.get)
+              .build()
+          }else{
+            ctx.newTxBuilder()
+              .boxesToSpend(inputBoxes)
+              .outputs(outputs: _*)
+              .fee(txFee)
+              .sendChangeTo(wallet.p2pk.getErgoAddress)
+              .build()
+          }
+        } else {
+          ctx.newTxBuilder()
+            .boxesToSpend(inputBoxes)
+            .outputs(outputs: _*)
+            .fee(txFee)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+        }
+      }
 
       val signedTx = wallet.prover.sign(unsignedTx)
       val txId = signedTx.getId.replace("\"", "")
@@ -85,9 +116,9 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
         .map(o => o._1.convertToInputWith(txId, o._2.toShort))
         .zipWithIndex
         .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
-
+      val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
       commandQueue = insertCommands ++ updateCommands ++ payoutCommands
-      TransformResult(state, signedTx, commandState.data, SETUP, None, -1, commandState)
+      TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
     }
   }
 

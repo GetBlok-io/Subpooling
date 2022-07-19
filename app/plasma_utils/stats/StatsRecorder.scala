@@ -5,6 +5,7 @@ import akka.util.Timeout
 import configs.ParamsConfig
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation, PoolMember, PoolState}
+import io.getblok.subpooling_core.plasma.PoolBalanceState
 import models.DatabaseModels.{Balance, BalanceChange, Payment, SPoolBlock}
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
@@ -14,7 +15,7 @@ import java.time.LocalDateTime
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 object StatsRecorder {
   private val logger: Logger = LoggerFactory.getLogger("StatsRecorder")
@@ -38,6 +39,39 @@ object StatsRecorder {
         .map(s => (s.box, s.status, s.updated))
         .update((outputId, PoolState.CONFIRMED, LocalDateTime.now()))
     )
+  }
+
+  def writePoolBalances(poolTag: String, balances: Seq[PoolBalanceState], db: PostgresProfile#Backend#Database)(implicit ec: ExecutionContext): Future[Unit] = {
+    val currentPoolBals = db.run(Tables.PoolBalanceStateTable.filter(_.poolTag === poolTag).result)
+
+    currentPoolBals.map{
+      poolBals =>
+        val balsToInsert = balances.filter(b => !poolBals.exists(pb => pb.miner == b.miner))
+        val balsToUpdate = balances.filter(b => poolBals.exists(pb => pb.miner == b.miner))
+
+        logger.info(s"Now inserting ${balsToInsert.length} new balance states")
+        db.run(Tables.PoolBalanceStateTable ++= balsToInsert)
+
+        logger.info(s"Now updating ${balsToUpdate.length} existing balance states")
+        val balUpdates = {
+          for(pb <- balsToUpdate) yield {
+            db.run(
+              Tables.PoolBalanceStateTable
+                .filter(_.poolTag === poolTag)
+                .filter(_.miner === pb.miner)
+                .map(b => (b.gEpoch, b.tx, b.digest, b.command, b.step, b.balance, b.lastPaid, b.block, b.updated))
+                .update((pb.gEpoch, pb.tx, pb.digest, pb.command, pb.step, pb.balance, pb.lastPaid, pb.block, pb.updated))
+            )
+          }
+        }
+
+        Future.sequence(balUpdates).onComplete{
+          case Success(value) =>
+            logger.info(s"Finished updating balance states, ${value.sum} states updated")
+          case Failure(exception) =>
+            logger.error("There was an error updating balance states!", exception)
+        }
+    }
   }
 
   def enterNewPaymentStats(block: SPoolBlock, info: PoolInformation, members: Seq[PoolMember], params: ParamsConfig,

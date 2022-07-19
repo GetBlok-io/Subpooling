@@ -44,8 +44,8 @@ class TransformValidator(expReq: ActorRef, contexts: Contexts, params: ParamsCon
       pools <- qPools
     }
     yield {
-      val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, pools, routePlasma = true)
-      val pooledBlocks = normalBlocks.groupBy(_.poolTag)
+      val plasmaBlocks = PaymentRouter.routePlasmaBlocks(blocks, pools, routePlasma = true)
+      val pooledBlocks = plasmaBlocks.groupBy(_.poolTag)
       for (poolBlock <- pooledBlocks) {
         val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
         val blocksToUse = {

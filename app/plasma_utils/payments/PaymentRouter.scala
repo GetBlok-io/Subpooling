@@ -2,6 +2,7 @@ package plasma_utils.payments
 
 import actors.StateRequestHandler.PoolBox
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
+import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.Models.{MinerSettings, PoolInformation}
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.PlasmaMiner
@@ -15,7 +16,7 @@ object PaymentRouter {
   def routeProcessor(info: PoolInformation, settings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection, reward: Long): PaymentProcessor = {
     info.currency match {
       case PoolInformation.CURR_ERG =>
-        StandardProcessor(settings, collector, batch, reward)
+        StandardProcessor(settings, collector, batch, reward, info.fees)
       case _ =>
         throw new Exception("Unsupported currency found during processor routing!")
     }
@@ -26,7 +27,7 @@ object PaymentRouter {
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
         new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState, batch.blocks.head.gEpoch,
-          batch.blocks.head.blockheight, batch.info.poolTag)
+          batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))
       case _ =>
         throw new Exception("Unsupported currency found during StateGroup routing!")
     }

@@ -8,7 +8,7 @@ import io.getblok.subpooling_core.plasma.{BalanceState, StateMiner}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State}
-import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
 import org.ergoplatform.appkit.impl.ErgoTreeContract
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, InputBox, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
@@ -31,7 +31,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
   val PAYOUT = "PAYOUT"
   val UPDATE = "UPDATE"
   val INSERT = "INSERT"
-
+  val DELETE = "DELETE"
   val infoBuffer: ArrayBuffer[TestInfo] = ArrayBuffer()
 //  testTx()
 //  updateTx()
@@ -47,7 +47,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         logger.info(mockData.map(_.amountAdded).sum + " total value")
-        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId))
+        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, dummyWallet.p2pk))
         val initState = State(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg * 1000000L)))
         transformer = new StateTransformer(ctx, initState)
     }
@@ -57,7 +57,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         val dummyCommandState = CommandState(stateBox, mockData, SETUP, -1)
-        val setupTransform = SetupTransform(ctx, dummyWallet, dummyCommandState, NUM_MINERS)
+        val setupTransform = SetupTransform(ctx, dummyWallet, dummyCommandState, NUM_MINERS, 1000, 100)
         val result = transformer.apply(setupTransform)
         commandQueue = setupTransform.commandQueue
     }
@@ -73,6 +73,8 @@ class FullStateTransformationSuite extends AnyFunSuite{
             updateTx(cmdState)
           case CommandTypes.PAYOUT =>
             payoutTx(cmdState)
+          case CommandTypes.DELETE =>
+            deleteTx(cmdState)
         }
     }
   }
@@ -87,6 +89,19 @@ class FullStateTransformationSuite extends AnyFunSuite{
         logger.info(s"${result.transaction.toJson(true)}")
 
         infoBuffer += TestInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    }
+  }
+
+  def deleteTx(commandState: CommandState): Unit = {
+    ergoClient.execute {
+      ctx =>
+
+        val deleteTransform = DeleteTransform(ctx, dummyWallet, commandState)
+        val result = transformer.apply(deleteTransform)
+        lastState = result.nextState
+        logger.info(s"${result.transaction.toJson(true)}")
+
+        infoBuffer += TestInfo(DELETE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
     }
   }
 
@@ -162,7 +177,7 @@ object FullStateTransformationSuite {
 
 
   val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
-  val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
+
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
   val dummyTokenId = ErgoId.create(dummyToken)
@@ -178,7 +193,7 @@ object FullStateTransformationSuite {
         return prover
     }
   }
-
+  val creatorAddress: Address = dummyProver.getAddress
   val dummyWallet: NodeWallet = NodeWallet(PK(creatorAddress), dummyProver)
 
   def logger: Logger = LoggerFactory.getLogger("StateTransformationSuite")
