@@ -40,7 +40,8 @@ class ParamsConfig(config: Configuration){
   val groupStart: Int           = config.get[Int]("params.groupStart")
   val singularGroups: Boolean   = config.get[Boolean]("params.singularGroups")
   val sendTransactions: Boolean = config.get[Boolean]("params.sendTxs")
-
+  val plasmaStorage: String     = config.get[String]("params.plasmaStorage")
+  val enableEIP27: Boolean       = config.get[Boolean]("params.enableEIP27")
 
   AppParameters.pplnsWindow = BigDecimal(window)
   AppParameters.scoreAdjustmentCoeff = adjustCoeff
@@ -49,4 +50,6 @@ class ParamsConfig(config: Configuration){
   AppParameters.feeAddress = currentFeeAddress
   AppParameters.feePerc = currentFeePerc
   AppParameters.sendTxs = sendTransactions
+  AppParameters.plasmaStoragePath = plasmaStorage
+  AppParameters.enableEIP27 = enableEIP27
 }

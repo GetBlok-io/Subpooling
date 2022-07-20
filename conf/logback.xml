@@ -66,6 +66,16 @@
 
     <appender-ref ref="ASYNCSTDOUT" />
   </logger>
+  <logger name = "PaymentDistributor" additivity = "false">
+    <appender-ref ref="Groups"/>
+
+    <appender-ref ref="ASYNCSTDOUT" />
+  </logger>
+  <logger name = "PrePlacer" additivity = "false">
+    <appender-ref ref="Groups"/>
+
+    <appender-ref ref="ASYNCSTDOUT" />
+  </logger>
   <logger name = "ConcurrentBoxLoader" additivity = "false">
     <appender-ref ref="Groups"/>
 

@@ -21,6 +21,14 @@ object Models {
 
     private val propEmissionsSrc      = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ProportionalEmissions.ergo")
     private val propEmissionsTestSrc      = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ProportionalEmissionsTest.ergo")
+
+    private val shareStateSrc         = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/ShareState.ergo")
+    private val balanceStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/BalanceState.ergo")
+    private val insertStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/InsertBalance.ergo")
+    private val updateStateSrc       = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/UpdateBalance.ergo")
+    private val payoutBalanceSrc     = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/PayoutBalance.ergo")
+    private val deleteBalanceSrc     = Source.fromFile(AppParameters.scriptBasePath + "conf/scripts/DeleteBalance.ergo")
+
     val METADATA_SCRIPT:            String = metadataSrc.mkString
     val METADATA_TEST_SCRIPT:       String = metadataTestSrc.mkString
     val SIMPLE_HOLDING_SCRIPT:      String = holdingSrc.mkString
@@ -32,6 +40,12 @@ object Models {
     val EX_EMISSIONS_TEST_SCRIPT:   String = exEmissionsTestSrc.mkString
     val PROP_EMISSIONS_SCRIPT:      String = propEmissionsSrc.mkString
     val PROP_EMISSIONS_TEST_SCRIPT: String = propEmissionsTestSrc.mkString
+    val SHARE_STATE_SCRIPT:         String = shareStateSrc.mkString
+    val BALANCE_STATE_SCRIPT:       String = balanceStateSrc.mkString
+    val INSERT_BALANCE_SCRIPT:      String = insertStateSrc.mkString
+    val UPDATE_BALANCE_SCRIPT:      String = updateStateSrc.mkString
+    val PAYOUT_BALANCE_SCRIPT:      String = payoutBalanceSrc.mkString
+    val DELETE_BALANCE_SCRIPT:      String = deleteBalanceSrc.mkString
     metadataSrc.close()
     metadataTestSrc.close()
     holdingSrc.close()
@@ -43,5 +57,11 @@ object Models {
     exEmissionsTestSrc.close()
     propEmissionsSrc.close()
     propEmissionsTestSrc.close()
+    shareStateSrc.close()
+    balanceStateSrc.close()
+    insertStateSrc.close()
+    updateStateSrc.close()
+    payoutBalanceSrc.close()
+    deleteBalanceSrc.close()
   }
 }

@@ -11,8 +11,8 @@ import special.collection.Coll
  */
 class LongReg(val value: Long) {
 
-  def ergoType: ErgoType[Long]        = ErgoType.longType()
-  def ergoVal:  ErgoValue[Long]       = ErgoValue.of(value)
+  def ergoType: ErgoType[java.lang.Long]        = ErgoType.longType()
+  def ergoVal:  ErgoValue[java.lang.Long]       = ErgoValue.of(value)
 
   override def toString: String =
     s"LONG(${value}L)"
@@ -21,15 +21,15 @@ class LongReg(val value: Long) {
     obj match {
       case asLong if obj.isInstanceOf[Long] =>
         asLong.asInstanceOf[Long] == value
-      case asErgo if obj.isInstanceOf[ErgoValue[Long]] =>
-        asErgo.asInstanceOf[ErgoValue[Long]].getValue == value
+      case asErgo if obj.isInstanceOf[ErgoValue[java.lang.Long]] =>
+        asErgo.asInstanceOf[ErgoValue[java.lang.Long]].getValue == value
       case _ =>
         false
     }
 }
 
 object LongReg {
-  def ofErgo(ergoValue: ErgoValue[Long]) =
+  def ofErgo(ergoValue: ErgoValue[java.lang.Long]) =
     new LongReg(ergoValue.getValue)
 
   def ofLong(long: Long) = new LongReg(long)

@@ -1,0 +1,35 @@
+{
+  val balanceState = INPUTS(0).R4[AvlTree].get
+  val nextStateBox = OUTPUTS(0)
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+  val poolNFT = INPUTS(0).tokens(0)._1
+
+  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val proof         = getVar[Coll[Byte]](1).get
+  // val commandBytes  = getVar[Coll[Byte]](2).get
+
+  val insertMiners = {
+
+      val emptyInserts = stateData.forall{
+        (keyVal: (Coll[Byte], Coll[Byte])) =>
+          val balance = byteArrayToLong(keyVal._2.slice(0, 8))
+          balance == 0L
+      }
+      val nextState = balanceState.insert(stateData, proof).get
+      val validStateTransition = nextBalanceState.digest == nextState.digest
+      val secureSpend = poolNFT == const_poolNFT
+
+      val validInsertion = allOf(
+        Coll(
+          emptyInserts,
+          validStateTransition,
+          secureSpend,
+          INPUTS(0).value == OUTPUTS(0).value
+        )
+      )
+
+      validInsertion
+  }
+
+  sigmaProp(insertMiners)
+}

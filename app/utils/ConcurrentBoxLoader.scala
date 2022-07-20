@@ -5,6 +5,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.{EIP27Constants, Helpers}
 import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation}
 import models.DatabaseModels.SPoolBlock
@@ -27,13 +28,13 @@ import scala.language.postfixOps
  * Returns a single box per page
  */
 
-class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: ParamsConfig, contexts: Contexts) {
+class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: ParamsConfig, contexts: Contexts, wallet: NodeWallet) {
 
   val logger: Logger = LoggerFactory.getLogger("ConcurrentBoxLoader")
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
 
 
-  def selectBlocks(blocks: Seq[SPoolBlock], distinctOnly: Boolean): BatchSelection = {
+  def selectBlocks(blocks: Seq[SPoolBlock], strictBatch: Boolean): BatchSelection = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now selecting blocks with unique pool tags")
@@ -54,11 +55,12 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 //    }
     var blockList: ArrayBuffer[SPoolBlock] = ArrayBuffer(blocks:_*)
     var firstBlock: Option[SPoolBlock] = None
+
     while(firstBlock.isEmpty){
       require(blockList.nonEmpty, s"No pools found with ${BLOCK_BATCH_SIZE} blocks")
       val tryHead = blockList.head
       val poolBlocks = blockList.filter(_.poolTag == tryHead.poolTag)
-      if(poolBlocks.size < 5){
+      if(poolBlocks.size < BLOCK_BATCH_SIZE && strictBatch){
         logger.info(s"Removing pool ${tryHead.poolTag} from selection due to lacking ${BLOCK_BATCH_SIZE} confirmed blocks")
         blockList --= poolBlocks
       }else{
@@ -107,7 +109,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     logger.info(s"Now preLoading input boxes with a total of ${Helpers.nanoErgToErg(amountToFind)} ERG")
     val collectedInputs = ArrayBuffer() ++ ergoClient.execute {
       ctx =>
-        ctx.getWallet.getUnspentBoxes(amountToFind).get()
+        wallet.boxes(ctx, amountToFind).get
     }.asScala.toSeq.sortBy(b => b.getValue.toLong).reverse
     collectedInputs.foreach{
       ib => loadedBoxes.add(ib)

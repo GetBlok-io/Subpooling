@@ -63,7 +63,7 @@ class EmissionRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, holdi
 
         val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox, blockReward - totalBaseFees - totalTxFees - totalOutputErg)
 
-        val boxesToSpend = inputBoxes.getOrElse(ctx.getWallet.getUnspentBoxes(totalTxFees + totalBaseFees + blockReward).get().asScala.toSeq)
+        val boxesToSpend = inputBoxes.getOrElse(wallet.boxes(ctx, totalTxFees + totalBaseFees + blockReward).get.asScala.toSeq)
 
 
         boxesToSpend.foreach(i => logger.info(s"Id: ${i.getId}, val: ${i.getValue}"))

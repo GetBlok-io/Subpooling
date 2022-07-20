@@ -2,7 +2,8 @@ package io.getblok.subpooling_core
 package registers
 
 import io.getblok.subpooling_core.global.AppParameters
-import org.ergoplatform.appkit.{ErgoType, ErgoValue}
+import org.ergoplatform.appkit.JavaHelpers.JByteRType
+import org.ergoplatform.appkit.{ErgoType, ErgoValue, Iso}
 import sigmastate.eval.Colls
 import special.collection.Coll
 
@@ -29,19 +30,20 @@ class PoolOperators(val arr: Array[PropBytes]){
         false
     }
 
-  def ergoType: ErgoType[Coll[Byte]] = ErgoType.collType(ErgoType.byteType())
+  def ergoType: ErgoType[Coll[java.lang.Byte]] = ErgoType.collType(ErgoType.byteType())
 
-  def coll: Coll[Coll[Byte]] = Colls.fromArray(arr.map(a => a.coll))
+  def coll: Coll[Coll[java.lang.Byte]] = Colls.fromArray(arr.map(a => a.coll))
 
-  def ergoVal: ErgoValue[Coll[Coll[Byte]]] = ErgoValue.of(coll, ergoType)
+  def ergoVal: ErgoValue[Coll[Coll[java.lang.Byte]]] = ErgoValue.of(coll, ergoType)
 }
 
 object PoolOperators {
-  def ofColl(coll: Coll[Coll[Byte]]) =
-    new PoolOperators(coll.toArray.map(c => new PropBytes(c.toArray)(AppParameters.networkType)))
+  def ofColl(coll: Coll[Coll[java.lang.Byte]]) = {
+    new PoolOperators(coll.map(c => c.map(Iso.jbyteToByte.to).toArray).toArray.map(a => new PropBytes(a)(AppParameters.networkType)))
+  }
 
-  def ofErgo(ergoValue: ErgoValue[Coll[Coll[Byte]]]) =
-    new PoolOperators(ergoValue.getValue.toArray.map(o => new PropBytes(o.toArray)(AppParameters.networkType)))
+  def ofErgo(ergoValue: ErgoValue[Coll[Coll[java.lang.Byte]]]) =
+    new PoolOperators(ergoValue.getValue.toArray.map(o => new PropBytes(o.toArray.map(Iso.jbyteToByte.to))(AppParameters.networkType)))
 }
 
 

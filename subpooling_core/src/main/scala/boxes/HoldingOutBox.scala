@@ -36,4 +36,6 @@ class HoldingOutBox(outBox: OutBox)
   override def getErgoTree: Values.ErgoTree = asOutBox.getErgoTree
 
   override def getBytesWithNoRef: Array[Byte] = asOutBox.getBytesWithNoRef
+
+  override def getAttachment: BoxAttachment = asOutBox.getAttachment
 }

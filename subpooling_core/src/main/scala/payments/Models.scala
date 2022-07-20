@@ -17,6 +17,10 @@ object Models {
     case object SOLO_SHARES extends PaymentType
 
     case object SOLO_BATCH extends PaymentType
+
+    case object PLASMA_PPLNS_WINDOW extends PaymentType
+
+    case object PLASMA_SOLO_BATCH extends PaymentType
   }
 
 }

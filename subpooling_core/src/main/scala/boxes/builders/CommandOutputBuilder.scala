@@ -5,7 +5,10 @@ import boxes.CommandOutBox
 import contracts.command.CommandContract
 import registers.MetadataRegisters
 
+import org.ergoplatform.appkit.JavaHelpers.{JByteRType, JIntRType, JLongRType}
 import org.ergoplatform.appkit._
+import sigmastate.eval.Colls
+import special.collection.Coll
 
 /**
  * Outbox Builder wrapper that treats outboxes like metadata/command boxes
@@ -55,7 +58,25 @@ class CommandOutputBuilder(outBoxBuilder: OutBoxBuilder){
 
 
   def build(): CommandOutBox = {
-    asOutBoxBuilder.registers(registerList: _*)
+    val distValue:  ErgoValue[Coll[(Coll[java.lang.Byte], Coll[java.lang.Long])]] =
+      ErgoValue.of(
+        Colls.fromArray(metadataRegisters.shareDist.dist.toArray
+          .map(pm => Colls.fromArray(pm._1.arr).map(Iso.jbyteToByte.from) -> Colls.fromArray(pm._2.arr).map(Iso.jlongToLong.from))),
+        ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.longType()))
+      )
+    val feeValue = {
+      ErgoValue.of(
+        Colls.fromArray(metadataRegisters.feeMap.fees.toArray
+          .map(pm => Colls.fromArray(pm._1.arr).map(Iso.jbyteToByte.from) -> Iso.jintToInt.from(pm._2))),
+        ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.integerType())
+      )
+    }
+    val infoValue = metadataRegisters.poolInfo.ergoVal
+    val opsValue = {
+      ErgoValue.of(Colls.fromArray(metadataRegisters.poolOps.arr.map(p => Colls.fromArray(p.arr).map(Iso.jbyteToByte.from))),
+        ErgoType.collType(ErgoType.byteType()))
+    }
+    asOutBoxBuilder.registers(distValue, feeValue, infoValue, opsValue)
     new CommandOutBox(asOutBoxBuilder.build(), metadataRegisters)
   }
 

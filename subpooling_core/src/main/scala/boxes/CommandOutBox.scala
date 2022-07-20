@@ -28,4 +28,6 @@ class CommandOutBox(outBox: OutBox, metadataRegisters: MetadataRegisters)
   override def getErgoTree: Values.ErgoTree = asOutBox.getErgoTree
 
   override def getBytesWithNoRef: Array[Byte] = asOutBox.getBytesWithNoRef
+
+  override def getAttachment: BoxAttachment = asOutBox.getAttachment
 }

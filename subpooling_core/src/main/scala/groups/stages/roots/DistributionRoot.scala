@@ -62,7 +62,7 @@ class DistributionRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWallet, i
             }
           }
         }
-        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(totalFees + totalOutputs).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(wallet.boxes(ctx, totalFees + totalOutputs).get.asScala.toSeq)
         val txB = ctx.newTxBuilder()
         val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
         val unsignedTx = {

@@ -14,10 +14,12 @@ import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
 import io.getblok.subpooling_core.registers.PropBytes
-import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment}
+import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
 import models.ResponseModels.writesChangeKeys
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, NetworkType}
 import persistence.Tables
+import plasma_utils.TransformValidator
+import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.Json
 import play.api.{Configuration, Logger}
@@ -79,6 +81,15 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               logger.error("There was a critical error while checking distributions!", ex)
               Failure(ex)
           }
+          Try {
+            val transformValidator = new TransformValidator(expReq, contexts, params, db)
+            transformValidator.checkInitiated()
+          }.recoverWith{
+            case ex =>
+              logger.error("There was a critical error while validating transforms!", ex)
+              Failure(ex)
+          }
+
         }else {
 //          logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
 //          Try(execRegen(params.regenType)).recoverWith {
@@ -358,13 +369,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
   def checkProcessingBlocks: Future[Unit] = {
     implicit val timeout: Timeout = Timeout(60 seconds)
-    val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.PROCESSING)).mapTo[Seq[PoolBlock]]
+    val queryBlocks = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSING).sortBy(_.created).result)
     val qPools = db.run(Tables.PoolInfoTable.result)
     for{
       blocks <- queryBlocks
       pools <- qPools
     } yield {
-      val pooledBlocks = blocks.groupBy(_.poolTag)
+      val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, pools, routePlasma = false)
+      val pooledBlocks = normalBlocks.groupBy(_.poolTag)
       for(poolBlock <- pooledBlocks){
         val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
 
@@ -386,7 +398,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
       }
     }
   }
-  def verifyHoldingBoxes(blocks: Seq[PoolBlock], holdingId: String): Unit = {
+  def verifyHoldingBoxes(blocks: Seq[SPoolBlock], holdingId: String): Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
 
     val boxFromExp = (expReq ? BoxesById(ErgoId.create(holdingId)))
@@ -451,15 +463,15 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def checkDistributions: Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
-    val queryBlocks = (query ? PoolBlocksByStatus(PoolBlock.INITIATED)).mapTo[Seq[PoolBlock]]
+    val queryBlocks = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.INITIATED).sortBy(_.created).result)
     val qPools = db.run(Tables.PoolInfoTable.result)
     for {
       blocks <- queryBlocks
       pools <- qPools
     }
     yield {
-
-        val pooledBlocks = blocks.groupBy(_.poolTag)
+        val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, pools, routePlasma = false)
+        val pooledBlocks = normalBlocks.groupBy(_.poolTag)
         for (poolBlock <- pooledBlocks) {
           val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
           val blocksToUse = {
@@ -496,7 +508,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
   }
 
-  def validateDistStates(blocks: Seq[PoolBlock], queryPoolStates: Future[Seq[PoolState]]): Future[Unit] = {
+  def validateDistStates(blocks: Seq[SPoolBlock], queryPoolStates: Future[Seq[PoolState]]): Future[Unit] = {
     implicit val timeout: Timeout = Timeout(80 seconds)
     queryPoolStates.map {
       poolStates =>
@@ -527,7 +539,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def enterNewPaymentStats(block: PoolBlock, info: PoolInformation, members: Seq[PoolMember], settings: Map[String, Option[String]]): Try[Unit] = {
+  def enterNewPaymentStats(block: SPoolBlock, info: PoolInformation, members: Seq[PoolMember], settings: Map[String, Option[String]]): Try[Unit] = {
     // Build db changes
     // TODO: Fix payments for tokens
     val payments = members.filter(m => m.paid > 0).map{
@@ -613,7 +625,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     Try(logger.info("Pool data updates complete"))
   }
 
-  def handleUnconfirmedStates(blocks: Seq[PoolBlock], poolStates: Seq[PoolState]): Unit = {
+  def handleUnconfirmedStates(blocks: Seq[SPoolBlock], poolStates: Seq[PoolState]): Unit = {
     implicit val timeout: Timeout = Timeout(60 seconds)
     val modifiedPoolStates = {
       val statesToCheck = poolStates.filter(s => s.status == PoolState.SUCCESS)

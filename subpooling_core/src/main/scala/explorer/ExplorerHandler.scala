@@ -59,7 +59,7 @@ class ExplorerHandler(networkType: NetworkType, customURL: Option[String] = None
    * @param limit Max number of transactions in response
    */
   def txsForAddress(addr: Address, offset: Int = 0, limit: Int = 10): Option[Seq[TransactionData]] = {
-    val opt = asOption[Items[TransactionInfo]](apiService.getApiV1AddressesP1Transactions(addr.toString, offset, limit).execute())
+    val opt = asOption[Items[TransactionInfo]](apiService.getApiV1AddressesP1Transactions(addr.toString, offset, limit, true).execute())
     TransactionData.fromOptionSeq(itemSeq[TransactionInfo](opt))
   }
 

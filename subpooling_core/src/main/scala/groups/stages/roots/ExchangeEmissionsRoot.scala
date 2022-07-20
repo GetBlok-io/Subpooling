@@ -65,7 +65,7 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
 //        }
 
 
-        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(wallet.boxes(ctx, blockReward + primaryTxFees).get.asScala.toSeq)
 
         val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
 

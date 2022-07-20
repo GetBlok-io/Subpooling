@@ -3,6 +3,7 @@ package persistence.models
 
 import io.getblok.subpooling_core.groups.entities.Member
 import io.getblok.subpooling_core.registers.MemberInfo
+import io.getblok.subpooling_core.states.models.PlasmaMiner
 import org.ergoplatform.appkit.{Address, Parameters}
 
 import java.sql.{Connection, PreparedStatement, ResultSet}
@@ -147,6 +148,8 @@ object Models {
     val PAY_EQ    = "EQUAL"
     val PAY_SOLO  = "SOLO"
 
+    val PAY_PLASMA_PPLNS = "PPLNS_PLASMA"
+    val PAY_PLASMA_SOLO  = "SOLO_PLASMA"
     val TokenExchangeEmissions = "Exchange"
     val ProportionalEmissions  = "Proportional"
     val NoEmissions   = "none"
@@ -164,6 +167,7 @@ object Models {
     def toPartialMember: Member = {
       Member(Address.create(miner),  new MemberInfo(Array(score, minpay, 0L, epochs_mined, 0L)))
     }
+
   }
 
   object PoolPlacement extends DatabaseConversion[PoolPlacement]

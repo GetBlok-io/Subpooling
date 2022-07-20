@@ -1,0 +1,7 @@
+{
+  val balanceStateExists = SELF.R4[AvlTree].isDefined
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].isDefined
+
+
+  sigmaProp(nextBalanceState) && const_poolOpPK
+}

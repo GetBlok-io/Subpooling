@@ -29,7 +29,7 @@ class EmissionsBox(box: InputBox, emissionsContract: EmissionsContract){
   val numTokens: Long    = this.getTokens(1).getValue.toLong
 
   val emissionReward: LongReg   = LongReg(this.getRegisters.head.getValue.asInstanceOf[Long])
-  val ergHolder:   PropBytes = PropBytes.ofColl(this.getRegisters(1).getValue.asInstanceOf[Coll[Byte]])(AppParameters.networkType)
+  val ergHolder:   PropBytes = PropBytes.ofColl(this.getRegisters(1).getValue.asInstanceOf[Coll[java.lang.Byte]])(AppParameters.networkType)
 
 
   def getId: ErgoId = box.getId
