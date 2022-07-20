@@ -14,7 +14,7 @@ import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.node.NodeHandler
 import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInfo, ValidBlock}
 import play.api.{Configuration, Logger}
-import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, Share}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, Share}
 import org.ergoplatform.appkit.ErgoId
 import persistence.Tables
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}

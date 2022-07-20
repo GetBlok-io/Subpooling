@@ -5,7 +5,7 @@ import actors.QuickDbReader._
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
-import io.getblok.subpooling_core.persistence.models.Models.PoolBlock
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolBlock
 import io.getblok.subpooling_core.persistence.{MembersTable, PlacementTable}
 import models.ResponseModels._
 import persistence.Tables

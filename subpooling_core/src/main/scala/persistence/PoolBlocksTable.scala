@@ -3,7 +3,7 @@ package persistence
 
 import node.NodeHandler
 import node.NodeHandler.PartialBlockInfo
-import persistence.models.Models.{DbConn, PoolBlock}
+import persistence.models.PersistenceModels.{DbConn, PoolBlock}
 
 import io.getblok.subpooling_core.persistence.models.DataTable
 import org.slf4j.{Logger, LoggerFactory}

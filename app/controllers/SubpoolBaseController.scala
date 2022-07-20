@@ -2,7 +2,7 @@ package controllers
 
 import configs._
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.persistence.models.Models.DbConn
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.DbConn
 import io.getblok.subpooling_core.persistence._
 import org.ergoplatform.appkit.ErgoClient
 import play.api.Configuration

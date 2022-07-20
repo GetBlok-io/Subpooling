@@ -1,6 +1,6 @@
 package persistence
 
-import io.getblok.subpooling_core.persistence.models.Models.{PoolInformation, PoolMember}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolInformation, PoolMember}
 import slick.jdbc.PostgresProfile.api._
 import slick.lifted.Tag
 

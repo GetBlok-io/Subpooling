@@ -20,7 +20,7 @@ import io.getblok.subpooling_core.groups.builders.GenesisBuilder
 import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
 import io.getblok.subpooling_core.persistence.models.DataTable
-import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import io.getblok.subpooling_core.plasma.BalanceState
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{Balance, BalanceChange, Payment}

@@ -3,7 +3,7 @@ package persistence.shares
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.SharesTable
-import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, PoolBlock}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PartialShare, PoolBlock}
 import models.DatabaseModels.SPoolBlock
 import org.slf4j.LoggerFactory
 import persistence.{PoolSharesTable, Tables}

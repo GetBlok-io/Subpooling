@@ -4,7 +4,7 @@ import actors.BlockingDbWriter.{DeletePlacementsAtBlock, UpdatePoolInfo}
 import akka.util.Timeout
 import configs.ParamsConfig
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
-import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation, PoolMember, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolInformation, PoolMember, PoolState}
 import io.getblok.subpooling_core.plasma.PoolBalanceState
 import models.DatabaseModels.{Balance, BalanceChange, Payment, SPoolBlock}
 import org.slf4j.{Logger, LoggerFactory}

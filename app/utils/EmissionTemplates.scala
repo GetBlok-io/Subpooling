@@ -1,7 +1,7 @@
 package utils
 
 import io.getblok.subpooling_core.global.AppParameters
-import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import org.ergoplatform.appkit.{Address, ErgoId, NetworkType}
 
 object EmissionTemplates {

@@ -18,7 +18,7 @@ import io.getblok.subpooling_core.groups.selectors.LoadingSelector
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager}
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.{BlocksTable, InfoTable, MembersTable, PlacementTable, PoolBlocksTable, SettingsTable, SharesTable, StateTable}
-import io.getblok.subpooling_core.persistence.models.Models.{Block, DbConn, PoolMember, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, DbConn, PoolMember, PoolPlacement, PoolState}
 import org.ergoplatform.appkit.{BlockchainContext, ErgoClient, ErgoId, NetworkType}
 import persistence.shares.ShareHandler
 import play.api.db.slick.DatabaseConfigProvider

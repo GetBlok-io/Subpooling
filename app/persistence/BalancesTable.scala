@@ -1,6 +1,6 @@
 package persistence
 
-import io.getblok.subpooling_core.persistence.models.Models.{Block, DbConn}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, DbConn}
 import models.DatabaseModels.Balance
 import slick.lifted.Tag
 import slick.jdbc.PostgresProfile.api._

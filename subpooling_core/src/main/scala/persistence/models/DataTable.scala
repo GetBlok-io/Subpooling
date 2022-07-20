@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package persistence.models
 
-import persistence.models.Models.DbConn
+import persistence.models.PersistenceModels.DbConn
 
 import org.slf4j.LoggerFactory
 

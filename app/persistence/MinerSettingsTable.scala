@@ -1,6 +1,6 @@
 package persistence
 
-import io.getblok.subpooling_core.persistence.models.Models.MinerSettings
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.MinerSettings
 import models.DatabaseModels.{MinerStats, SMinerSettings}
 import slick.jdbc.PostgresProfile.api._
 import slick.lifted.Tag

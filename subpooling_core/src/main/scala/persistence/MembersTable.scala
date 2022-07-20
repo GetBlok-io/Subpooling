@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package persistence
 
-import persistence.models.Models.{DbConn, PoolMember}
+import persistence.models.PersistenceModels.{DbConn, PoolMember}
 
 import io.getblok.subpooling_core.persistence.models.DataTable
 

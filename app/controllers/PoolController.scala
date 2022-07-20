@@ -20,7 +20,7 @@ import io.getblok.subpooling_core.groups.{GenesisGroup, GroupManager}
 import io.getblok.subpooling_core.groups.builders.GenesisBuilder
 import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
-import io.getblok.subpooling_core.persistence.models.Models.{DbConn, MinerSettings, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{DbConn, MinerSettings, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
 import play.api.libs.json.{Json, Writes}
 import actors.QuickDbReader._
 import io.getblok.subpooling_core.contracts.MetadataContract

@@ -8,7 +8,7 @@ import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.entities.Pool
 import io.getblok.subpooling_core.groups.models.{GroupBuilder, TransactionStage}
 import io.getblok.subpooling_core.groups.stages.roots.HoldingRoot
-import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import org.ergoplatform.appkit.{Address, BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
 

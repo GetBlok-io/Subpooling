@@ -9,7 +9,7 @@ import org.ergoplatform.appkit.{Address, Parameters}
 import java.sql.{Connection, PreparedStatement, ResultSet}
 import java.time.LocalDateTime
 
-object Models {
+object PersistenceModels {
   trait DatabaseConversion[T] {
     protected def fromResultSet(resultSet: ResultSet): T
 

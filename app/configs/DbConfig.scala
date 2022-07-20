@@ -4,7 +4,7 @@ import play.api.Configuration
 
 import java.sql.DriverManager
 import java.util.Properties
-import io.getblok.subpooling_core.persistence.models.Models.DbConn
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.DbConn
 
 class DbConfig(config: Configuration){
   private val baseURL = "jdbc:postgresql:"

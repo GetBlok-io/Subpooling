@@ -10,7 +10,7 @@ import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
 import io.getblok.subpooling_core.node.NodeHandler
 import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInfo, ValidBlock}
-import io.getblok.subpooling_core.persistence.models.Models.{Block, MinerSettings, PoolBlock, PoolInformation}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, MinerSettings, PoolBlock, PoolInformation}
 import persistence.Tables
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.{Configuration, Logger}

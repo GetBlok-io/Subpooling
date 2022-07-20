@@ -5,7 +5,7 @@ import group_tests.groups.entities.{Member, Pool}
 
 import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.group_tests.groups.models.GroupSelector
-import io.getblok.subpooling_core.persistence.models.Models.PoolPlacement
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import io.getblok.subpooling_core.registers.{MemberInfo, PropBytes, ShareDistribution}
 import org.ergoplatform.appkit.Address
 

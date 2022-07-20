@@ -1,7 +1,7 @@
 package configs
 
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
-import io.getblok.subpooling_core.persistence.models.Models.DbConn
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.DbConn
 import play.api.Configuration
 
 import java.sql.DriverManager

@@ -1,6 +1,6 @@
 package persistence
 
-import io.getblok.subpooling_core.persistence.models.Models.PoolState
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolState
 import io.getblok.subpooling_core.states.models.TransformResult
 import models.DatabaseModels.StateHistory
 import org.slf4j.{Logger, LoggerFactory}

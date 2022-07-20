@@ -9,7 +9,7 @@ import configs.{Contexts, NodeConfig, ParamsConfig}
 import io.getblok.subpooling_core.explorer.Models.{Output, TransactionData}
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
-import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.ergoplatform.appkit.{ErgoId, InputBox}
 import org.slf4j.{Logger, LoggerFactory}

@@ -3,7 +3,7 @@ package plasma_utils.payments
 import actors.StateRequestHandler.PoolBox
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.persistence.models.Models.{MinerSettings, PoolInformation}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation}
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.PlasmaMiner
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}

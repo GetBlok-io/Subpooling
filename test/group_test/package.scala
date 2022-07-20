@@ -6,7 +6,7 @@ import io.getblok.subpooling_core.boxes.builders.MetadataOutputBuilder
 import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.groups.entities.{Member, Pool, Subpool}
-import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import io.getblok.subpooling_core.registers.{LongReg, PropBytes}
 import org.ergoplatform.appkit._
 import org.ergoplatform.appkit.impl.ErgoTreeContract

@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package payments
 
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
-import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, Share}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PartialShare, Share}
 
 class ShareStatistics(miner: String) {
   var shareNum:   BigDecimal   = 0L

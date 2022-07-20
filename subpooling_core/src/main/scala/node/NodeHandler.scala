@@ -3,7 +3,7 @@ package node
 
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.node.NodeHandler.{ConfirmedBlock, OrphanBlock, PartialBlockInfo, ValidBlock}
-import io.getblok.subpooling_core.persistence.models.Models.Block
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.Block
 import org.ergoplatform.appkit.{Address, ErgoClient, NetworkType, RestApiErgoClient}
 import org.ergoplatform.explorer.client.model.{Items, ItemsA}
 import org.ergoplatform.explorer.client.{DefaultApi, ExplorerApiClient}

@@ -5,7 +5,7 @@ import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, Ho
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.models.TransactionGroup
-import io.getblok.subpooling_core.persistence.models.Models.PoolPlacement
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import org.ergoplatform.appkit.{BlockchainContext, SignedTransaction}
 import org.slf4j.LoggerFactory
 

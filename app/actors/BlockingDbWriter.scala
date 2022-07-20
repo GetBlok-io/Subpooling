@@ -6,7 +6,7 @@ import akka.actor.{Actor, Props}
 import configs.DbConfig
 import io.getblok.subpooling_core.node.NodeHandler.PartialBlockInfo
 import io.getblok.subpooling_core.persistence._
-import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import play.api.{Configuration, Logger}
 
 import javax.inject.Inject

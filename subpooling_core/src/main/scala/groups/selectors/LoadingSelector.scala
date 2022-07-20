@@ -4,7 +4,7 @@ package groups.selectors
 import global.AppParameters
 import groups.entities.{Member, Pool}
 import groups.models.GroupSelector
-import persistence.models.Models.PoolPlacement
+import persistence.models.PersistenceModels.PoolPlacement
 import registers.{MemberInfo, PropBytes, ShareDistribution}
 
 import org.ergoplatform.appkit.Address

@@ -6,7 +6,7 @@ import io.getblok.subpooling_core.contracts.command.{CommandContract, PKContract
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, HoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.groups.entities.{Member, Pool}
-import io.getblok.subpooling_core.persistence.models.Models.PoolPlacement
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import io.getblok.subpooling_core.registers.MemberInfo
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, InputBox, NetworkType, Parameters, RestApiErgoClient}
 

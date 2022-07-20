@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package states.groups
 
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.persistence.models.Models.{PoolMember, PoolPlacement}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolMember, PoolPlacement}
 import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.groups.PayoutGroup.GroupInfo

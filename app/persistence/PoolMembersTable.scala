@@ -1,6 +1,6 @@
 package persistence
 
-import io.getblok.subpooling_core.persistence.models.Models.PoolMember
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolMember
 import models.DatabaseModels.{BalanceChange}
 import slick.collection.heterogeneous
 import slick.collection.heterogeneous.{HCons, HList, HNil}

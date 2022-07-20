@@ -4,7 +4,7 @@ import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.groups.entities.Member
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.payments.ShareStatistics
-import io.getblok.subpooling_core.persistence.models.Models.{PartialShare, Share}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PartialShare, Share}
 import io.getblok.subpooling_core.registers.MemberInfo
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.{Address, NetworkType}

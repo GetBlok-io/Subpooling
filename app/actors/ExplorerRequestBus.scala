@@ -7,7 +7,7 @@ import akka.actor.typed.scaladsl.{Behaviors, Routers}
 import akka.actor.{Actor, Props, SupervisorStrategy}
 import configs.{DbConfig, ExplorerConfig, NodeConfig}
 import io.getblok.subpooling_core.node.NodeHandler
-import io.getblok.subpooling_core.persistence.models.Models.DbConn
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.DbConn
 import io.getblok.subpooling_core.persistence._
 import org.ergoplatform.appkit.{Address, ErgoId}
 import play.api.{Configuration, Logger}

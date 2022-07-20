@@ -11,7 +11,7 @@ import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolPlacement, PoolState}
 import io.getblok.subpooling_core.plasma.BalanceState
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.TransformResult

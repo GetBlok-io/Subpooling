@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package persistence
 
 import global.{AppParameters, Helpers}
-import persistence.models.Models.{DbConn, MinerSettings}
+import persistence.models.PersistenceModels.{DbConn, MinerSettings}
 
 import io.getblok.subpooling_core.persistence.models.DataTable
 

@@ -16,7 +16,7 @@ import io.getblok.subpooling_core.groups.models.{GroupBuilder, GroupSelector, Tr
 import io.getblok.subpooling_core.groups.selectors.{LoadingSelector, SelectionParameters, StandardSelector}
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager, HoldingGroup}
-import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState}
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.{PlasmaMiner, TransformResult}

@@ -10,7 +10,7 @@ import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}

@@ -8,7 +8,7 @@ import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.command.{CommandContract, PKContract}
 import io.getblok.subpooling_core.contracts.holding.{HoldingContract, SimpleHoldingContract}
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
-import io.getblok.subpooling_core.persistence.models.Models.PoolPlacement
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import io.getblok.subpooling_core.registers.MemberInfo
 import org.ergoplatform.appkit._
 

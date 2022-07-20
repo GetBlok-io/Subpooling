@@ -14,7 +14,7 @@ import io.getblok.subpooling_core.groups.builders.DistributionBuilder
 import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.LoadingSelector
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager}
-import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState}
 import org.ergoplatform.appkit.{BlockchainContext, ErgoClient, ErgoId, NetworkType}
 import play.api.libs.ws.{WSClient, WSRequest}
 import play.api.{Configuration, Logger}

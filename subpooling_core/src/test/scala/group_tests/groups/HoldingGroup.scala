@@ -7,7 +7,7 @@ import io.getblok.subpooling_core.contracts.holding.SimpleHoldingContract
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.group_tests.groups.entities.Subpool
 import io.getblok.subpooling_core.group_tests.groups.entities.Pool
-import io.getblok.subpooling_core.persistence.models.Models.PoolPlacement
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import org.ergoplatform.appkit.{BlockchainContext, InputBox, SignedTransaction}
 
 import scala.collection.mutable.ArrayBuffer

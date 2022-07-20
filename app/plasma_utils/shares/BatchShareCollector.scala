@@ -2,7 +2,7 @@ package plasma_utils.shares
 
 import configs.ParamsConfig
 import io.getblok.subpooling_core.payments.Models.PaymentType
-import io.getblok.subpooling_core.persistence.models.Models.PoolInformation
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import models.DatabaseModels.SPoolBlock
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.shares.{ShareCollector, ShareHandler}

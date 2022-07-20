@@ -7,7 +7,7 @@ import akka.util.Timeout
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.{EIP27Constants, Helpers}
-import io.getblok.subpooling_core.persistence.models.Models.{PoolBlock, PoolInformation}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolInformation}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoToken, InputBox}

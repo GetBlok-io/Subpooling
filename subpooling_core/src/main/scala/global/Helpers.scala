@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package global
 
-import io.getblok.subpooling_core.persistence.models.Models.{PoolInformation, PoolMember, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolInformation, PoolMember, PoolState}
 import io.getblok.subpooling_core.registers.PoolInfo
 import org.ergoplatform.appkit.{ErgoId, Parameters}
 

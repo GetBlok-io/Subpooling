@@ -68,7 +68,7 @@ class ProportionalEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: Node
         }
         logger.info(s"Filtered input box length: ${initialInputs.map(_.size).toString}")
 
-        val boxesToSpend = initialInputs.getOrElse(ctx.getWallet.getUnspentBoxes(blockReward + primaryTxFees).get().asScala.toSeq)
+        val boxesToSpend = initialInputs.getOrElse(wallet.boxes(ctx, blockReward + primaryTxFees).get.asScala.toSeq)
         val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), boxesToSpend)
 
         val interOutBox = ctx.newTxBuilder().outBoxBuilder().value(blockReward).contract(wallet.contract).build()

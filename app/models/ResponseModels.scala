@@ -3,7 +3,7 @@ package models
 import actors.GroupRequestHandler.DistributionResponse
 import io.getblok.subpooling_core.global.Helpers
 import play.api.libs.json.{JsObject, JsResult, JsSuccess, JsValue, Json, Reads, Writes}
-import io.getblok.subpooling_core.persistence.models.Models._
+import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{BalanceChange, ChangeKeys, Payment, SPoolBlock}
 

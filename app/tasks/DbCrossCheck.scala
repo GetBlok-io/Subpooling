@@ -12,7 +12,7 @@ import io.getblok.subpooling_core.boxes.MetadataInputBox
 import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, TransactionData}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
 import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
 import models.ResponseModels.writesChangeKeys

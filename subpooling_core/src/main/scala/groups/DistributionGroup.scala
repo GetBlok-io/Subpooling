@@ -12,7 +12,7 @@ import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.models.TransactionGroup
 import io.getblok.subpooling_core.groups.stages.CommandStage
 import io.getblok.subpooling_core.payments.ShareStatistics
-import io.getblok.subpooling_core.persistence.models.Models.{Block, PoolBlock, PoolMember, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolMember, PoolState}
 import io.getblok.subpooling_core.registers.{MemberInfo, PropBytes}
 import org.ergoplatform.appkit.{BlockchainContext, InputBox, NetworkType, SignedTransaction}
 

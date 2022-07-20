@@ -16,7 +16,7 @@ import io.getblok.subpooling_core.groups.stages.roots.{DistributionRoot, Emissio
 import io.getblok.subpooling_core.node.NodeHandler
 import io.getblok.subpooling_core.node.NodeHandler.{OrphanBlock, PartialBlockInfo}
 import io.getblok.subpooling_core.payments.Models.PaymentType
-import io.getblok.subpooling_core.persistence.models.Models.{Block, MinerSettings, PoolBlock, PoolInformation, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, MinerSettings, PoolBlock, PoolInformation, PoolPlacement, PoolState}
 import org.ergoplatform.appkit.{BoxOperations, ErgoClient, ErgoId, InputBox, Parameters}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import persistence.shares.ShareCollector

@@ -1,7 +1,7 @@
 package io.getblok.subpooling_core
 package states.groups
 
-import io.getblok.subpooling_core.persistence.models.Models.PoolMember
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolMember
 import io.getblok.subpooling_core.plasma.PoolBalanceState
 import io.getblok.subpooling_core.states.models.TransformResult
 

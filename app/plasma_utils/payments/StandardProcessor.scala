@@ -1,7 +1,7 @@
 package plasma_utils.payments
 
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.persistence.models.Models.{MinerSettings, PoolInformation, PoolMember, PoolPlacement}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation, PoolMember, PoolPlacement}
 import io.getblok.subpooling_core.registers.{MemberInfo, PoolFees}
 import models.DatabaseModels.SMinerSettings
 import persistence.shares.ShareCollector
