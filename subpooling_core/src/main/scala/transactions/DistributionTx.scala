@@ -166,7 +166,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       logger.info(s"Total output tokens: ${totalOutTokens}")
       logger.info(s"Total difference: ${totalInputTokens - totalOutTokens}")
     }
-
+      printTxSummary()
       this.asUnsignedTxB
       .boxesToSpend(inputBoxes.asJava)
       .outputs(outputBoxes:_*)
@@ -179,6 +179,20 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
 //      this.asUnsignedTxB.tokensToBurn(tokensToBurn)
 //    }
     this.asUnsignedTxB.build()
+
+  }
+
+
+  def printTxSummary() = {
+    logger.info("========== Tx Summary ==========")
+    logger.info("Metadata input: ")
+    logger.info(metadataInputBox.metadataRegisters.toString)
+
+    logger.info("Command input: ")
+    logger.info(commandInputBox.metadataRegisters.toString)
+
+    logger.info("Metadata outbox: ")
+    logger.info(metadataOutBox.metadataRegisters.toString)
 
   }
 
