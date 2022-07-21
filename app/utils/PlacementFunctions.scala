@@ -208,15 +208,15 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       m =>
         // Double wrap option to account for null values
         val minPay = Option(minerSettings.find(s => s.address == m.address.toString).map(_.paymentthreshold).getOrElse(0.01))
-        if(batch.info.payment_type != PoolInformation.PAY_SOLO && (batch.info.poolTag != "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047")){
+        if(batch.info.payment_type == PoolInformation.PAY_SOLO || (batch.info.poolTag == "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047")){
+          m.copy(
+            memberInfo = m.memberInfo.withMinPay((0.001 * BigDecimal(Helpers.OneErg)).longValue())
+          )
+        }else{
           m.copy(memberInfo =
             m.memberInfo.withMinPay(
               (minPay.getOrElse(0.001) * BigDecimal(Helpers.OneErg)).longValue()
             ))
-        }else{
-          m.copy(
-            memberInfo = m.memberInfo.withMinPay((0.001 * BigDecimal(Helpers.OneErg)).longValue())
-          )
         }
     }.toArray
 
