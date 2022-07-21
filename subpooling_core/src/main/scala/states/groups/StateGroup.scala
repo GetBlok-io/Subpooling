@@ -7,11 +7,11 @@ import io.getblok.subpooling_core.states.models.TransformResult
 
 import scala.util.Try
 
-trait StateGroup {
-  var transformResults: Seq[Try[TransformResult]]
+trait StateGroup[T] {
+  var transformResults: Seq[Try[TransformResult[T]]]
   def setup(): Unit
   def applyTransformations(): Try[Unit]
-  def sendTransactions: Seq[Try[TransformResult]]
+  def sendTransactions: Seq[Try[TransformResult[T]]]
   def getMembers: Seq[PoolMember]
   def getPoolBalanceStates: Seq[PoolBalanceState]
 }

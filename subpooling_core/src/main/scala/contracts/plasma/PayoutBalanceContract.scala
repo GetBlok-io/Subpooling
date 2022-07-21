@@ -4,7 +4,7 @@ package contracts.plasma
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.contracts.plasma.BalanceStateContract.logger
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance, StateMiner}
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, SingleBalance, StateMiner}
 import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import sigmastate.Values
@@ -39,11 +39,11 @@ object PayoutBalanceContract {
       .build()
   }
 
-  def applyContext(stateBox: InputBox, balanceState: BalanceState, payouts: Seq[StateMiner]): (InputBox, immutable.IndexedSeq[(StateMiner, StateBalance)]) = {
+  def applyContext(stateBox: InputBox, balanceState: BalanceState[SingleBalance], payouts: Seq[StateMiner]): (InputBox, immutable.IndexedSeq[(StateMiner, SingleBalance)]) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
     val lastBalances = balanceState.map.lookUp((payouts.map(_.toPartialStateMiner)):_*).response.map(_.tryOp.get)
     val lastBalanceMap = payouts.indices.map(i => payouts(i) -> lastBalances(i).get)
-    val nextBalanceMap = payouts.map(u => u.toPartialStateMiner -> StateBalance(0L))
+    val nextBalanceMap = payouts.map(u => u.toPartialStateMiner -> SingleBalance(0L))
     val updateErgoVal = ErgoValue.of(Colls.fromArray(nextBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
     val result = balanceState.map.update(nextBalanceMap:_*)
@@ -54,7 +54,7 @@ object PayoutBalanceContract {
     stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> lastBalanceMap
   }
 
-  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, StateBalance)]): Seq[OutBox] = {
+  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, SingleBalance)]): Seq[OutBox] = {
     logger.info("Building payout boxes: ")
     for(u <- payouts) yield {
       logger.info(s"${u._1.toString}: ${u._2}")

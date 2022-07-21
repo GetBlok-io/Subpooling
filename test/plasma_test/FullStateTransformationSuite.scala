@@ -4,7 +4,8 @@ import group_test.MockData.ergoClient
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, StateMiner}
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateMiner}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State}
@@ -18,7 +19,7 @@ import plasma_test.FullStateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 
 class FullStateTransformationSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("state_transform_suite")
+  val balanceState = new BalanceState[SingleBalance]("state_transform_suite")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer = _

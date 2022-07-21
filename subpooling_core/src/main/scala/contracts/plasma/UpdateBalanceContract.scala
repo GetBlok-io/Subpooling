@@ -4,7 +4,7 @@ package contracts.plasma
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.contracts.plasma.BalanceStateContract.logger
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, SingleBalance}
 import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import sigmastate.Values
@@ -35,7 +35,7 @@ object UpdateBalanceContract {
       .build()
   }
 
-  def applyContext(stateBox: InputBox, balanceState: BalanceState, balanceChanges: Seq[(PartialStateMiner, StateBalance)]): (InputBox, Long) = {
+  def applyContext(stateBox: InputBox, balanceState: BalanceState[SingleBalance], balanceChanges: Seq[(PartialStateMiner, SingleBalance)]): (InputBox, Long) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
     val updateErgoVal = ErgoValue.of(Colls.fromArray(balanceChanges.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)

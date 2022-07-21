@@ -3,7 +3,7 @@ package contracts.plasma
 
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
+import io.getblok.subpooling_core.plasma.{BalanceState, DualBalance, PartialStateMiner, SingleBalance}
 import org.ergoplatform.appkit
 import org.ergoplatform.appkit.JavaHelpers.JByteRType
 import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoType, ErgoValue, InputBox, OutBox}
@@ -38,12 +38,31 @@ object DeleteBalanceContract {
       .build()
   }
 
-  def applyContext(updateBox: InputBox, balanceState: BalanceState, deletes: Seq[PartialStateMiner]): InputBox = {
+  def applySingleContext(updateBox: InputBox, balanceState: BalanceState[SingleBalance], deletes: Seq[PartialStateMiner]): InputBox = {
     val deleteType = ErgoType.collType(ErgoType.byteType())
     val deleteErgoVal = ErgoValue.of(Colls.fromArray(deletes.map(_.toColl).toArray), deleteType)
 
     val lookup = balanceState.map.lookUp(deletes:_*)
     require(lookup.response.forall(_.tryOp.get.get.balance == 0L), "Not all balances to delete were 0!")
+
+    val result = balanceState.map.delete(deletes:_*)
+    logger.info(s"Deleting ${deletes.length} balance states")
+    logger.info(s"Lookup Proof size: ${lookup.proof.bytes.length} bytes")
+    logger.info(s"Delete Proof size: ${result.proof.bytes.length} bytes")
+    logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
+    updateBox.withContextVars(
+      ContextVar.of(0.toByte, deleteErgoVal),
+      ContextVar.of(1.toByte, lookup.proof.ergoValue),
+      ContextVar.of(2.toByte, result.proof.ergoValue)
+    )
+  }
+
+  def applyDualContext(updateBox: InputBox, balanceState: BalanceState[DualBalance], deletes: Seq[PartialStateMiner]): InputBox = {
+    val deleteType = ErgoType.collType(ErgoType.byteType())
+    val deleteErgoVal = ErgoValue.of(Colls.fromArray(deletes.map(_.toColl).toArray), deleteType)
+
+    val lookup = balanceState.map.lookUp(deletes:_*)
+    require(lookup.response.forall(r => r.tryOp.get.get.balanceOne == 0L && r.tryOp.get.get.balanceTwo == 0L), "Not all balances to delete were 0!")
 
     val result = balanceState.map.delete(deletes:_*)
     logger.info(s"Deleting ${deletes.length} balance states")

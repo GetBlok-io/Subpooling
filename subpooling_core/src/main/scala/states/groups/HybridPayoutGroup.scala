@@ -1,14 +1,15 @@
 package io.getblok.subpooling_core
 package states.groups
 
-import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolMember, PoolPlacement}
-import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState, SingleBalance}
-import io.getblok.subpooling_core.states.StateTransformer
-import io.getblok.subpooling_core.states.groups.PayoutGroup.GroupInfo
-import io.getblok.subpooling_core.states.models.CommandTypes.{Command, INSERT, PAYOUT, UPDATE}
-import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
-import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+import global.AppParameters.NodeWallet
+import persistence.models.PersistenceModels.PoolMember
+import plasma.{BalanceState, DualBalance, PoolBalanceState, SingleBalance}
+import states.StateTransformer
+import states.groups.PayoutGroup.GroupInfo
+import states.models.CommandTypes.{INSERT, PAYOUT, UPDATE}
+import states.models._
+import states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -16,11 +17,11 @@ import java.time.LocalDateTime
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
-                  balanceState: BalanceState[SingleBalance], gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long) extends StateGroup[SingleBalance] {
-  val initState: State[SingleBalance] = State(poolBox, balanceState, inputBoxes)
-  var currentState: State[SingleBalance] = initState
-  val transformer: StateTransformer[SingleBalance] = new StateTransformer(ctx, initState)
+class HybridPayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
+                        balanceState: BalanceState[DualBalance], gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long) extends StateGroup[DualBalance] {
+  val initState: State[DualBalance] = State(poolBox, balanceState, inputBoxes)
+  var currentState: State[DualBalance] = initState
+  val transformer: StateTransformer[DualBalance] = new StateTransformer(ctx, initState)
   val setupState: CommandState = CommandState(poolBox, miners, CommandTypes.SETUP, -1)
 
   final val MINER_BATCH_SIZE = 150
@@ -29,7 +30,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   val infoBuffer: ArrayBuffer[GroupInfo] = ArrayBuffer()
   var commandQueue: Seq[CommandState] = _
-  override var transformResults: Seq[Try[TransformResult[SingleBalance]]] = Seq.empty[Try[TransformResult[SingleBalance]]]
+  override var transformResults: Seq[Try[TransformResult[DualBalance]]] = Seq.empty[Try[TransformResult[DualBalance]]]
 
   override def applyTransformations(): Try[Unit] = {
     val applied = {
@@ -52,7 +53,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     applied
   }
 
-  override def sendTransactions: Seq[Try[TransformResult[SingleBalance]]] = {
+  override def sendTransactions: Seq[Try[TransformResult[DualBalance]]] = {
     transformResults = transformer.execute()
     transformResults
   }
@@ -98,10 +99,10 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
     val updatedBalances = lookupMiners.map{
       m =>
-        if(m._2.tryOp.get.get.balance == 0L && m._1.amountAdded > 0)
+        if(m._2.tryOp.get.get.balanceOne == 0L && m._1.amountAdded > 0)
           m._1.copy(balance = m._1.balance + m._1.amountAdded)
         else
-          m._1.copy(balance = m._2.tryOp.get.get.balance)
+          m._1.copy(balance = m._2.tryOp.get.get.balanceOne)
     }
 
     updatedBalances.map{
@@ -140,7 +141,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
   }
 
 
-  def morphMember(miner: PlasmaMiner, transformResult: TransformResult[SingleBalance]): PoolMember = {
+  def morphMember(miner: PlasmaMiner, transformResult: TransformResult): PoolMember = {
     transformResult.command match {
       case CommandTypes.PAYOUT =>
         PoolMember(
@@ -159,7 +160,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     }
   }
 
-  def morphPoolBalanceState(miner: PlasmaMiner, transformResult: TransformResult[SingleBalance]): PoolBalanceState = {
+  def morphPoolBalanceState(miner: PlasmaMiner, transformResult: TransformResult): PoolBalanceState = {
     transformResult.command match {
       case CommandTypes.PAYOUT =>
         PoolBalanceState(
@@ -192,8 +193,4 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
 
 
-object PayoutGroup {
-  case class GroupInfo(transform: Command, txId: String, cost: Long, txSize: Long){
-    override def toString: String = s"${transform}: ${txId} ->  ${cost} tx cost -> ${txSize} bytes"
-  }
-}
+

@@ -2,7 +2,8 @@ package plasma_test
 
 import io.getblok.subpooling_core.contracts.plasma.{BalanceStateContract, InsertBalanceContract, PayoutBalanceContract, ShareStateContract, UpdateBalanceContract}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, ShareState, StateBalance, StateMiner, StateScore}
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, ShareState, SingleBalance, StateMiner, StateScore}
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
@@ -12,7 +13,7 @@ import scorex.crypto.authds.avltree.batch.Insert
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 class BalanceStateSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test")
+  val balanceState = new BalanceState[SingleBalance]("test")
   val initBlockReward = Helpers.OneErg * 55
 
 //  testTx()
@@ -27,7 +28,7 @@ class BalanceStateSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, creatorAddress))
-        val insertBox = InsertBalanceContract.applyContext(toInput(InsertBalanceContract.buildBox(ctx, dummyTokenId, Some(Helpers.MinFee * 10L))),
+        val insertBox = InsertBalanceContract.applySingleContext(toInput(InsertBalanceContract.buildBox(ctx, dummyTokenId, Some(Helpers.MinFee * 10L))),
           balanceState,
           partialMockData.sortBy(m => BigInt(m._1.bytes)).map(_._1).take(NUM_MINERS))
 
@@ -192,7 +193,7 @@ object BalanceStateSuite {
         val randomFloor = {
           Helpers.OneErg
         }
-        StateMiner(ad._1) -> StateBalance(((Math.random() * randomRange) + randomFloor).toLong)
+        StateMiner(ad._1) -> SingleBalance(((Math.random() * randomRange) + randomFloor).toLong)
     }
   }
 

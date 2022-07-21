@@ -5,7 +5,7 @@ import group_test.dummyProver
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, StateBalance, StateMiner}
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateMiner}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.models.CommandTypes.{Command, DELETE, INSERT, PAYOUT, UPDATE}
 import io.getblok.subpooling_core.states.models.{CommandState, PlasmaMiner, State}
@@ -19,9 +19,10 @@ import plasma_test.StateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 import io.getblok.getblok_plasma.collections.Manifest
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
 import org.bouncycastle.util.encoders.Hex
 class StateTransformationSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("plasmatesting")
+  val balanceState = new BalanceState[SingleBalance]("plasmatesting")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer = _

@@ -6,6 +6,7 @@ import global.AppParameters.NodeWallet
 import states.models.{CommandState, CommandTypes, State, StateTransition, TransformResult}
 
 import io.getblok.subpooling_core.global.Helpers
+import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import org.ergoplatform.appkit.BlockchainContext
 import org.slf4j.{Logger, LoggerFactory}
@@ -15,9 +16,9 @@ import scala.util.Try
 
 
 case class UpdateTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
-                          extends StateTransition(ctx, wallet, commandState){
+                          extends StateTransition[SingleBalance](ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("UpdateTransform")
-  override def transform(state: State): Try[TransformResult] = {
+  override def transform(state: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
       val allPositive = commandState.data.forall(_.amountAdded > 0)
       require(allPositive, "Not all updates were positive!")

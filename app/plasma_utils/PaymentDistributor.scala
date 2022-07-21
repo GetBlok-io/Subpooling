@@ -12,7 +12,8 @@ import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolPlacement, PoolState}
-import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance}
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.TransformResult
 import models.DatabaseModels.SPoolBlock
@@ -195,7 +196,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
           require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-          val balanceState = new BalanceState(states.head.subpool)
+          val balanceState = new BalanceState[SingleBalance](states.head.subpool)
           stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, placements)
         }
 

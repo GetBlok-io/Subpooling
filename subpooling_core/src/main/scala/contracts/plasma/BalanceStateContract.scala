@@ -4,7 +4,7 @@ package contracts.plasma
 import io.getblok.getblok_plasma.collections.Proof
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, StateBalance, StateMiner, StateScore}
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, SingleBalance, StateMiner, StateScore}
 import org.ergoplatform.appkit.{Address, BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import scorex.crypto.authds.avltree.batch.Insert
@@ -31,7 +31,7 @@ object BalanceStateContract {
     contract
   }
 
-  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, poolTag: ErgoId, poolOp: Address ,optValue: Option[Long] = None): OutBox = {
+  def buildStateBox[T](ctx: BlockchainContext, balanceState: BalanceState[T], poolTag: ErgoId, poolOp: Address ,optValue: Option[Long] = None): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .registers(balanceState.map.ergoValue)
@@ -55,7 +55,7 @@ object BalanceStateContract {
       .build()
   }
 
-  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, StateBalance)]): Seq[OutBox] = {
+  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, SingleBalance)]): Seq[OutBox] = {
     for(u <- payouts) yield {
       logger.info(s"Balance: ${u._2}")
       ctx.newTxBuilder().outBoxBuilder()

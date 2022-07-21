@@ -6,6 +6,7 @@ import global.AppParameters.NodeWallet
 import global.Helpers
 import states.models.{CommandState, CommandTypes, State, StateTransition, TransformResult}
 
+import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import org.ergoplatform.appkit.BlockchainContext
 import org.slf4j.{Logger, LoggerFactory}
@@ -15,9 +16,9 @@ import scala.util.Try
 
 
 case class PayoutTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
-  extends StateTransition(ctx, wallet, commandState){
+  extends StateTransition[SingleBalance](ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("PayoutTransform")
-  override def transform(state: State): Try[TransformResult] = {
+  override def transform(state: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
       val currentBalances = state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
       val allSignificant = currentBalances.forall(_.tryOp.get.get.balance > Helpers.MinFee)

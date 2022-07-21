@@ -17,7 +17,7 @@ import io.getblok.subpooling_core.groups.selectors.{LoadingSelector, SelectionPa
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager, HoldingGroup}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
-import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState}
+import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState, SingleBalance}
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.{PlasmaMiner, TransformResult}
 import models.DatabaseModels.SPoolBlock
@@ -103,14 +103,14 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
         }
   }
 
-  def grabPoolBox(ctx: BlockchainContext, poolState: PoolState, balanceState: BalanceState): PoolBox = {
+  def grabPoolBox(ctx: BlockchainContext, poolState: PoolState, balanceState: BalanceState[SingleBalance]): PoolBox = {
     val poolTag = poolState.subpool
     val box = Try{ctx.getBoxesById(poolState.box).head}
 
     PoolBox(box.getOrElse(throw new UntrackedPoolStateException(poolState.box, poolTag)), balanceState)
   }
 
-  def morphToPlasma(placements: Seq[PoolPlacement], balanceState: BalanceState, netDiff: Double): Seq[PlasmaMiner] = {
+  def morphToPlasma(placements: Seq[PoolPlacement], balanceState: BalanceState[SingleBalance], netDiff: Double): Seq[PlasmaMiner] = {
     val totalScore = placements.map(_.score).sum
 
     val partialPlasmaMiners = placements.map{
@@ -133,13 +133,13 @@ object StateRequestHandler {
   trait StateRequest
 
   case class DistConstructor(poolState: PoolState, inputBoxes: Seq[InputBox],
-                             batch: BatchSelection, balanceState: BalanceState, placements: Seq[PoolPlacement]) extends StateRequest
+                             batch: BatchSelection, balanceState: BalanceState[SingleBalance], placements: Seq[PoolPlacement]) extends StateRequest
   case class ConstructedDist(stateGroup: StateGroup, poolState: PoolState)
   case class ExecuteDist(constDist: ConstructedDist, sendTxs: Boolean) extends StateRequest
   case class DistResponse(transforms: Seq[Try[TransformResult]], members: Seq[PoolMember], poolBalanceStates: Seq[PoolBalanceState], nextState: PoolState)
   case class DistGroup(group: StateGroup)
 
-  case class PoolBox(box: InputBox, balanceState: BalanceState)
+  case class PoolBox(box: InputBox, balanceState: BalanceState[SingleBalance])
 
   case class StateFailure(ex: Throwable)
 

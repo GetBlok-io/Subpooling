@@ -6,6 +6,7 @@ import global.AppParameters.NodeWallet
 import global.{AppParameters, EIP27Constants, Helpers}
 import states.models.{CommandState, State, StateTransition, TransformResult}
 
+import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import io.getblok.subpooling_core.registers.PoolFees
 import io.getblok.subpooling_core.states.models.CommandTypes.{INSERT, PAYOUT, SETUP, UPDATE}
@@ -19,11 +20,11 @@ import scala.util.Try
 
 case class SetupTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState,
                           minerBatchSize: Int, fee: Long, reward: Long)
-  extends StateTransition(ctx, wallet, commandState){
+  extends StateTransition[SingleBalance](ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("SetupTransform")
 
   var commandQueue: IndexedSeq[CommandState] = _
-  override def transform(state: State): Try[TransformResult] = {
+  override def transform(state: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
       val minerLookupResults = commandState.data.zip(
         state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response

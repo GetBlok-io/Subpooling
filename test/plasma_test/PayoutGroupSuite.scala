@@ -3,7 +3,7 @@ package plasma_test
 import group_test.MockData.ergoClient
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance}
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.groups.PayoutGroup
@@ -18,7 +18,7 @@ import plasma_test.FullStateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 
 class PayoutGroupSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test/payout_group_pool_test")
+  val balanceState = new BalanceState[SingleBalance]("test/payout_group_pool_test")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer = _
