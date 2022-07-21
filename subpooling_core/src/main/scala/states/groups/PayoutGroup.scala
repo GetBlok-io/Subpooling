@@ -18,8 +18,8 @@ import scala.util.Try
 
 class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
                   balanceState: BalanceState[SingleBalance], gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long) extends StateGroup[SingleBalance] {
-  val initState: State[SingleBalance] = State(poolBox, balanceState, inputBoxes)
-  var currentState: State[SingleBalance] = initState
+  val initState: State = State(poolBox, balanceState, inputBoxes)
+  var currentState: State = initState
   val transformer: StateTransformer[SingleBalance] = new StateTransformer(ctx, initState)
   val setupState: CommandState = CommandState(poolBox, miners, CommandTypes.SETUP, -1)
 
@@ -61,7 +61,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     logger.info(s"Applying insertion for ${commandState.data.length} miners")
     val insertTransform = InsertTransform(ctx, wallet, commandState)
     val result = transformer.apply(insertTransform)
-    currentState = result.nextState
+    currentState = result.nextState.asInstanceOf[State]
     transformResults = transformResults ++ Seq(Try(result))
     infoBuffer += GroupInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }
@@ -70,7 +70,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     logger.info(s"Applying update for ${commandState.data.length} miners")
     val updateTransform = UpdateTransform(ctx, wallet, commandState)
     val result = transformer.apply(updateTransform)
-    currentState = result.nextState
+    currentState = result.nextState.asInstanceOf[State]
     transformResults = transformResults ++ Seq(Try(result))
     infoBuffer += GroupInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }
@@ -80,7 +80,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val payoutTransform = PayoutTransform(ctx, wallet, commandState)
     val result = transformer.apply(payoutTransform)
 
-    currentState = result.nextState
+    currentState = result.nextState.asInstanceOf[State]
     transformResults = transformResults ++ Seq(Try(result))
     infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
   }

@@ -3,7 +3,7 @@ package states.transforms
 
 import contracts.plasma.{InsertBalanceContract, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
-import states.models.{CommandState, CommandTypes, State, StateTransition, TransformResult}
+import states.models.{CommandState, CommandTypes, InputState, State, StateTransition, TransformResult}
 
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.SingleBalance
@@ -18,8 +18,9 @@ import scala.util.Try
 case class UpdateTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
                           extends StateTransition[SingleBalance](ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("UpdateTransform")
-  override def transform(state: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
+  override def transform(inputState: InputState[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
+      val state = inputState.asInstanceOf[State]
       val allPositive = commandState.data.forall(_.amountAdded > 0)
       require(allPositive, "Not all updates were positive!")
       require(commandState.box.getValue >= commandState.data.map(_.amountAdded).sum, s"UpdateBox with value ${commandState.box.getValue} was not" +

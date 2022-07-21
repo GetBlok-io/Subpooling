@@ -1,11 +1,12 @@
 package io.getblok.subpooling_core
 package states.transforms
 
-import states.models.{CommandState, CommandTypes, State, StateTransition, TransformResult}
+import states.models.{CommandState, CommandTypes, InputState, State, StateTransition, TransformResult}
 
 import io.getblok.getblok_plasma.ByteConversion
 import io.getblok.subpooling_core.contracts.plasma.{BalanceStateContract, InsertBalanceContract}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
+import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import org.ergoplatform.appkit.{BlockchainContext, ErgoContract, SignedTransaction}
 
@@ -14,12 +15,12 @@ import scala.util.Try
 
 
 
-case class InsertTransform[T](override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
-                             (implicit convT: ByteConversion[T])
-                              extends StateTransition[T](ctx, wallet, commandState){
+case class InsertTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
+                              extends StateTransition[SingleBalance](ctx, wallet, commandState){
 
-  override def transform(state: State[T]): Try[TransformResult[T]] = {
+  override def transform(inputState: InputState[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
+      val state = inputState.asInstanceOf[State]
       val allNewMiners = state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*)
       require(allNewMiners.response.forall(m => m.tryOp.get.isEmpty), "A given miner already exists in the state!")
 

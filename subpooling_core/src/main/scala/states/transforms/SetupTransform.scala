@@ -4,7 +4,7 @@ package states.transforms
 import contracts.plasma.{InsertBalanceContract, PayoutBalanceContract, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
 import global.{AppParameters, EIP27Constants, Helpers}
-import states.models.{CommandState, State, StateTransition, TransformResult}
+import states.models.{CommandState, InputState, State, StateTransition, TransformResult}
 
 import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
@@ -24,8 +24,9 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
   private val logger: Logger = LoggerFactory.getLogger("SetupTransform")
 
   var commandQueue: IndexedSeq[CommandState] = _
-  override def transform(state: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
+  override def transform(inputState: InputState[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
+      val state = inputState.asInstanceOf[State]
       val minerLookupResults = commandState.data.zip(
         state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
       )

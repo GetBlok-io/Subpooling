@@ -4,7 +4,7 @@ package states.transforms
 import contracts.plasma.{PayoutBalanceContract, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
 import global.Helpers
-import states.models.{CommandState, CommandTypes, State, StateTransition, TransformResult}
+import states.models.{CommandState, CommandTypes, InputState, State, StateTransition, TransformResult}
 
 import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
@@ -18,8 +18,9 @@ import scala.util.Try
 case class PayoutTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
   extends StateTransition[SingleBalance](ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("PayoutTransform")
-  override def transform(state: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
+  override def transform(inputState: InputState[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try{
+      val state = inputState.asInstanceOf[State]
       val currentBalances = state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
       val allSignificant = currentBalances.forall(_.tryOp.get.get.balance > Helpers.MinFee)
 

@@ -3,7 +3,7 @@ package states
 
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.plasma.SingleBalance
-import io.getblok.subpooling_core.states.models.{State, StateTransition, TransformResult}
+import io.getblok.subpooling_core.states.models.{InputState, State, StateTransition, TransformResult}
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, SignedTransaction}
 import org.slf4j.{Logger, LoggerFactory}
@@ -13,13 +13,13 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 
-class StateTransformer[T](ctx: BlockchainContext, initState: State[T]) {
+class StateTransformer[T](ctx: BlockchainContext, initState: InputState[T]) {
   val txQueue: mutable.Queue[TransformResult[T]] = mutable.Queue.empty[TransformResult[T]]
-  var currentState: State[T] = initState
+  var currentState: InputState[T] = initState
   val initDigest: ADDigest = initState.digest
   private val logger: Logger = LoggerFactory.getLogger("StateTransformer")
 
-  def apply(transformation: StateTransition): TransformResult[T] = {
+  def apply(transformation: StateTransition[T]): TransformResult[T] = {
     logger.info(s"Applying transformation for ${transformation.commandState.data.length} miners")
     val transform = transformation.transform(currentState)
 

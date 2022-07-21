@@ -9,5 +9,5 @@ import org.ergoplatform.appkit.{BlockchainContext, ErgoContract, InputBox, Signe
 import scala.util.Try
 
 abstract class StateTransition[T](val ctx: BlockchainContext, val wallet: NodeWallet, val commandState: CommandState){
-  def transform(state: State[T]): Try[TransformResult[T]]
+  def transform(state: InputState[T]): Try[TransformResult[T]]
 }
