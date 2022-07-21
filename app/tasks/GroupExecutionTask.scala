@@ -136,14 +136,19 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
             val tryDistributor = Try {
               distributor.executeDistribution()
             }
-//            val tryPlacement = Try {
-//              placementFunctions.executePlacement()
-//            }
-//            val tryDist = Try {
-//              logger.info("Sleeping for 30 seconds before starting dists")
-//              Thread.sleep(30000)
-//              distributionFunctions.executeDistribution()
-//            }
+
+
+            val tryPlacement = Try {
+              placementFunctions.executePlacement()
+            }
+            val tryDist = Try {
+              logger.info("Sleeping for 30 seconds before starting dists")
+              Thread.sleep(30000)
+              distributionFunctions.executeDistribution()
+            }
+
+
+
             tryPrePlacer match {
               case Success(value) =>
                 logger.info("Synchronous PrePlacement functions executed successfully!")
@@ -161,23 +166,23 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 logger.error("There was a fatal error thrown during synchronous Distributor execution", exception)
                 currentRun = currentRun + 1
             }
-//            tryPlacement match {
-//              case Success(value) =>
-//                logger.info("Synchronous placement functions executed successfully!")
-//                currentRun = currentRun + 1
-//              case Failure(exception) =>
-//                logger.error("There was a fatal error thrown during synchronous placement execution", exception)
-//                currentRun = currentRun + 1
-//            }
-//
-//            tryDist match {
-//              case Success(value) =>
-//                logger.info("Synchronous distribution functions executed successfully!")
-//                currentRun = currentRun + 1
-//              case Failure(exception) =>
-//                logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
-//                currentRun = currentRun + 1
-//            }
+            tryPlacement match {
+              case Success(value) =>
+                logger.info("Synchronous placement functions executed successfully!")
+                currentRun = currentRun + 1
+              case Failure(exception) =>
+                logger.error("There was a fatal error thrown during synchronous placement execution", exception)
+                currentRun = currentRun + 1
+            }
+
+            tryDist match {
+              case Success(value) =>
+                logger.info("Synchronous distribution functions executed successfully!")
+                currentRun = currentRun + 1
+              case Failure(exception) =>
+                logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
+                currentRun = currentRun + 1
+            }
           }
         } else {
           logger.error("There was an error thrown while trying to pre-collect inputs!", tryPreCollection.failed.get)
