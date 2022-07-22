@@ -1,7 +1,6 @@
 {
-  val balanceStateExists = SELF.R4[AvlTree].isDefined
   val nextBalanceState = OUTPUTS(0).R4[AvlTree].isDefined
+  val validInput = const_commandBytes.exists{ (hashBytes: Coll[Byte]) => hashBytes == blake2b256( INPUTS(1).propositionBytes ) }
 
-
-  sigmaProp(nextBalanceState) && const_poolOpPK
+  sigmaProp(nextBalanceState && validInput) && const_poolOpPK
 }

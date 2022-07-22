@@ -5,11 +5,14 @@ import io.getblok.getblok_plasma.collections.Proof
 import io.getblok.subpooling_core.contracts.Models.Scripts
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, StateBalance, StateMiner, StateScore}
+import org.ergoplatform.appkit.JavaHelpers.JByteRType
 import org.ergoplatform.appkit.{Address, BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import scorex.crypto.authds.avltree.batch.Insert
+import scorex.crypto.hash.Blake2b256
 import sigmastate.Values
 import sigmastate.eval.Colls
+import special.collection.Coll
 
 
 case class BalanceStateContract(contract: ErgoContract){
@@ -25,8 +28,19 @@ object BalanceStateContract {
   val script: String = Scripts.BALANCE_STATE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("BalanceStateContract")
 
-  def generateStateContract(ctx: BlockchainContext, poolOp: Address): ErgoContract = {
-    val constants = ConstantsBuilder.create().item("const_poolOpPK", poolOp.getPublicKey).build()
+  def generateSingle(ctx: BlockchainContext, poolOp: Address, poolTag: ErgoId): ErgoContract = {
+    val commands = Seq(
+      InsertBalanceContract.generate(ctx, poolTag),
+      UpdateBalanceContract.generate(ctx, poolTag),
+      PayoutBalanceContract.generate(ctx, poolTag),
+      DeleteBalanceContract.generate(ctx, poolTag)
+    )
+    val commandBytes = commands.map(c => Colls.fromArray(Blake2b256(c.getErgoTree.bytes)).asInstanceOf[Coll[java.lang.Byte]])
+    val commandColl = Colls.fromArray(commandBytes.toArray)
+    val constants = ConstantsBuilder.create()
+      .item("const_poolOpPK", poolOp.getPublicKey)
+      .item("const_commandBytes", commandColl)
+      .build()
     val contract: ErgoContract = ctx.compileContract(constants, script)
     contract
   }
@@ -35,7 +49,7 @@ object BalanceStateContract {
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .registers(balanceState.map.ergoValue)
-      .contract(generateStateContract(ctx, poolOp))
+      .contract(generateSingle(ctx, poolOp, poolTag))
       .tokens(new ErgoToken(poolTag, 1L))
       .build()
   }
