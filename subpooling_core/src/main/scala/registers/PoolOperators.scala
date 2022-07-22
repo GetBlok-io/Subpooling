@@ -39,7 +39,7 @@ class PoolOperators(val arr: Array[PropBytes]){
 
 object PoolOperators {
   def ofColl(coll: Coll[Coll[java.lang.Byte]]) = {
-    new PoolOperators(coll.map(c => c.map(Iso.jbyteToByte.to).toArray).toArray.map(a => new PropBytes(a)(AppParameters.networkType)))
+    new PoolOperators(coll.map(c => c.asInstanceOf[Coll[Byte]].toArray).toArray.map(a => new PropBytes(a)(AppParameters.networkType)))
   }
 
   def ofErgo(ergoValue: ErgoValue[Coll[Coll[java.lang.Byte]]]) =

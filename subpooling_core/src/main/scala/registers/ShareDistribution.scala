@@ -51,7 +51,7 @@ class ShareDistribution(val dist: Map[PropBytes, MemberInfo]) {
 
 object ShareDistribution {
   def ofColl(coll: Coll[(Coll[java.lang.Byte], Coll[java.lang.Long])]) =
-    new ShareDistribution(coll.map(c => c._1.map(Iso.jbyteToByte.to).toArray -> c._2.map(Iso.jlongToLong.to).toArray).toArray.map{
+    new ShareDistribution(coll.map(c => c._1.asInstanceOf[Coll[Byte]].toArray -> c._2.asInstanceOf[Coll[Long]].toArray).toArray.map{
       a => new PropBytes(a._1)(AppParameters.networkType) -> new MemberInfo(a._2)
     }.toMap)
 

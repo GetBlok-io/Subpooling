@@ -19,7 +19,7 @@ class PoolFees(val fees: Map[PropBytes, Int]) {
   )
 
   def coll:     Coll[(Coll[java.lang.Byte], java.lang.Integer)]            = Colls.fromArray(
-    fees.map(m => (m._1.coll, Iso.jintToInt.from(m._2))).toArray
+    fees.map(m => (m._1.coll, m._2.asInstanceOf[java.lang.Integer])).toArray
   )
 
   def ergoVal: ErgoValue[Coll[(Coll[java.lang.Byte], java.lang.Integer)]]       = ErgoValue.of(coll, ergoType)
@@ -53,7 +53,7 @@ class PoolFees(val fees: Map[PropBytes, Int]) {
 
 object PoolFees {
   def ofColl(coll: Coll[(Coll[java.lang.Byte], java.lang.Integer)])(implicit networkType: NetworkType) =
-    new PoolFees(coll.map(c => c._1.map(Iso.jbyteToByte.to).toArray -> Iso.jintToInt.to(c._2)).toArray.map{
+    new PoolFees(coll.map(c => c._1.asInstanceOf[Coll[Byte]].toArray -> c._2.asInstanceOf[Int]).toArray.map{
       a => new PropBytes(a._1)(AppParameters.networkType) -> a._2
     }.toMap)
 

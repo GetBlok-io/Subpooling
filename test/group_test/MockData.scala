@@ -12,9 +12,16 @@ import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, InputBox, NetworkTy
 
 object MockData {
   val mockAddressStrings: Array[String] = Array(
-    "9g4Kek6iWspXPAURU3zxT4RGoKvFdvqgxgkANisNFbvDwK1KoxW",
-    "9gqhrGQN3eQmTFAW9J6KNX8ffUhe8BmTesE45b9nBmL7VJohhtY",
-    "9em1ShUCkTa43fALGgzwKQ5znuXY2dMnnfHqq4bX3wSWytH11t7",
+    "9fWTUhUciLHBLVswD51rnAB8QLyqC78YbYXSQMNAFbFVSwGeRUh",
+    "9hY9NPMUCfLaKhyKTVYSxU8yRT6RR9houGndu2Dv8pwJZZGZyjh",
+    "9hswJvM7TzPibmmqyp57VHEkF56kFujbuMmLfBvJXtsetotx6n7",
+    "9fy7J6e5BgyPH4eQ6pGC96wBEQKRCKnbrZNvjemoJagXNFVZ86K",
+    "9iJ3fnhmKrJi5FN5drv84UKmhxoPfep5w6aoKZGrLdA9Gxwfw3T",
+    "9hY6j6DYcT9WsADwuqCrGqGHoWtvV1WQVXb3HFQR2PJz3ae4VYm",
+    "9g2Ds7SMi92WRzP2NkmB6gkoYSFVyRkQqPC7mxACwkS88RtfC8g",
+    "9fL7z6Fqvf3rpGPq2cm1XdMQqdEjTWdmYmZ45tVZ8jJd3Z55DGX",
+    "9iN8LyoRzRD2hV5bvynG9YioPzfb32mC6Y5vA8Zg8z8cUfrgyTJ",
+    "9gC75dUMwzkzZJkZkhKMfyH3vaz6nsZUC9MAzYae3xV3pBLLjHt",
   )
 
   val emissionsOperator: Address = Address.create("9egR7gQz5j9GL2xDfnFujNQGHXSGzDeSejv5x68SwtXiJ9Dm6Lb")
@@ -56,7 +63,7 @@ object MockData {
     // Init Mock data
     val holdingValue: Long = Parameters.OneErg * 66
     val singlePool: Pool = initSinglePool
-    val initSingleMembers: Array[Member] = mockAddresses.map(a => Member(a, new MemberInfo(Array(randomShareScore, randomMinPay, 0, 0, 0))))
+    val initSingleMembers: Array[Member] = mockAddresses.map(a => Member(a, new MemberInfo(Array(5L, Parameters.OneErg * 20, 0, 0, 0))))
     val initPartialPlacements: Array[PoolPlacement] = {
 
       mockAddresses.map(a => PoolPlacement(dummyToken, 0L, 0L, "", 0L,

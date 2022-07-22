@@ -14,8 +14,8 @@ import special.collection.Coll
 class PropBytes(val arr: Array[Byte])(implicit networkType: NetworkType) extends RegisterCollection[java.lang.Byte](arr.map(Iso.jbyteToByte.from)){
 
   def ergoType: ErgoType[java.lang.Byte]        = ErgoType.byteType()
-  def coll:     Coll[java.lang.Byte]            = Colls.fromArray(arr.map(Iso.jbyteToByte.from))
-  def ergoVal:  ErgoValue[Coll[java.lang.Byte]] = ErgoValue.of(Colls.fromArray(arr.map(Iso.jbyteToByte.from)), ErgoType.byteType())
+  def coll:     Coll[java.lang.Byte]            = Colls.fromArray(arr).asInstanceOf[Coll[java.lang.Byte]]
+  def ergoVal:  ErgoValue[Coll[java.lang.Byte]] = ErgoValue.of(coll, ergoType)
   def address:  Address               = Address.fromErgoTree(serializer.deserializeErgoTree(arr), networkType)
 
   def ergoTree: Values.ErgoTree       = serializer.deserializeErgoTree(arr)
@@ -41,7 +41,7 @@ class PropBytes(val arr: Array[Byte])(implicit networkType: NetworkType) extends
 object PropBytes {
 
   def ofColl(coll: Coll[java.lang.Byte])(implicit networkType: NetworkType) =
-    new PropBytes(coll.map(Iso.jbyteToByte.to).toArray)
+    new PropBytes(coll.asInstanceOf[Coll[Byte]].toArray)
 
   def ofAddress(addr: Address)(implicit networkType: NetworkType) =
     new PropBytes(addr.getErgoAddress.script.bytes)
@@ -50,5 +50,5 @@ object PropBytes {
     new PropBytes(ergoTree.bytes)
 
   def ofErgo(ergoValue: ErgoValue[Coll[java.lang.Byte]])(implicit networkType: NetworkType) =
-    new PropBytes(ergoValue.getValue.toArray.map(Iso.jbyteToByte.to))
+    new PropBytes(ergoValue.getValue.asInstanceOf[Coll[Byte]].toArray)
 }

@@ -18,7 +18,7 @@ class MemberInfo(val arr: Array[Long]) extends RegisterCollection[java.lang.Long
   require(arr.length >= 4, "There must be at least 5 elements within a MemberInfo instance!")
 
   def ergoType: ErgoType[java.lang.Long]          = ErgoType.longType()
-  def coll:     Coll[java.lang.Long]              = Colls.fromArray(arr.map(Iso.jlongToLong.from))
+  def coll:     Coll[java.lang.Long]              = Colls.fromArray(arr).asInstanceOf[Coll[java.lang.Long]]
   def ergoVal:  ErgoValue[Coll[java.lang.Long]]   = ErgoValue.of(coll, ergoType)
 
   def getScore:       Long              = arr(SCORE_IDX)
@@ -56,7 +56,7 @@ class MemberInfo(val arr: Array[Long]) extends RegisterCollection[java.lang.Long
 
 object MemberInfo {
   def ofColl(coll: Coll[java.lang.Long]) =
-    new MemberInfo(coll.map(Iso.jlongToLong.to).toArray)
+    new MemberInfo(coll.asInstanceOf[Coll[Long]].toArray)
 
   def ofErgo(ergoValue: ErgoValue[Coll[java.lang.Long]]) =
     new MemberInfo(ergoValue.getValue.toArray.map(Iso.jlongToLong.to))

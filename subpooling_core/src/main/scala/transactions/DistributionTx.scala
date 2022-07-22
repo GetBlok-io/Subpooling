@@ -166,7 +166,7 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
       logger.info(s"Total output tokens: ${totalOutTokens}")
       logger.info(s"Total difference: ${totalInputTokens - totalOutTokens}")
     }
-      printTxSummary()
+
       this.asUnsignedTxB
       .boxesToSpend(inputBoxes.asJava)
       .outputs(outputBoxes:_*)
@@ -193,6 +193,14 @@ class DistributionTx(unsignedTxBuilder: UnsignedTransactionBuilder) extends Meta
 
     logger.info("Metadata outbox: ")
     logger.info(metadataOutBox.metadataRegisters.toString)
+
+    logger.info("Miner Outputs: ")
+    hOB.getBuilders.foreach{
+      b =>
+        logger.info(s"Box Value: ${b.boxValue}")
+        logger.info(s"Box Contract: ${b.boxContract.toAddress}")
+    }
+
 
   }
 

@@ -68,26 +68,9 @@ class MetadataOutputBuilder(outBoxBuilder: OutBoxBuilder){
 
   def build(): MetadataOutBox = {
     val completeTokenList = List[ErgoToken](new ErgoToken(subpoolToken, 1))++tokenList
-    val distValue:  ErgoValue[Coll[(Coll[java.lang.Byte], Coll[java.lang.Long])]] =
-      ErgoValue.of(
-        Colls.fromArray(metadataRegisters.shareDist.dist.toArray
-          .map(pm => Colls.fromArray(pm._1.arr).map(Iso.jbyteToByte.from) -> Colls.fromArray(pm._2.arr).map(Iso.jlongToLong.from))),
-        ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.longType()))
-      )
-    val feeValue = {
-      ErgoValue.of(
-        Colls.fromArray(metadataRegisters.feeMap.fees.toArray
-          .map(pm => Colls.fromArray(pm._1.arr).map(Iso.jbyteToByte.from) -> Iso.jintToInt.from(pm._2))),
-        ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.integerType())
-      )
-    }
-    val infoValue = metadataRegisters.poolInfo.ergoVal
-    val opsValue = {
-      ErgoValue.of(Colls.fromArray(metadataRegisters.poolOps.arr.map(p => Colls.fromArray(p.arr).map(Iso.jbyteToByte.from))),
-        ErgoType.collType(ErgoType.byteType()))
-    }
+
     asOutBoxBuilder.tokens(completeTokenList:_*)
-    asOutBoxBuilder.registers(distValue, feeValue, infoValue, opsValue)
+    asOutBoxBuilder.registers(registerList: _*)
     new MetadataOutBox(asOutBoxBuilder.build(), metadataRegisters, subpoolToken)
   }
 
