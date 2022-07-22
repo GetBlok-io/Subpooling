@@ -1,8 +1,9 @@
 package plasma_test
 
-import io.getblok.subpooling_core.contracts.plasma.{BalanceStateContract, InsertBalanceContract, PayoutBalanceContract, ShareStateContract, UpdateBalanceContract}
+import io.getblok.subpooling_core.contracts.plasma.{BalanceStateContract, InsertBalanceContract, PayoutBalanceContract, PlasmaScripts, ShareStateContract, UpdateBalanceContract}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, ShareState, StateBalance, StateMiner, StateScore}
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, ShareState, SingleBalance, StateMiner, StateScore}
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
@@ -12,7 +13,7 @@ import scorex.crypto.authds.avltree.batch.Insert
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 class BalanceStateSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("test")
+  val balanceState = new BalanceState[SingleBalance]("test")
   val initBlockReward = Helpers.OneErg * 55
 
 //  testTx()
@@ -26,12 +27,13 @@ class BalanceStateSuite extends AnyFunSuite{
   def testTx(): Unit = {
     ergoClient.execute {
       ctx =>
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, creatorAddress))
-        val insertBox = InsertBalanceContract.applyContext(toInput(InsertBalanceContract.buildBox(ctx, dummyTokenId, Some(Helpers.MinFee * 10L))),
+        val initStateBox = toInput(BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, creatorAddress, PlasmaScripts.SINGLE ))
+        val insertBox = InsertBalanceContract.applyContext(toInput(InsertBalanceContract.buildBox(ctx, dummyTokenId, PlasmaScripts.SINGLE, Some(Helpers.MinFee * 10L))),
           balanceState,
-          partialMockData.sortBy(m => BigInt(m._1.bytes)).map(_._1).take(NUM_MINERS))
+          partialMockData.sortBy(m => BigInt(m._1.bytes)).map(_._1).take(NUM_MINERS),
+          SingleBalance(0L))
 
-        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, creatorAddress)
+        val nextStateBox = BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, creatorAddress, PlasmaScripts.SINGLE)
 
         val inputBoxes = (Seq(initStateBox, insertBox)).asJava
         val uTx = ctx.newTxBuilder()
@@ -54,12 +56,12 @@ class BalanceStateSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         val balanceChangeSum = partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS).map(_._2.balance).sum
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, creatorAddress))
-        val updateBoxResults = UpdateBalanceContract.applyContext(toInput(UpdateBalanceContract.buildBox(ctx, dummyTokenId, Some(balanceChangeSum + Helpers.MinFee * 10L))),
+        val initStateBox = toInput(BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, creatorAddress, PlasmaScripts.SINGLE))
+        val updateBoxResults = UpdateBalanceContract.applySingleContext(toInput(UpdateBalanceContract.buildBox(ctx, dummyTokenId,PlasmaScripts.SINGLE, Some(balanceChangeSum + Helpers.MinFee * 10L))),
           balanceState,
           partialMockData.sortBy(m => BigInt(m._1.bytes)).take(NUM_MINERS))
         val updateBox = updateBoxResults._1
-        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState,dummyTokenId, creatorAddress, Some(updateBoxResults._2 + Helpers.MinFee))
+        val nextStateBox = BalanceStateContract.buildBox(ctx, balanceState,dummyTokenId, creatorAddress,PlasmaScripts.SINGLE, Some(updateBoxResults._2 + Helpers.MinFee))
 
         val inputBoxes = (Seq(initStateBox, updateBox)).asJava
         val uTx = ctx.newTxBuilder()
@@ -82,18 +84,19 @@ class BalanceStateSuite extends AnyFunSuite{
       ctx =>
         val totalSum = mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes) ).map(_._2).take(NUM_MINERS).map(_.balance).sum
 
-        val initStateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState,dummyTokenId, creatorAddress, Some(totalSum + Helpers.MinFee)))
-        val payoutBoxResults = PayoutBalanceContract.applyContext(
-          toInput(PayoutBalanceContract.buildBox(ctx, dummyTokenId, Some(Helpers.MinFee * 10L))),
+        val initStateBox = toInput(BalanceStateContract.buildBox(ctx, balanceState,dummyTokenId, creatorAddress,PlasmaScripts.SINGLE, Some(totalSum + Helpers.MinFee)))
+        val payoutBoxResults = PayoutBalanceContract.applyContext[SingleBalance](
+          toInput(PayoutBalanceContract.buildBox(ctx, dummyTokenId, PlasmaScripts.SINGLE, Some(Helpers.MinFee * 10L))),
           balanceState,
-          mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes)).take(NUM_MINERS).map(_._1))
+          mockData.sortBy(m => BigInt(m._1.toPartialStateMiner.bytes)).take(NUM_MINERS).map(_._1),
+          SingleBalance(0L))
         val payoutBox = payoutBoxResults._1
         val totalRemoved = payoutBoxResults._2.map(_._2.balance).sum
         logger.info(s"Total removed: ${totalRemoved}")
         logger.info(s"Total sum: ${totalSum}")
         val feeBox = toInput(ShareStateContract.buildFeeBox(ctx, (Helpers.MinFee * 10), creatorAddress.toErgoContract))
 
-        val nextStateBox = BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, creatorAddress, Some(Helpers.MinFee))
+        val nextStateBox = BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, creatorAddress,PlasmaScripts.SINGLE, Some(Helpers.MinFee))
         val payoutBoxes = BalanceStateContract.buildPaymentBoxes(ctx, payoutBoxResults._2)
         val inputBoxes = (Seq(initStateBox, payoutBox)).asJava
         val outputBoxes = Seq(nextStateBox) ++ payoutBoxes
@@ -192,7 +195,7 @@ object BalanceStateSuite {
         val randomFloor = {
           Helpers.OneErg
         }
-        StateMiner(ad._1) -> StateBalance(((Math.random() * randomRange) + randomFloor).toLong)
+        StateMiner(ad._1) -> SingleBalance(((Math.random() * randomRange) + randomFloor).toLong)
     }
   }
 

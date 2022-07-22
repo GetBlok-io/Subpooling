@@ -68,7 +68,7 @@ object Tables {
     }*/
   }
   object StateHistoryTables extends TableQuery(new StateHistoryTable(_)) {
-    def fromTransforms(transforms: Seq[TransformResult], gEpoch: Long, block: Long): Seq[StateHistory] = {
+    def fromTransforms(transforms: Seq[TransformResult[_]], gEpoch: Long, block: Long): Seq[StateHistory] = {
       val histories = transforms.map{
         t =>
           val poolTag = t.nextState.poolTag

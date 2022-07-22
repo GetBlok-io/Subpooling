@@ -21,7 +21,8 @@ import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
 import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
-import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance}
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{Balance, BalanceChange, Payment}
 import models.ResponseModels.PoolGenerated
@@ -194,8 +195,8 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
           val tokenBox = makeTokenTx(1, template.tokenName, template.tokenDesc, 0, Helpers.MinFee * 2)
           val tokenId = tokenBox.getTokens.get(0).getId
           val file = new File(AppParameters.plasmaStoragePath + s"/${tokenId.toString}").mkdir()
-          val balanceState = new BalanceState(tokenId.toString)
-          val stateBox = BalanceStateContract.buildStateBox(ctx, balanceState, tokenId, wallet.p2pk)
+          val balanceState = new BalanceState[SingleBalance](tokenId.toString)
+          val stateBox = BalanceStateContract.buildBox(ctx, balanceState, tokenId, wallet.p2pk, template.scriptType.get)
           val uTx = ctx.newTxBuilder()
             .boxesToSpend(Seq(tokenBox).asJava)
             .outputs(stateBox)

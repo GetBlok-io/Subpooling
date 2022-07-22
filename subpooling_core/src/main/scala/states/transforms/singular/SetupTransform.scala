@@ -1,30 +1,31 @@
 package io.getblok.subpooling_core
-package states.transforms
+package states.transforms.singular
 
-import contracts.plasma.{InsertBalanceContract, PayoutBalanceContract, UpdateBalanceContract}
+import contracts.plasma.{InsertBalanceContract, PayoutBalanceContract, PlasmaScripts, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
-import global.{AppParameters, EIP27Constants, Helpers}
-import states.models.{CommandState, State, StateTransition, TransformResult}
+import global.{AppParameters, EIP27Constants}
+import registers.PoolFees
+import states.models.CommandTypes.{INSERT, PAYOUT, SETUP, UPDATE}
+import states.models._
 
+import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
-import io.getblok.subpooling_core.registers.PoolFees
-import io.getblok.subpooling_core.states.models.CommandTypes.{INSERT, PAYOUT, SETUP, UPDATE}
 import org.ergoplatform.appkit.BlockchainContext
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 import scala.util.Try
 
-
 case class SetupTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState,
                           minerBatchSize: Int, fee: Long, reward: Long)
-  extends StateTransition(ctx, wallet, commandState){
+  extends StateTransition[SingleBalance](ctx, wallet, commandState) {
   private val logger: Logger = LoggerFactory.getLogger("SetupTransform")
-
+  val scriptType: PlasmaScripts.ScriptType = PlasmaScripts.SINGLE
   var commandQueue: IndexedSeq[CommandState] = _
-  override def transform(state: State): Try[TransformResult] = {
-    Try{
+
+  override def transform(inputState: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
+    Try {
+      val state = inputState.asInstanceOf[SingleState]
       val minerLookupResults = commandState.data.zip(
         state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
       )
@@ -40,19 +41,19 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       val updateBatches = commandState.data.sliding(minerBatchSize, minerBatchSize).toSeq
 
 
-      val insertOutBoxes = insertBatches.indices.map{
+      val insertOutBoxes = insertBatches.indices.map {
         idx =>
-          InsertBalanceContract.buildBox(ctx, state.poolNFT, Some(AppParameters.groupFee * 20)) -> idx
+          InsertBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 20)) -> idx
       }
-      val updateOutBoxes = updateBatches.indices.map{
+      val updateOutBoxes = updateBatches.indices.map {
         idx =>
           val amountToPayout = updateBatches(idx).map(_.amountAdded).sum
           logger.info(s"Building update box with total balances of ${amountToPayout} nanoErg")
-          UpdateBalanceContract.buildBox(ctx, state.poolNFT, Some(amountToPayout + (AppParameters.groupFee * 20))) -> (insertBatches.size + idx)
+          UpdateBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(amountToPayout + (AppParameters.groupFee * 20))) -> (insertBatches.size + idx)
       }
-      val payoutOutBoxes = payoutBatches.indices.map{
+      val payoutOutBoxes = payoutBatches.indices.map {
         idx =>
-          PayoutBalanceContract.buildBox(ctx, state.poolNFT, Some(AppParameters.groupFee * 20)) -> (insertBatches.size + updateBatches.size + idx)
+          PayoutBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 20)) -> (insertBatches.size + updateBatches.size + idx)
       }
 
       val indexedOutputs = insertOutBoxes ++ updateOutBoxes ++ payoutOutBoxes
@@ -71,9 +72,9 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       require(state.boxes.map(_.getValue).sum > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
 
       val unsignedTx = {
-        if(AppParameters.enableEIP27){
+        if (AppParameters.enableEIP27) {
           val eip27 = EIP27Constants.applyEIP27(ctx.newTxBuilder(), inputBoxes.asScala.toSeq)
-          if(eip27.optToBurn.isDefined){
+          if (eip27.optToBurn.isDefined) {
             ctx.newTxBuilder()
               .boxesToSpend(inputBoxes)
               .outputs((outputs ++ eip27.p2reem): _*)
@@ -81,7 +82,7 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
               .sendChangeTo(wallet.p2pk.getErgoAddress)
               .tokensToBurn(eip27.optToBurn.get)
               .build()
-          }else{
+          } else {
             ctx.newTxBuilder()
               .boxesToSpend(inputBoxes)
               .outputs(outputs: _*)

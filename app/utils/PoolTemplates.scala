@@ -1,5 +1,7 @@
 package utils
 
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts.ScriptType
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import org.ergoplatform.appkit.Address
@@ -7,7 +9,7 @@ import org.ergoplatform.appkit.Address
 object PoolTemplates {
   case class PoolTemplate(title: String, fee: Double, numSubpools: Int, paymentType: PaymentType, emissionsType: String,
                           currency: String, epochKick: Long, maxMembers: Long, tokenName: String, tokenDesc: String,
-                          feeOp: Option[Address] = None)
+                          feeOp: Option[Address] = None, scriptType: Option[ScriptType] = None)
 
   case class UninitializedPool(poolMade: Boolean, emissionsMade: Option[Boolean], template: PoolTemplate, isPlasma: Boolean = false)
   val STANDARD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Smart Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
@@ -36,7 +38,9 @@ object PoolTemplates {
   val PLASMA_STD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Plasma Pool", 0.01, 1, PaymentType.PLASMA_PPLNS_WINDOW,
     PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 5L, 10L,
     "GetBlok.io Default Plasma Pool", "This token represents the default Plasma Pool on GetBlok.io",
-    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")),
+    Some(PlasmaScripts.SINGLE)
+  )
 
   val templates: Array[UninitializedPool] = Array(
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),

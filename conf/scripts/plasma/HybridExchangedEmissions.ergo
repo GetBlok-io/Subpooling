@@ -1,0 +1,104 @@
+{
+  // Hybrid Exchanged Emissions - Kirat Singh
+  // This contract takes a PORTION of the block reward (in INPUTS(1)), removes a fee from it, and
+  // then performs a simulated swap and adjusts the output using the given percentage value.
+  // This output value represents the tokens taken from the emission box, and represents the
+  // tokens in the miner's payout.
+
+  // Constants
+  val shareOperator: SigmaProp  = const_shareOpPK
+  val poolOperator:  SigmaProp  = const_poolOpPK
+  val LPToken:       Coll[Byte] = const_LPTokenId
+  val distToken:     Coll[Byte] = const_distTokenId
+  val holdingBytes:  Coll[Byte] = const_holdingBytesHashed
+  val slippage:      Int        = 1 // Assume 1% slippage
+
+  val standardDenom:  Long       = 100000L          // Standard denominator used
+  // SELF Assets & Registers
+  val emToken:       Coll[Byte]  = SELF.tokens(0)._1 // emission NFT
+  val distTokenAmnt: Coll[Byte]  = SELF.tokens(1)._2
+  val percentChange: Long        = SELF.R4[Long].get // percent added
+  val poolFee:       Long        = SELF.R5[Long].get
+  val proportion:    Long        = SELF.R6[Long].get
+
+
+  // Other Assets & Registers
+  val LPBox:  Box                   = CONTEXT.dataInputs(0)
+  val feeNum: Int                   = LPBox.R4[Int].get
+  val realLPToken:   Coll[Byte]     = LPBox.tokens(0)._1
+  val realDistToken: Coll[Byte]     = LPBox.tokens(2)._1
+  val assetX:  Long                 = LPBox.value
+  val assetY:  Long                 = LPBox.tokens(2)._2
+
+  val holdingBox: Box               = OUTPUTS(1)
+
+  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+    val expected = valuesPair._1
+    val actual   = valuesPair._2
+    val amountTop = (expected - actual) * 100L
+    val percentage = amountTop / actual
+    (percentage < 1L) && (percentage > -1L) // 1% margin of error during calculations
+  }
+
+
+
+  val blockReward: Long   = INPUTS(1).value
+  // Fee taken before proportioning for swap
+  val rewardAfterFees: Long   = blockReward - ((blockReward * (poolFee)) / standardDenom)
+  // Reward to simulate swap with, some proportion of the block reward
+  // Nitro not included in calculation
+  val rewardToSimSwap: Long   = (rewardAfterFees * proportion) / standardDenom
+
+  // Rest of ERG reward to be distributed normally
+  val rewardInERG:     Long   = blockReward - rewardToSimSwap
+
+  // Perform simulated swap
+  val outputNum    = (assetY / 100) * ((rewardToSimSwap * feeNum) / 100)
+
+  val maxAssetX    = (assetX + ((assetX * slippage) / 10000)) * 1000
+  val adjustedFee  = rewardToSimSwap * feeNum
+
+  val outputDenom  = ((maxAssetX) + (((adjustedFee)) )) / 10000
+
+  val outputAmount = (outputNum / outputDenom)
+
+  // Adjust output to add percentage
+  val adjustedOutput = (outputAmount + ((outputAmount * percentChange) / standardDenom))
+
+  // Boolean Props
+  val validLPBox: Boolean = {
+    allOf(Coll(
+      LPToken == realLPToken,
+      distToken == realDistToken
+    ))
+  }
+
+  val hasNextEmissions: Boolean = {
+    allOf(Coll(
+      OUTPUTS(0).propositionBytes == SELF.propositionBytes,
+      OUTPUTS(0).tokens(0)._1 == emToken,
+      OUTPUTS(0).tokens(1)._1 == distToken,
+      isValueInRange((OUTPUTS(0).tokens(1)._2, distTokenAmnt - adjustedOutput)),
+      OUTPUTS(0).value         == SELF.value,
+      OUTPUTS(0).R4[Long].get  == percentChange, // Cannot be changed, but kept on registers rather than constants for visibility / transparency
+      OUTPUTS(0).R5[Long].get  <= 3000, // Share operator may take max fee of 3000 / 100000 or 3%, and may change every emission cycle
+      OUTPUTS(0).R5[Long].get  >= 0,
+      OUTPUTS(0).R6[Long].get  == proportion
+    ))
+  }
+
+  val outputSwapped = isValueInRange((OUTPUTS(2).value, rewardToSimSwap)) && OUTPUTS(2).propositionBytes == poolOperator.propBytes
+
+  val holdingValid: Boolean = {
+    allOf(Coll(
+      holdingBox.tokens(0)._1 == distToken,
+      isValueInRange((holdingBox.tokens(0)._2, adjustedOutput)),
+      isValueInRange((holdingBox.value, rewardInERG)),
+      holdingBytes == blake2b256( holdingBox.propositionBytes )
+    ))
+  }
+
+  sigmaProp(validLPBox && hasNextEmissions && holdingValid && outputSwapped) && shareOperator
+
+
+}

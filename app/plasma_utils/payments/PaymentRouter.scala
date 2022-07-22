@@ -4,6 +4,7 @@ import actors.StateRequestHandler.PoolBox
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation}
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.PlasmaMiner
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
@@ -22,11 +23,11 @@ object PaymentRouter {
     }
   }
 
-  def routeStateGroup(ctx: BlockchainContext, wallet: NodeWallet, batch: BatchSelection,
-                      poolBox: PoolBox, miners: Seq[PlasmaMiner], inputBoxes: Seq[InputBox]): StateGroup = {
+  def routeStateGroup[T <: StateBalance](ctx: BlockchainContext, wallet: NodeWallet, batch: BatchSelection,
+                                        poolBox: PoolBox[T], miners: Seq[PlasmaMiner], inputBoxes: Seq[InputBox]): StateGroup[_ <: StateBalance] = {
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
-        new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState, batch.blocks.head.gEpoch,
+        new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState.asInstanceOf[BalanceState[SingleBalance]], batch.blocks.head.gEpoch,
           batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))
       case _ =>
         throw new Exception("Unsupported currency found during StateGroup routing!")
