@@ -13,7 +13,7 @@ import org.ergoplatform.appkit.BoxOperations.IUnspentBoxesLoader
 import org.ergoplatform.appkit.{Address, BlockchainContext, BoxOperations, ErgoClient, ErgoToken, InputBox}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import org.slf4j.{Logger, LoggerFactory}
-import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection, BlockSelection}
+import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection, BlockSelection, PLASMA_BATCH_SIZE}
 
 import java.util
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -34,11 +34,16 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
 
 
-  def selectBlocks(blocks: Seq[SPoolBlock], strictBatch: Boolean): BatchSelection = {
+  def selectBlocks(blocks: Seq[SPoolBlock], strictBatch: Boolean, isPlasma: Boolean = false): BatchSelection = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now selecting blocks with unique pool tags")
-
+    val batchSize = {
+      if(isPlasma)
+        PLASMA_BATCH_SIZE
+      else
+        BLOCK_BATCH_SIZE
+    }
 //    if(distinctOnly) {
 //      val distinctBlocks = ArrayBuffer.empty[SPoolBlock]
 //      for (block <- blocks.sortBy(b => b.gEpoch)) {
@@ -57,18 +62,18 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
     var firstBlock: Option[SPoolBlock] = None
 
     while(firstBlock.isEmpty){
-      require(blockList.nonEmpty, s"No pools found with ${BLOCK_BATCH_SIZE} blocks")
+      require(blockList.nonEmpty, s"No pools found with ${batchSize} blocks")
       val tryHead = blockList.head
       val poolBlocks = blockList.filter(_.poolTag == tryHead.poolTag)
-      if(poolBlocks.size < BLOCK_BATCH_SIZE && strictBatch){
-        logger.info(s"Removing pool ${tryHead.poolTag} from selection due to lacking ${BLOCK_BATCH_SIZE} confirmed blocks")
+      if(poolBlocks.size < batchSize && strictBatch){
+        logger.info(s"Removing pool ${tryHead.poolTag} from selection due to lacking ${batchSize} confirmed blocks")
         blockList --= poolBlocks
       }else{
         firstBlock = Some(blockList.head)
       }
     }
     val blockHead = firstBlock.get
-    var poolBlocks = blocks.filter(_.poolTag == blockHead.poolTag).sortBy(_.gEpoch).take(BLOCK_BATCH_SIZE)
+    var poolBlocks = blocks.filter(_.poolTag == blockHead.poolTag).sortBy(_.gEpoch).take(batchSize)
     logger.info(s"Current pool being paid out: ${blockHead.poolTag}")
     val poolInfo =  Await.result((query ? QueryPoolInfo(blockHead.poolTag)).mapTo[PoolInformation], timeout.duration)
     logger.info(s"With payment type ${poolInfo.payment_type}")
@@ -142,7 +147,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 }
 object ConcurrentBoxLoader {
   final val BLOCK_BATCH_SIZE = 5
-
+  final val PLASMA_BATCH_SIZE = 3
 
   case class PartialBlockSelection(block: SPoolBlock, poolTag: String)
   case class BlockSelection(block: SPoolBlock, poolInformation: PoolInformation)

@@ -50,7 +50,7 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
     val plasmaBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = true)
 
     if(plasmaBlocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true)
+      val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true, isPlasma = true)
       val prePlacement = collectShares(selectedBlocks)
       writePrePlacement(prePlacement)
     }
@@ -132,7 +132,7 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
 
       val lastPlacements = Await.result(
         db.run(Tables.PoolPlacementsTable
-          .filter(p => p.gEpoch === batch.blocks.head.gEpoch - ConcurrentBoxLoader.BLOCK_BATCH_SIZE && p.subpool === poolTag).result)
+          .filter(p => p.gEpoch === batch.blocks.head.gEpoch - ConcurrentBoxLoader.PLASMA_BATCH_SIZE && p.subpool === poolTag).result)
         , 500 seconds
       )
 

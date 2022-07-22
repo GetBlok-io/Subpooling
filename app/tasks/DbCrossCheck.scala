@@ -97,8 +97,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 798825L).map(_.status).update(PoolBlock.PAID))
-
+          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 794335L).filter(_.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)
+          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 794335L).filter(_.nonce === "afb9ef55c66f94b9").delete)
         }
     })(contexts.taskContext)
   }

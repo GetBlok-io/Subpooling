@@ -50,9 +50,9 @@ class TransformValidator(expReq: ActorRef, contexts: Contexts, params: ParamsCon
         val poolToUse = pools.find(p => p.poolTag == poolBlock._1).get
         val blocksToUse = {
           if(poolToUse.payment_type == PoolInformation.PAY_SOLO){
-            poolBlock._2.take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE).sortBy(_.gEpoch)
+            poolBlock._2.take(ConcurrentBoxLoader.PLASMA_BATCH_SIZE).sortBy(_.gEpoch)
           }else{
-            poolBlock._2.take(ConcurrentBoxLoader.BLOCK_BATCH_SIZE).sortBy(_.gEpoch)
+            poolBlock._2.take(ConcurrentBoxLoader.PLASMA_BATCH_SIZE).sortBy(_.gEpoch)
           }
         }
         val poolState = db.run(Tables.PoolStatesTable.filter(_.subpool === poolBlock._1).result.head)
