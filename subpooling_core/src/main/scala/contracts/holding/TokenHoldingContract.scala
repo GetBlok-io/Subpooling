@@ -107,27 +107,27 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
           }
         logger.info(s"Owed Payment: $owedPayment")
         val newConsensusInfo = consVal._2.withStored(owedPayment).withMinPay(currentMinPayout)
-        (consVal._1, newConsensusInfo)
-    }.filter{
-      c =>
-        // If value from shares addition causes error, add 1 share score to help move payouts out
-        val oldMember = lastDistribution.dist.find(_._1.address.toString == c._1.address.toString)
-        logger.info("Checking epoch assumptions")
-        logger.info(s"Old member for assumption: ${oldMember}")
-        if(oldMember.isDefined) {
-          val epochAssumption = !(c._2.getScore == 0 && c._2.getStored == 0) ||
-            (c._2.getMinPay == ((0.001 * Parameters.OneErg).toLong / 10) && oldMember.get._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
-          logger.info(s"epochAssumption for miner ${c._1.address}: ${epochAssumption}")
-          epochAssumption
-        }else {
-          !(c._2.getScore == 0 && c._2.getStored == 0 &&
-            c._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
-        }
-//        if(oldMember.isDefined)
-//          true
-//        else
-//          false
-    }
+        (consVal._1, newConsensusInfo)}
+//    }.filter{
+//      c =>
+//        // If value from shares addition causes error, add 1 share score to help move payouts out
+//        val oldMember = lastDistribution.dist.find(_._1.address.toString == c._1.address.toString)
+//        logger.info("Checking epoch assumptions")
+//        logger.info(s"Old member for assumption: ${oldMember}")
+//        if(oldMember.isDefined) {
+//          val epochAssumption = !(c._2.getScore == 0 && c._2.getStored == 0) ||
+//            (c._2.getMinPay == ((0.001 * Parameters.OneErg).toLong / 10) && oldMember.get._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
+//          logger.info(s"epochAssumption for miner ${c._1.address}: ${epochAssumption}")
+//          epochAssumption
+//        }else {
+//          !(c._2.getScore == 0 && c._2.getStored == 0 &&
+//            c._2.getMinPay != ((0.001 * Parameters.OneErg).toLong / 10))
+//        }
+////        if(oldMember.isDefined)
+////          true
+////        else
+////          false
+//    }
 
 
     logger.info(s"Updated consensus length: ${updatedConsensus.size}")
