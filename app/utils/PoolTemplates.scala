@@ -33,7 +33,7 @@ object PoolTemplates {
     "COMET Smart Pool",
     "COMET Smart Pool identification token",
     Some(Address.create("9h6Ao31CVSsYisf4pWTM43jv6k3BaXV3jovGfaRj9PrqfYms6Rf")))
-  val PLASMA_STD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Plasma Pool", 0.01, 1, PaymentType.PLASMA_PPLNS_WINDOW,
+  val PLASMA_STD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Default Plasma Pool", 0.01, 1, PaymentType.PLASMA_PPLNS_WINDOW,
     PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 5L, 10L,
     "GetBlok.io Default Plasma Pool", "This token represents the default Plasma Pool on GetBlok.io",
     Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
