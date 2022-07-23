@@ -50,7 +50,7 @@
   val rewardToSimSwap: Long   = (rewardAfterFees * proportion) / standardDenom
 
   // Rest of ERG reward to be distributed normally
-  val rewardInERG:     Long   = blockReward - rewardToSimSwap
+  val rewardInERG:     Long   = rewardAfterFees - rewardToSimSwap
 
   // Perform simulated swap
   val outputNum    = (assetY / 100) * ((rewardToSimSwap * feeNum) / 100)

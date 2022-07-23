@@ -22,9 +22,7 @@ class PlasmaHybridExchangeSuite extends AnyFunSuite {
   ergoClient.execute{
     ctx =>
 
-      val lpBox = explorerHandler.boxesByTokenId(ergopadLPNFT).get.filter(_.isOnMainChain).filter(_.spendingTxId.isEmpty).head
-
-      val contract = HybridExchangeContract.generate(ctx, dummyWallet.p2pk, sigmaTrue,
+      val contract = HybridExchangeContract.generate(ctx, creatorAddress, sigmaTrue,
         Address.create(HybridExchangeContract.TESTNET_SWAP_ADDRESS).toErgoContract,
         ergopadLPNFT, ergopadToken)
 
