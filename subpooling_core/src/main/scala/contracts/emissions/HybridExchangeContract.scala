@@ -108,6 +108,9 @@ object HybridExchangeContract {
     outputAmountLong
   }
 
+  def getFees(blockReward: Long, feeValue: Long): Long = {
+    blockReward - ((blockReward) * feeValue) / PoolFees.POOL_FEE_CONST
+  }
 
   def generate(ctx: BlockchainContext, shareOperator: Address, poolOperator: Address, holdingContract: ErgoContract,
                lpNFT: ErgoId, distToken: ErgoId, isTest: Boolean = false): HybridExchangeContract = {
