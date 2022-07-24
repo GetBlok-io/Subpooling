@@ -25,7 +25,7 @@ case class UpdateTransform(override val ctx: BlockchainContext, override val wal
       require(allPositive, "Not all updates were positive!")
       require(commandState.box.getValue >= commandState.data.map(_.amountAdded).sum, s"UpdateBox with value ${commandState.box.getValue} was not" +
         s" big enough for command state with total added value of ${commandState.data.map(_.amountAdded).sum}")
-      val appliedCommand = UpdateBalanceContract.applySingleContext(commandState.box, state.balanceState, commandState.data.map(_.toUpdateStateValues))
+      val appliedCommand = UpdateBalanceContract.applySingleContext(commandState.box, state.balanceState, commandState.data.map(_.toUpdateSingleValues))
 
       logger.info(s"Update transform is adding ${appliedCommand._2} accumulated balance!")
       logger.info(s"Paying transaction fee of ${appliedCommand._1.getValue - appliedCommand._2}")

@@ -6,7 +6,7 @@ import io.getblok.subpooling_core.contracts.plasma.BalanceStateContract.{logger,
 import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts.ScriptType
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, DualBalance, PartialStateMiner, SingleBalance}
-import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoType, ErgoValue, InputBox, OutBox}
+import org.ergoplatform.appkit.{BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 import sigmastate.Values
 import sigmastate.eval.Colls
@@ -36,11 +36,19 @@ object UpdateBalanceContract {
     contract
   }
 
-  def buildBox(ctx: BlockchainContext, poolNFT: ErgoId, scriptType: ScriptType, optValue: Option[Long] = None): OutBox = {
-    ctx.newTxBuilder().outBoxBuilder()
+  def buildBox(ctx: BlockchainContext, poolNFT: ErgoId, scriptType: ScriptType, optValue: Option[Long] = None, optToken: Option[ErgoToken] = None): OutBox = {
+    val unbuiltBox = ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .contract(generate(ctx, poolNFT, scriptType))
-      .build()
+
+    if(optToken.isDefined){
+      unbuiltBox
+        .tokens(optToken.get)
+        .build()
+    }else{
+      unbuiltBox.build()
+    }
+
   }
 
   def applySingleContext(stateBox: InputBox, balanceState: BalanceState[SingleBalance], balanceChanges: Seq[(PartialStateMiner, SingleBalance)]): (InputBox, Long) = {
