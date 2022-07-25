@@ -155,10 +155,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   def performCommand(balanceState: BalanceState, commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
     command match{
       case "INSERT" =>
-        commandBytes.map{
-          commandLoad =>
-            balanceState.map.prover.performOneOperation(Insert(ADKey @@ commandLoad._1, ADValue @@ commandLoad._2))
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val updates = keys.map{
+          k =>
+            k -> StateBalance(0L)
         }
+        balanceState.map.insert(updates: _*)
       case "UPDATE" =>
         val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
         val additions = commandBytes.map(_._2).map(Longs.fromByteArray).map(StateBalance.apply)
