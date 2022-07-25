@@ -17,12 +17,13 @@ import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAs
 import scala.util.Try
 
 case class DualSetupTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState,
-                              holdingBox: InputBox, minerBatchSize: Int, fee: Long, reward: Long)
+                              holdingBox: InputBox, minerBatchSize: Int)
   extends StateTransition[DualBalance](ctx, wallet, commandState) {
   private val logger: Logger = LoggerFactory.getLogger("SetupTransform")
   val scriptType: PlasmaScripts.ScriptType = PlasmaScripts.DUAL
   var commandQueue: IndexedSeq[CommandState] = _
-  val tokenId: ErgoId = holdingBox.getTokens.get(0).getId
+
+
   override def transform(inputState: State[DualBalance]): Try[TransformResult[DualBalance]] = {
     Try {
       val state = inputState.asInstanceOf[DualState]
@@ -48,9 +49,9 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
         idx =>
           val amountToPayout = updateBatches(idx).map(_.amountAdded).sum
           val tokensToPayout = updateBatches(idx).map(_.addedTwo).sum
-          val updateToken = new ErgoToken(tokenId, tokensToPayout)
+          val updateToken = new ErgoToken(state.tokenId, tokensToPayout)
           logger.info(s"Building update box with total balances of ${amountToPayout} nanoErg and secondary balances of" +
-            s" ${tokensToPayout} for token ${tokenId}")
+            s" ${tokensToPayout} for token ${state.tokenId}")
           UpdateBalanceContract.buildBox(ctx, state.poolNFT, scriptType,
             Some(amountToPayout + (AppParameters.groupFee * 10)),
             Some(updateToken)
@@ -66,15 +67,11 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
       logger.info(s"Paying transaction fee of ${commandState.box.getValue} nanoERG")
       val txFee = AppParameters.groupFee * 20
 
-      var inputBoxes = state.boxes.asJava
+      val inputBoxes = (Seq(holdingBox) ++ state.boxes).asJava
 
-      val feePercent: BigDecimal = BigDecimal(fee) / PoolFees.POOL_FEE_CONST
-      val feeReward: Long = (reward * feePercent).toLong
 
-      val feeBox = ctx.newTxBuilder().outBoxBuilder().value(feeReward).contract(AppParameters.getFeeAddress.toErgoContract).build()
-
-      val outputs = indexedOutputs.map(_._1) ++ Seq(feeBox)
-      require(state.boxes.map(_.getValue).sum > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
+      val outputs = indexedOutputs.map(_._1)
+      require(state.boxes.map(_.getValue).sum + holdingBox.getValue > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
 
       val unsignedTx = {
         if (AppParameters.enableEIP27) {

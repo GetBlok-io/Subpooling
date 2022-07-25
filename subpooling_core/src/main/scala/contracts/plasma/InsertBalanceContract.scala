@@ -50,6 +50,7 @@ object InsertBalanceContract {
     )(insertType.getRType), insertType)
     val result = balanceState.map.insert(inserts.map(u => u -> zero):_*)
     logger.info(s"Inserting ${inserts.length} share states")
+    logger.info(s"Sample: ${updateErgoVal.getValue.toArray.head}")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
     logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
     updateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue))

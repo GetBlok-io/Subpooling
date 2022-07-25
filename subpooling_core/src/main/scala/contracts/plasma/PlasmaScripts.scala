@@ -30,8 +30,8 @@ object PlasmaScripts {
   val SINGLE_PAYOUT_SCRIPT: String = makeScript("PayoutBalance")
   val SINGLE_DELETE_SCRIPT: String = makeScript("DeleteBalance")
 
-  val HYBRID_INSERT_SCRIPT: String = makeScript("InsertBalance")
-  val HYBRID_UPDATE_SCRIPT: String = makeScript("UpdateBalance")
-  val HYBRID_PAYOUT_SCRIPT: String = makeScript("PayoutBalance")
-  val HYBRID_DELETE_SCRIPT: String = makeScript("DeleteBalance")
+  val HYBRID_INSERT_SCRIPT: String = makeScript("DualInsertBalance")
+  val HYBRID_UPDATE_SCRIPT: String = makeScript("DualUpdateBalance")
+  val HYBRID_PAYOUT_SCRIPT: String = makeScript("DualPayoutBalance")
+  val HYBRID_DELETE_SCRIPT: String = makeScript("DualDeleteBalance")
 }

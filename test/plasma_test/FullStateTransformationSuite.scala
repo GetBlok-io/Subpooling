@@ -12,7 +12,7 @@ import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, Pla
 import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform}
 import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
 import org.ergoplatform.appkit.impl.ErgoTreeContract
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, InputBox, NetworkType, OutBox, RestApiErgoClient}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoContract, ErgoId, ErgoProver, ErgoToken, InputBox, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 import plasma_test.FullStateTransformationSuite._
@@ -171,7 +171,8 @@ object FullStateTransformationSuite {
 
         val randomMinPay = ((Math.random() * randMinPayRange) + randMinPayFloor).toLong
 
-        PlasmaMiner(Address.create(ad._1), 0L, 0L, ((Math.random() * randomRange) + randomFloor).toLong, randomMinPay, 0, 0, 0)
+        PlasmaMiner(Address.create(ad._1), 0L, 0L, ((Math.random() * randomRange) + randomFloor).toLong, randomMinPay, 0, 0, 0,
+          0L, ((Math.random() * randomRange) + randomFloor).toLong)
     }
   }
 
@@ -205,6 +206,20 @@ object FullStateTransformationSuite {
         val inputBox = ctx.newTxBuilder().outBoxBuilder()
           .value(value)
           .contract(new ErgoTreeContract(creatorAddress.getErgoAddress.script, NetworkType.MAINNET))
+          .build()
+          .convertToInputWith("ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d", 0)
+
+        return inputBox
+    }
+  }
+
+  def buildHoldingBox(value: Long, valueTwo: Long, id: ErgoId, contract: Option[ErgoContract] = None): InputBox = {
+    ergoClient.execute{
+      ctx =>
+        val inputBox = ctx.newTxBuilder().outBoxBuilder()
+          .value(value)
+          .contract(contract.getOrElse(new ErgoTreeContract(creatorAddress.getErgoAddress.script, NetworkType.MAINNET)))
+          .tokens(new ErgoToken(id, valueTwo))
           .build()
           .convertToInputWith("ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d", 0)
 

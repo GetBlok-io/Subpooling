@@ -30,12 +30,14 @@ object BalanceStateContract {
   private val logger: Logger = LoggerFactory.getLogger("BalanceStateContract")
 
   def generate(ctx: BlockchainContext, poolOp: Address, poolTag: ErgoId, scriptType: ScriptType): ErgoContract = {
-    val commands = Seq(
-      InsertBalanceContract.generate(ctx, poolTag, scriptType),
-      UpdateBalanceContract.generate(ctx, poolTag, scriptType),
-      PayoutBalanceContract.generate(ctx, poolTag, scriptType),
-      DeleteBalanceContract.generate(ctx, poolTag, scriptType)
-    )
+    val commands = {
+      Seq(
+        InsertBalanceContract.generate(ctx, poolTag, scriptType),
+        UpdateBalanceContract.generate(ctx, poolTag, scriptType),
+        PayoutBalanceContract.generate(ctx, poolTag, scriptType),
+        DeleteBalanceContract.generate(ctx, poolTag, scriptType)
+      )
+    }
     val commandBytes = commands.map(c => Colls.fromArray(Blake2b256(c.getErgoTree.bytes)).asInstanceOf[Coll[java.lang.Byte]])
     val commandColl = Colls.fromArray(commandBytes.toArray)
     val constants = ConstantsBuilder.create()
@@ -47,12 +49,16 @@ object BalanceStateContract {
   }
 
   def buildBox(ctx: BlockchainContext, balanceState: BalanceState[_], poolTag: ErgoId, poolOp: Address,
-               scriptType: ScriptType, optValue: Option[Long] = None): OutBox = {
+               scriptType: ScriptType, optValue: Option[Long] = None, optToken: Option[ErgoToken] = None): OutBox = {
+
+    var tokenSeq = Seq(new ErgoToken(poolTag, 1L))
+    if(optToken.isDefined)
+      tokenSeq = tokenSeq ++ Seq(optToken.get)
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .registers(balanceState.map.ergoValue)
       .contract(generate(ctx, poolOp, poolTag, scriptType))
-      .tokens(new ErgoToken(poolTag, 1L))
+      .tokens(tokenSeq: _*)
       .build()
   }
 
