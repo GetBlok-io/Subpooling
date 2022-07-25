@@ -129,16 +129,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             historySteps.foreach{
               step =>
 
-                val boxExtension = db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head)
-                val ext = boxExtension.map(parseExtension)
-                ext.map(c => logger.info(c.extZero))
+                val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
+                val ext = parseExtension(boxExtension)
+                logger.info("Extension parsed successfully!")
                 logger.info("Now parsing into ErgoValue")
-                ext.map{
-                  c =>
-                    val ergoVal = ErgoValue.fromHex(c.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
-                    logger.info(s"ErgoValue: ${ergoVal.toString()}")
-
-                }
+                val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
+                val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
+                logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
+                  s"and expected digest ${step.digest}")
             }
 
         }
