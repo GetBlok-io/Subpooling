@@ -119,7 +119,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result)
     fStateHistory.map{
       stateHistory =>
-        val historyGrouped = stateHistory.groupBy(_.gEpoch).map(h => h._1 -> h._2.sortBy(sh => sh.step))
+        val historyGrouped = stateHistory.groupBy(_.gEpoch).map(h => h._1 -> h._2.sortBy(sh => sh.step)).toArray.sortBy(_._1)
 
 
         historyGrouped.foreach{
@@ -128,7 +128,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             logger.info(s"Checking history steps for gEpoch ${historyPair._1}")
             historySteps.foreach{
               step =>
-
+                logger.info("Now parsing steps")
                 val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
                 val ext = parseExtension(boxExtension)
                 logger.info("Extension parsed successfully!")
