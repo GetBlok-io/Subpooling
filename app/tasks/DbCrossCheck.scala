@@ -102,7 +102,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           logger.info("Now making backup state")
           new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
           val backupState = new BalanceState("backup")
-          val currentState = db.run(Tables.PoolBalanceStateTable.result)
+          val currentState = db.run(Tables.PoolBalanceStateTable.sortBy(_.created).result)
           logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
           currentState.map{
             balanceStates =>
