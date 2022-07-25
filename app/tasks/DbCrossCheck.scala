@@ -17,7 +17,7 @@ import io.getblok.subpooling_core.plasma.BalanceState
 import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
 import models.ResponseModels.writesChangeKeys
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, NetworkType}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, NetworkType}
 import persistence.Tables
 import plasma_utils.TransformValidator
 import plasma_utils.payments.PaymentRouter
@@ -27,6 +27,7 @@ import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
+import special.collection.Coll
 import utils.ConcurrentBoxLoader
 
 import java.io.File
@@ -115,21 +116,31 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def syncState = {
-    val fAssetBoxes = db.run(Tables.NodeAssetsTable.filter(_.tokenId === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80").result)
-    fAssetBoxes.map{
-      assetBoxes =>
-        assetBoxes.foreach(b => logger.info(b.toString))
-        val notInitBoxes = assetBoxes.filter(_.headerId != "f36a170f512bf8999650e75f8f6025a6961a652778c709cc61ef38d27f08e1e2")
+    val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result)
+    fStateHistory.map{
+      stateHistory =>
+        val historyGrouped = stateHistory.groupBy(_.gEpoch).map(h => h._1 -> h._2.sortBy(sh => sh.step))
 
-        notInitBoxes.foreach{
-          tokenBox =>
-            val transactionId = db.run(Tables.NodeInputsTable.filter(_.boxId === tokenBox.boxId).map(_.txId).result.head)
-            transactionId.map{
-              txId =>
-                val boxExtension = db.run(Tables.NodeInputsTable.filter(_.txId === txId).filter(_.index === 1).map(_.extension).result.head)
+
+        historyGrouped.foreach{
+          historyPair =>
+            val historySteps = historyPair._2
+            logger.info(s"Checking history steps for gEpoch ${historyPair._1}")
+            historySteps.foreach{
+              step =>
+
+                val boxExtension = db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head)
                 val ext = boxExtension.map(parseExtension)
                 ext.map(c => logger.info(c.extZero))
+                logger.info("Now parsing into ErgoValue")
+                ext.map{
+                  c =>
+                    val ergoVal = ErgoValue.fromHex(c.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
+                    logger.info(s"ErgoValue: ${ergoVal.toString()}")
+
+                }
             }
+
         }
     }
   }
