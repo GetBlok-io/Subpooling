@@ -13,6 +13,7 @@ import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, Transac
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
+import io.getblok.subpooling_core.plasma.BalanceState
 import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
 import models.ResponseModels.writesChangeKeys
@@ -28,6 +29,7 @@ import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
 import utils.ConcurrentBoxLoader
 
+import java.io.File
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 import javax.inject.{Inject, Named, Singleton}
 import scala.collection.mutable.ArrayBuffer
@@ -97,8 +99,17 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 794335L).filter(_.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 794335L).filter(_.nonce === "afb9ef55c66f94b9").delete)
+          new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
+          val backupState = new BalanceState("backup")
+          val currentState = db.run(Tables.PoolBalanceStateTable.result)
+          logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
+          currentState.map{
+            balanceStates =>
+              val sorted = balanceStates.sortBy(b => BigInt(b.toStateValues._1.bytes))
+              backupState.loadState(sorted.map(_.toStateValues))
+
+              logger.info(s"New digest for backup state: ${backupState.map.toString()}")
+          }
         }
     })(contexts.taskContext)
   }
