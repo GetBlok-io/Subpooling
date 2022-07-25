@@ -29,16 +29,7 @@ object PaymentRouter {
                       poolBox: PoolBox, miners: Seq[PlasmaMiner], inputBoxes: Seq[InputBox]): StateGroup = {
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
-        logger.info(s"Current digest: ${poolBox.balanceState.map.toString()}")
-        logger.info(s"Now rolling back to digest 2ea2465e96423cd52e7f0cda3af84fb2dc5c9f6f1325c31feea5a1f32216a3f208")
-        val rollback = poolBox.balanceState.avlStorage.rollback(ADDigest @@ Hex.decode("2ea2465e96423cd52e7f0cda3af84fb2dc5c9f6f1325c31feea5a1f32216a3f208"))
 
-        if(rollback.isSuccess){
-          logger.info("Successfully rolled back digest!")
-        }else{
-          logger.error("There was a fatal error while rolling back digests!")
-        }
-        Thread.sleep(1000000)
         new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState, batch.blocks.head.gEpoch,
           batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum),
           Some(

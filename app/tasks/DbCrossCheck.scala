@@ -142,7 +142,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
                   logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
                     s"and expected digest ${step.digest}")
-                  performCommand(balanceState, asArr, step.command)
+                  val nextDigest = performCommand(balanceState, asArr, step.command)
+                  logger.info(s"New digest after command: ${nextDigest}")
+                  logger.info(s"Expected digest after command ${step.digest}")
                 }else{
                   logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
                 }
