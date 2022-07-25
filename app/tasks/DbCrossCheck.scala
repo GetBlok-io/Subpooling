@@ -101,7 +101,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //          }
           logger.info("Now making backup state")
 
-          val backupState = new BalanceState("f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
+          val backupState = new BalanceState("backup")
 
           logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
           syncState
