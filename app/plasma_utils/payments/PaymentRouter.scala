@@ -7,12 +7,15 @@ import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSet
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.{CommandBatch, PlasmaMiner}
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
+import org.slf4j.{Logger, LoggerFactory}
 import persistence.shares.ShareCollector
+import scorex.crypto.authds.ADDigest
 import utils.ConcurrentBoxLoader.BatchSelection
 
 object PaymentRouter {
-
+  private val logger: Logger = LoggerFactory.getLogger("PaymentRouter")
   def routeProcessor(info: PoolInformation, settings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection, reward: Long): PaymentProcessor = {
     info.currency match {
       case PoolInformation.CURR_ERG =>
@@ -26,6 +29,8 @@ object PaymentRouter {
                       poolBox: PoolBox, miners: Seq[PlasmaMiner], inputBoxes: Seq[InputBox]): StateGroup = {
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
+        logger.info(s"Now rolling back to digest 2ea2465e96423cd52e7f0cda3af84fb2dc5c9f6f1325c31feea5a1f32216a3f208")
+        poolBox.balanceState.avlStorage.rollback(ADDigest @@ Hex.decode("2ea2465e96423cd52e7f0cda3af84fb2dc5c9f6f1325c31feea5a1f32216a3f208"))
         new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState, batch.blocks.head.gEpoch,
           batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum),
           Some(

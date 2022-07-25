@@ -39,7 +39,12 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       val payoutBatches = minersToPayout.sliding(minerBatchSize, minerBatchSize).toSeq
       val updateBatches = commandState.data.sliding(minerBatchSize, minerBatchSize).toSeq
 
+      logger.info("Batch summary:")
+      logger.info(s"Insert Batches: ${insertBatches.size}")
 
+      logger.info(s"Update Batches: ${updateBatches.size}")
+
+      logger.info(s"Payout Batches: ${payoutBatches.size}")
       val insertOutBoxes = insertBatches.indices.map{
         idx =>
           InsertBalanceContract.buildBox(ctx, state.poolNFT, Some(AppParameters.groupFee * 20)) -> idx
