@@ -22,7 +22,7 @@ import persistence.Tables
 import plasma_utils.TransformValidator
 import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsResult, JsValue, Json, Reads}
 import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
 import slick.jdbc.{JdbcProfile, PostgresProfile}
@@ -104,10 +104,37 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           val backupState = new BalanceState("f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
 
           logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
-
+          syncState
         }
     })(contexts.taskContext)
   }
+
+  case class ContextExtension(extZero: String)
+  def parseExtension(json: String) = {
+    ContextExtension(json.split(":")(1).split("\"")(1))
+  }
+
+  def syncState = {
+    val fAssetBoxes = db.run(Tables.NodeAssetsTable.filter(_.tokenId === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80").result)
+    fAssetBoxes.map{
+      assetBoxes =>
+        assetBoxes.foreach(b => logger.info(b.toString))
+        val notInitBoxes = assetBoxes.filter(_.headerId != "f36a170f512bf8999650e75f8f6025a6961a652778c709cc61ef38d27f08e1e2")
+
+        notInitBoxes.foreach{
+          tokenBox =>
+            val transactionId = db.run(Tables.NodeInputsTable.filter(_.boxId === tokenBox.boxId).map(_.txId).result.head)
+            transactionId.map{
+              txId =>
+                val boxExtension = db.run(Tables.NodeInputsTable.filter(_.txId === txId).filter(_.index === 1).map(_.extension).result.head)
+                val ext = boxExtension.map(parseExtension)
+                logger.info(ext.toString)
+            }
+        }
+    }
+  }
+
+
   def cleanDB = {
     db.run(Tables.PoolBlocksTable.filter(b => b.gEpoch === 16L && b.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").map(_.status).update(PoolBlock.PROCESSED))
     db.run(Tables.SubPoolMembers.filter(b => b.g_epoch === 16L && b.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)

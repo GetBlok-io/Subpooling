@@ -1,5 +1,6 @@
 package models
 
+import akka.parboiled2.RuleTrace.StringMatch
 import org.ergoplatform.appkit.Parameters
 
 import java.time.LocalDateTime
@@ -40,4 +41,8 @@ object DatabaseModels {
                           status: String, step: Int, digest: String, manifest: String,
                           subTree_1: String, subTree_2: String, subTree_3: String, subTree_4: String,
                           block: Long, created: LocalDateTime, updated: LocalDateTime)
+
+  case class NodeAsset(tokenId: String, boxId: String, headerId: String, index: Int, value: Long)
+  case class NodeInput(boxId: String, txId: String, headerId: String, proofBytes: Option[String], extension: String,
+                       index: Int, mainChain: Boolean)
 }
