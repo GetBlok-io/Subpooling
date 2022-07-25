@@ -129,15 +129,19 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             historySteps.foreach{
               step =>
                 logger.info("Now parsing steps")
-                val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
-                val ext = parseExtension(boxExtension)
-                logger.info("Extension parsed successfully!")
-                logger.info("Now parsing into ErgoValue")
-                val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
-                val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
-                logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
-                  s"and expected digest ${step.digest}")
-            }
+                if(step.step != -1) {
+                  val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
+                  val ext = parseExtension(boxExtension)
+                  logger.info("Extension parsed successfully!")
+                  logger.info("Now parsing into ErgoValue")
+                  val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
+                  val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
+                  logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
+                    s"and expected digest ${step.digest}")
+                }else{
+                  logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
+                }
+              }
 
         }
     }
