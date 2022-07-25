@@ -187,7 +187,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         balanceState.map.update(updates: _*)
     }
-    balanceState.toString
+    balanceState.map.toString
   }
 
 
