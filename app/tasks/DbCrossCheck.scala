@@ -128,7 +128,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               txId =>
                 val boxExtension = db.run(Tables.NodeInputsTable.filter(_.txId === txId).filter(_.index === 1).map(_.extension).result.head)
                 val ext = boxExtension.map(parseExtension)
-                logger.info(ext.toString)
+                ext.map(c => logger.info(c.extZero))
             }
         }
     }
