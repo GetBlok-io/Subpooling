@@ -6,6 +6,7 @@ import actors.QuickDbReader.{PaidAtGEpoch, PlacementsByBlock, PoolBlocksByStatus
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.google.common.primitives.Longs
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
 import io.getblok.subpooling_core.boxes.MetadataInputBox
@@ -13,10 +14,11 @@ import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, Transac
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
-import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
 import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
 import models.ResponseModels.writesChangeKeys
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, NetworkType}
 import persistence.Tables
 import plasma_utils.TransformValidator
@@ -25,6 +27,8 @@ import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.{JsResult, JsValue, Json, Reads}
 import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
+import scorex.crypto.authds.{ADKey, ADValue}
+import scorex.crypto.authds.avltree.batch.Insert
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
 import special.collection.Coll
@@ -105,7 +109,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           val backupState = new BalanceState("backup")
 
           logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
-          syncState
+          syncState(backupState)
         }
     })(contexts.taskContext)
   }
@@ -115,7 +119,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     ContextExtension(json.split(":")(1).split("\"")(1))
   }
 
-  def syncState = {
+  def syncState(balanceState: BalanceState) = {
     val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result)
     fStateHistory.map{
       stateHistory =>
@@ -138,6 +142,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
                   logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
                     s"and expected digest ${step.digest}")
+                  performCommand(balanceState, asArr, step.command)
                 }else{
                   logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
                 }
@@ -145,6 +150,40 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
         }
     }
+  }
+
+  def performCommand(balanceState: BalanceState, commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
+    command match{
+      case "INSERT" =>
+        commandBytes.map{
+          commandLoad =>
+            balanceState.map.prover.performOneOperation(Insert(ADKey @@ commandLoad._1, ADValue @@ commandLoad._2))
+        }
+      case "UPDATE" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val additions = commandBytes.map(_._2).map(Longs.fromByteArray).map(StateBalance.apply)
+        val lookup    = balanceState.map.lookUp(keys:_*)
+
+        val updates = lookup.response.indices.map{
+          idx =>
+            val currBalance = lookup.response(idx).tryOp.get.get
+            val nextBalance = StateBalance(additions(idx).balance + currBalance.balance)
+
+            val key = keys(idx)
+
+            key -> nextBalance
+        }
+        balanceState.map.update(updates: _*)
+
+      case "PAYOUT" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val updates = keys.map{
+          k =>
+            k -> StateBalance(0L)
+        }
+        balanceState.map.update(updates: _*)
+    }
+    balanceState.toString
   }
 
 
