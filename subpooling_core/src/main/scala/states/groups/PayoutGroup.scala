@@ -7,7 +7,7 @@ import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.groups.PayoutGroup.GroupInfo
 import io.getblok.subpooling_core.states.models.CommandTypes.{Command, INSERT, PAYOUT, UPDATE}
-import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
+import io.getblok.subpooling_core.states.models.{CommandBatch, CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
 import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
@@ -17,10 +17,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
-                  balanceState: BalanceState, gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long) extends StateGroup {
+                  balanceState: BalanceState, gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long,
+                  commandBatch: Option[CommandBatch] = None) extends StateGroup {
   val initState: State = State(poolBox, balanceState, inputBoxes)
   var currentState: State = initState
-  val transformer: StateTransformer = new StateTransformer(ctx, initState)
+  val transformer: StateTransformer = new StateTransformer(ctx, initState, commandBatch.isEmpty)
   val setupState: CommandState = CommandState(poolBox, miners, CommandTypes.SETUP, -1)
 
   final val MINER_BATCH_SIZE = 150
@@ -87,7 +88,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
-    val setupTransform = SetupTransform(ctx, wallet, setupState, MINER_BATCH_SIZE, fee, reward)
+    val setupTransform = SetupTransform(ctx, wallet, setupState, MINER_BATCH_SIZE, fee, reward, commandBatch)
     transformer.apply(setupTransform)
     commandQueue = setupTransform.commandQueue
     logger.info(s"Payout group setup with ${commandQueue.length} commands")

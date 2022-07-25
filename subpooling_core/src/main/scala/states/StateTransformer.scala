@@ -2,7 +2,7 @@ package io.getblok.subpooling_core
 package states
 
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
-import io.getblok.subpooling_core.states.models.{State, StateTransition, TransformResult}
+import io.getblok.subpooling_core.states.models.{CommandTypes, State, StateTransition, TransformResult}
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, SignedTransaction}
 import org.slf4j.{Logger, LoggerFactory}
@@ -12,7 +12,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 
-class StateTransformer(ctx: BlockchainContext, initState: State) {
+class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boolean = true) {
   val txQueue: mutable.Queue[TransformResult] = mutable.Queue.empty[TransformResult]
   var currentState: State = initState
   val initDigest: ADDigest = initState.digest
@@ -25,11 +25,17 @@ class StateTransformer(ctx: BlockchainContext, initState: State) {
     if(transform.isSuccess){
       logger.info(s"Transformation was successful with id ${transform.get.transaction.getId}")
 
-      logger.info("Now adding to transaction queue and updating current state")
+      if(transform.get.command == CommandTypes.SETUP && !applySetup){
+        logger.info("Not applying setup due to existing command batch!")
+        currentState = transform.get.nextState
+        transform.get
+      }else {
+        logger.info("Now adding to transaction queue and updating current state")
 
-      txQueue.enqueue(transform.get)
-      currentState = transform.get.nextState
-      transform.get
+        txQueue.enqueue(transform.get)
+        currentState = transform.get.nextState
+        transform.get
+      }
     }else{
       logger.error("A state transformation failed!")
       logger.error(s"Exception occurred due to: ", transform.failed.get)
@@ -49,7 +55,7 @@ class StateTransformer(ctx: BlockchainContext, initState: State) {
       tResult =>
         logger.info(s"Now sending transaction ${tResult.transaction.getId}")
         val s = Try(ctx.sendTransaction(tResult.transaction))
-        Thread.sleep(500)
+        Thread.sleep(1500)
 
         if(!rolledBack && s.isSuccess) {
 

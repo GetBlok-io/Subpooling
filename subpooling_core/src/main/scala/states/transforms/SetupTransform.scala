@@ -4,7 +4,7 @@ package states.transforms
 import contracts.plasma.{InsertBalanceContract, PayoutBalanceContract, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
 import global.{AppParameters, EIP27Constants, Helpers}
-import states.models.{CommandState, State, StateTransition, TransformResult}
+import states.models.{CommandBatch, CommandState, State, StateTransition, TransformResult}
 
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import io.getblok.subpooling_core.registers.PoolFees
@@ -18,7 +18,7 @@ import scala.util.Try
 
 
 case class SetupTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState,
-                          minerBatchSize: Int, fee: Long, reward: Long)
+                          minerBatchSize: Int, fee: Long, reward: Long, commandBoxes: Option[CommandBatch] = None)
   extends StateTransition(ctx, wallet, commandState){
   private val logger: Logger = LoggerFactory.getLogger("SetupTransform")
 
@@ -102,23 +102,43 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       val signedTx = wallet.prover.sign(unsignedTx)
       val txId = signedTx.getId.replace("\"", "")
 
-      val insertCommands = insertOutBoxes
-        .map(o => o._1.convertToInputWith(txId, o._2.toShort))
-        .zipWithIndex
-        .map(i => CommandState(i._1, insertBatches(i._2), INSERT, i._2))
+      if(commandBoxes.isEmpty) {
+        val insertCommands = insertOutBoxes
+          .map(o => o._1.convertToInputWith(txId, o._2.toShort))
+          .zipWithIndex
+          .map(i => CommandState(i._1, insertBatches(i._2), INSERT, i._2))
 
-      val updateCommands = updateOutBoxes
-        .map(o => o._1.convertToInputWith(txId, o._2.toShort))
-        .zipWithIndex
-        .map(i => CommandState(i._1, updateBatches(i._2), UPDATE, insertCommands.length + i._2))
+        val updateCommands = updateOutBoxes
+          .map(o => o._1.convertToInputWith(txId, o._2.toShort))
+          .zipWithIndex
+          .map(i => CommandState(i._1, updateBatches(i._2), UPDATE, insertCommands.length + i._2))
 
-      val payoutCommands = payoutOutBoxes
-        .map(o => o._1.convertToInputWith(txId, o._2.toShort))
-        .zipWithIndex
-        .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
-      val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
-      commandQueue = insertCommands ++ updateCommands ++ payoutCommands
-      TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
+        val payoutCommands = payoutOutBoxes
+          .map(o => o._1.convertToInputWith(txId, o._2.toShort))
+          .zipWithIndex
+          .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
+        val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
+        commandQueue = insertCommands ++ updateCommands ++ payoutCommands
+        TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
+      }else{
+        val insertCommands = commandBoxes.get
+          .inserts
+          .zipWithIndex
+          .map(i => CommandState(i._1, insertBatches(i._2), INSERT, i._2))
+
+        val updateCommands = commandBoxes.get
+          .updates
+          .zipWithIndex
+          .map(i => CommandState(i._1, updateBatches(i._2), UPDATE, insertCommands.length + i._2))
+
+        val payoutCommands = commandBoxes.get
+          .payouts
+          .zipWithIndex
+          .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
+        val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
+        commandQueue = (insertCommands ++ updateCommands ++ payoutCommands).toIndexedSeq
+        TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
+      }
     }
   }
 

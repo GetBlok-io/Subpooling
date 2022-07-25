@@ -5,7 +5,7 @@ import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation}
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
-import io.getblok.subpooling_core.states.models.PlasmaMiner
+import io.getblok.subpooling_core.states.models.{CommandBatch, PlasmaMiner}
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import persistence.shares.ShareCollector
@@ -27,7 +27,15 @@ object PaymentRouter {
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
         new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState, batch.blocks.head.gEpoch,
-          batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))
+          batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum),
+          Some(
+            CommandBatch(
+              ctx.getBoxesById("3a9cd37b77f0c7cc4123f29ad09978d8e55f5e043fa3cc2a9a192654f419ba85").toSeq,
+              ctx.getBoxesById("5bebbcfdf81df4ff9c777a6b756d9aab5c554e01ccec31385cab2b65783afc69").toSeq,
+              ctx.getBoxesById("70b7075736f68af344dbbb18777cdff05b9fa0d8bc0e93219492928753287dcf").toSeq
+            )
+          )
+        )
       case _ =>
         throw new Exception("Unsupported currency found during StateGroup routing!")
     }
