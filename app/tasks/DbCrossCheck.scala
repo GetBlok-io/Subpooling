@@ -100,7 +100,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              Failure(ex)
 //          }
           logger.info("Now making backup state")
-
+          new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
           val backupState = new BalanceState("backup")
 
           logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
