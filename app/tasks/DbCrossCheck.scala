@@ -106,8 +106,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           logger.info(s"Current digest for backup state: ${backupState.map.toString()}")
           currentState.map{
             balanceStates =>
-              val sorted = balanceStates.sortBy(b => BigInt(b.toStateValues._1.bytes))
-              backupState.loadState(sorted.map(_.toStateValues))
+
+              backupState.loadState(balanceStates.map(_.toStateValues))
 
               logger.info(s"New digest for backup state: ${backupState.map.toString()}")
           }
