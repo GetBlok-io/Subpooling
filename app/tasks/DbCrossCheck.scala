@@ -99,6 +99,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
+          logger.info("Now making backup state")
           new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
           val backupState = new BalanceState("backup")
           val currentState = db.run(Tables.PoolBalanceStateTable.result)
