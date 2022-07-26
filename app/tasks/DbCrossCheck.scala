@@ -104,12 +104,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolBlocksTable
-            .filter(_.poolTag === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
-            .filter(_.gEpoch > 23L)
-            .map(_.status)
-            .update(PoolBlock.CONFIRMED)
-          )
+          new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
+          val balanceState = new BalanceState("backup")
+          balanceState.map.initiate()
+          syncState(balanceState)
+          balanceState.map.commitChanges()
         }
     })(contexts.taskContext)
   }

@@ -64,7 +64,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val result = transformer.apply(insertTransform)
     currentState = result.nextState
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += GroupInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get.digestString)
   }
 
   def updateTx(commandState: CommandState): Unit = {
@@ -73,7 +73,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val result = transformer.apply(updateTransform)
     currentState = result.nextState
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += GroupInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get.digestString)
   }
 
   def payoutTx(commandState: CommandState): Unit = {
@@ -83,11 +83,15 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
     currentState = result.nextState
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get.digestString)
   }
 
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
+
+    balanceState.map.initiate()
+    logger.info("Balance state initiated!")
+
     val setupTransform = SetupTransform(ctx, wallet, setupState, MINER_BATCH_SIZE, fee, reward, commandBatch)
     transformer.apply(setupTransform)
     commandQueue = setupTransform.commandQueue
@@ -194,7 +198,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
 
 object PayoutGroup {
-  case class GroupInfo(transform: Command, txId: String, cost: Long, txSize: Long){
-    override def toString: String = s"${transform}: ${txId} ->  ${cost} tx cost -> ${txSize} bytes"
+  case class GroupInfo(transform: Command, txId: String, cost: Long, txSize: Long, digest: String){
+    override def toString: String = s"${transform}: ${txId} -> ${digest} -> ${cost} tx cost -> ${txSize} bytes"
   }
 }

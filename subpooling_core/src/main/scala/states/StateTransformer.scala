@@ -61,6 +61,8 @@ class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boo
 
           logger.info(s"Transaction with id ${s} was successfully sent!")
           versionStack.push(tResult.nextState.digest)
+          currentState.balanceState.map.commitNextOperation()
+          logger.info("Successfully committed operation to local map!")
           Success(tResult)
 
         } else {
@@ -82,21 +84,11 @@ class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boo
 
   def revert(version: Option[ADDigest] = None): Unit = {
 
-    if(version.isDefined)
-      logger.info(s"Reverting to mid-transform digest ${Hex.toHexString(version.get)}")
-    else
-      logger.info(s"Reverting to initial digest ${Hex.toHexString(initDigest)}")
-
-    val rollback = currentState.balanceState.avlStorage.rollback(version.getOrElse(initDigest))
-
-    if(rollback.isSuccess){
-      logger.info(s"Successfully reverted State back to digest ${Hex.toHexString(version.getOrElse(initDigest))}")
-      logger.info(s"Balance State digest: ${currentState.balanceState.map.toString()}")
-      logger.info(s"Version digest: ${currentState.balanceState.avlStorage.version.map(Hex.toHexString).getOrElse("none")}")
-    } else{
-      logger.error(s"CRITICAL ERROR - Fatal exception occurred while rolling back state to digest ${Hex.toHexString(version.getOrElse(initDigest))}",
-        rollback.failed.get)
-    }
-
+    logger.info(s"Now reverting back to local digest ${currentState.balanceState.map.toString()}")
+    logger.info(s"Digest in temp map: ${currentState.balanceState.map.getTempMap.get.toString()}")
+    logger.info(s"Digest passed: ${version.map(Hex.toHexString).getOrElse(Hex.toHexString(currentState.digest))}")
+    logger.info(s"Init Digest: ${Hex.toHexString(initDigest)}")
+    currentState.balanceState.map.dropChanges()
+    logger.info("Un-committed transforms successfully dropped!")
   }
 }
