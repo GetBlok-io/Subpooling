@@ -45,4 +45,5 @@ object DatabaseModels {
   case class NodeAsset(tokenId: String, boxId: String, headerId: String, index: Int, value: Long)
   case class NodeInput(boxId: String, txId: String, headerId: String, proofBytes: Option[String], extension: String,
                        index: Int, mainChain: Boolean)
+  case class NodeOutput(boxId: String, txId: String, headerId: String, value: Long, address: String)
 }

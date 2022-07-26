@@ -16,7 +16,7 @@ import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
 import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
 import io.getblok.subpooling_core.registers.PropBytes
-import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
+import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock, StateHistory}
 import models.ResponseModels.writesChangeKeys
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, NetworkType}
@@ -104,12 +104,54 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
-          val balanceState = new BalanceState("backup")
+          val poolTag = "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80"
+          val gEpoch = 24L
+          val success = "success"
+          val time = LocalDateTime.now()
+          val none = "none"
+          val block = 801996L
+          val history = Seq(
+            StateHistory(poolTag, gEpoch, "e62bc4a4aeee21447aab61268859e4da061b133e96720855b6696d8d16fa0daf",
+              "4d5021dee984dcc7a8428c19a4feaa4c58848b92d57991bb114c66b3cb6e274f", "e62bc4a4aeee21447aab61268859e4da061b133e96720855b6696d8d16fa0daf",
+            "SETUP", success, -1, "397ad8b0fa4f6f17cf9b61c8c583f75bbda0d473e9ba33921695134838d92f9f09", none, none, none, none, none,
+              block, time, time),
+            StateHistory(poolTag, gEpoch, "505c1166cb60c0aec91e1a1da43fd021775bb8368086a07ab534b0b9026f2a30",
+              "27653dfe498b8793ff6172d23ccf64fa87bcb3f5fef1dbfebf3dc50b4d6a96dc", "94248092dcf6c45e3b4ce19c21366faa796804365d6e4aeabae5757fb9626fc0",
+              "INSERT", success, 0, "e739bced58a7e052f59f1c2119288f249d26ad5663e41447e098347177636b3b09", none, none, none, none, none,
+              block, time, time),
+            StateHistory(poolTag, gEpoch, "691801abe69877cf1d3b96762bb2fb980003e71a32eddc5561d17996cc84f748",
+              "27993b601aca4f069824fc173d30b54de5d2096e67529b364f11d2ed53ca7e14", "e412fbb5a94ebccb32a6415bd00e9d40db496b0114eb0aeb32cd1b21c8e569a4",
+              "UPDATE", success, 1, "a49f587861b6a71b232011eec970256427ee96c26ce6c0348a7ff2f4f3b42de809", none, none, none, none, none,
+              block, time, time),
+            StateHistory(poolTag, gEpoch, "20593bdda485b222c4552dd0b2778d4ce4e76e82545f3e845eda04a74501e9d8",
+            "d26fbc5c9b72bc6a4208a7b32acf604af85230b9da45bfb00cb317081aae7788", "fc82052e1c480b9b8b69ab3a8ecead12de3e155cf5dd45b776258f98300ff4a8",
+            "PAYOUT", success, 2, "b40f9811cb81e001eec26dcf0375a8ce5a9641987aa3c7f99b7589ac89cdeab209", none, none, none, none, none,
+            block, time, time)
+          )
+          db.run(Tables.StateHistoryTables ++= history)
+          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block).map(_.status).update(PoolBlock.PAID))
+          db.run(Tables.PoolInfoTable.filter(_.poolTag === poolTag).map(i => i.gEpoch -> i.updated)
+            .update(gEpoch -> LocalDateTime.now()))
+          db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map{
+            s => (s.tx, s.epoch, s.height, s.status, s.block, s.updated)
+          }.update("d26fbc5c9b72bc6a4208a7b32acf604af85230b9da45bfb00cb317081aae7788", gEpoch, 802291L, "confirmed", block, LocalDateTime.now()))
 
-          syncState(balanceState).map {
-            _ => balanceState.map.commitChanges()
+          val outputs = db.run(Tables.NodeOutputsTable
+            .filter(_.txId === "d26fbc5c9b72bc6a4208a7b32acf604af85230b9da45bfb00cb317081aae7788")
+            .filterNot(_.address === "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
+            .filterNot(_.address === "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
+            .result
+            )
+          outputs.map{
+            outs =>
+              val payments = outs.map{
+                o =>
+                  Payment(poolTag, o.address, "ERG", Helpers.convertFromWhole("ERG", o.value),
+                    o.txId, None, LocalDateTime.now(), block, gEpoch)
+              }
+              db.run(Tables.Payments ++= payments)
           }
+
         }
     })(contexts.taskContext)
   }
@@ -119,11 +161,20 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     ContextExtension(json.split(":")(1).split("\"")(1))
   }
 
+  def initBackup() = {
+    new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
+    val balanceState = new BalanceState("backup")
+
+    syncState(balanceState).map {
+      _ => balanceState.map.commitChanges()
+    }
+  }
+
   def syncState(balanceState: BalanceState) = {
 
     logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
 
-    val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result)
+    val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result) // TODO: Make this per pool
     fStateHistory.map{
       stateHistory =>
         balanceState.map.initiate()

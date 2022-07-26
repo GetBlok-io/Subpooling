@@ -100,8 +100,13 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
   }
 
   def getMembers: Seq[PoolMember] = {
+    val noState = balanceState.map.getTempMap.isEmpty
+    if(noState)
+      balanceState.map.initiate()
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
 
+    if(noState)
+      balanceState.map.dropChanges()
     val updatedBalances = lookupMiners.map{
       m =>
         if(m._2.tryOp.get.get.balance == 0L && m._1.amountAdded > 0)
@@ -123,7 +128,14 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
   }
 
   def getPoolBalanceStates: Seq[PoolBalanceState] = {
+    val noState = balanceState.map.getTempMap.isEmpty
+    if(noState)
+      balanceState.map.initiate()
+
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
+
+    if(noState)
+      balanceState.map.dropChanges()
 
     val updatedBalances = lookupMiners.map{
       m =>
