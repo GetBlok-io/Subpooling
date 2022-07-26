@@ -107,8 +107,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
           val balanceState = new BalanceState("backup")
 
-          syncState(balanceState)
-          balanceState.map.commitChanges()
+          syncState(balanceState).map {
+            _ => balanceState.map.commitChanges()
+          }
         }
     })(contexts.taskContext)
   }
@@ -194,7 +195,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }
         balanceState.map.update(updates: _*)
     }
-    balanceState.map.toString
+    balanceState.map.digestStrings._2.get
   }
 
 
