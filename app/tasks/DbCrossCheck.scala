@@ -119,6 +119,9 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def syncState(balanceState: BalanceState) = {
+
+    logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
+
     val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result)
     fStateHistory.map{
       stateHistory =>
@@ -141,7 +144,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
                   logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
                     s"and expected digest ${step.digest}")
-                  val nextDigest = performCommand(balanceState, asArr, step.command)
+                  val nextDigest = Try(performCommand(balanceState, asArr, step.command)).recoverWith{
+                    case e: Exception =>
+                      logger.error("There was a fatal error performing a command!", e)
+                      Failure(e)
+                  }
                   logger.info(s"New digest after command: ${nextDigest}")
                   logger.info(s"Expected digest after command ${step.digest}")
                 }else{
