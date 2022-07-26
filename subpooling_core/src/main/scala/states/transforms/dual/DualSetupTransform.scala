@@ -1,13 +1,13 @@
 package io.getblok.subpooling_core
 package states.transforms.dual
 
-import contracts.plasma.{InsertBalanceContract, PayoutBalanceContract, PlasmaScripts, UpdateBalanceContract}
+import contracts.plasma.{DeleteBalanceContract, InsertBalanceContract, PayoutBalanceContract, PlasmaScripts, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
 import global.{AppParameters, EIP27Constants}
 import plasma.{DualBalance, SingleBalance}
 import plasma.StateConversions.{balanceConversion, dualBalanceConversion, minerConversion}
 import registers.PoolFees
-import states.models.CommandTypes.{INSERT, PAYOUT, SETUP, UPDATE}
+import states.models.CommandTypes.{DELETE, INSERT, PAYOUT, SETUP, UPDATE}
 import states.models._
 
 import org.ergoplatform.appkit.{BlockchainContext, ErgoId, ErgoToken, InputBox}
@@ -61,6 +61,10 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
         idx =>
           PayoutBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 10)) -> (insertBatches.size + updateBatches.size + idx)
       }
+//      val deleteOutBoxes = payoutBatches.indices.map {
+//        idx =>
+//          DeleteBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 10)) -> idx
+//      }
 
       val indexedOutputs = insertOutBoxes ++ updateOutBoxes ++ payoutOutBoxes
 

@@ -91,6 +91,7 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
                 }
               }
               logger.info("Making group members!")
+
               val members = stateGroup.getMembers
               val poolBalanceStates = stateGroup.getPoolBalanceStates
               logger.info("Now sending DistResponse to sender!")

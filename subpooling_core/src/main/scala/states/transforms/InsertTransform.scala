@@ -9,6 +9,7 @@ import states.models._
 import io.getblok.getblok_plasma.ByteConversion
 import io.getblok.subpooling_core.plasma.StateConversions.minerConversion
 import org.ergoplatform.appkit.BlockchainContext
+import org.slf4j.LoggerFactory
 
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 import scala.util.Try
@@ -37,7 +38,12 @@ case class InsertTransform[T <: StateBalance](override val ctx: BlockchainContex
       val signedTx = wallet.prover.sign(unsignedTx)
       val nextInputState = nextStateBox.convertToInputWith(signedTx.getId.replace("\"", ""), 0)
       val nextState = state.copyState(_box = nextInputState)
-      val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
+      val logger = LoggerFactory.getLogger("InsertTransform")
+
+      logger.info(s"Current digest: ${state.balanceState.map.toString()}")
+      logger.info(s"Current digest: ${state.balanceState.map.toPlasmaMap.toString()}")
+      logger.info(s"Current digest: ${state.balanceState.map.getTempMap.get.toString()}")
+      val manifest = state.balanceState.map.getTempMap.get.getManifest(255)
       TransformResult(nextState, signedTx, commandState.data, CommandTypes.INSERT, Some(manifest), commandState.index, commandState)
     }
   }

@@ -53,7 +53,7 @@ case class DualPayoutTransform(override val ctx: BlockchainContext, override val
       val signedTx = wallet.prover.sign(unsignedTx)
       val nextInputState = nextStateBox.convertToInputWith(signedTx.getId.replace("\"", ""), 0)
       val nextState = state.copy(box = nextInputState)
-      val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
+      val manifest = state.balanceState.map.getTempMap.get.getManifest(255)
       TransformResult(nextState, signedTx, commandState.data, CommandTypes.PAYOUT, Some(manifest), commandState.index, commandState)
     }
   }

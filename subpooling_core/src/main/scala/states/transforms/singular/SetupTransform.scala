@@ -117,7 +117,7 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
         .map(o => o._1.convertToInputWith(txId, o._2.toShort))
         .zipWithIndex
         .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
-      val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
+      val manifest = state.balanceState.map.getTempMap.get.getManifest(255)
       commandQueue = insertCommands ++ updateCommands ++ payoutCommands
       TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
     }

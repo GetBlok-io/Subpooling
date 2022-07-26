@@ -22,6 +22,9 @@
 
     val updatedBalanceState  = balanceState.remove(keys, delProof).get
     val nextRewardValid = nextStateBox.value == INPUTS(0).value
+    val nextTokensValid = {
+      nextStateBox.tokens.map{ (t: (Coll[Byte], Long)) => t._2}.getOrElse(1, 0L) == INPUTS(0).tokens.map{ (t: (Coll[Byte], Long)) => t._2}.getOrElse(1, 0L)
+    }
     val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
     val secureSpend = poolNFT == const_poolNFT
     val validDelete = allOf(

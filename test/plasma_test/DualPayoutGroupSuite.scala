@@ -8,6 +8,7 @@ import io.getblok.subpooling_core.plasma.{BalanceState, DualBalance, SingleBalan
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.groups.{DualGroup, PayoutGroup}
 import io.getblok.subpooling_core.states.models.{CommandState, DualState, SingleState}
+import io.getblok.subpooling_core.states.transforms.DeleteTransform
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{ErgoId, InputBox}
 import org.scalatest.funsuite.AnyFunSuite

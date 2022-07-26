@@ -6,12 +6,12 @@ import persistence.models.PersistenceModels.PoolMember
 import plasma.{BalanceState, DualBalance, PoolBalanceState, SingleBalance}
 import states.StateTransformer
 import states.groups.PayoutGroup.GroupInfo
-import states.models.CommandTypes.{INSERT, PAYOUT, UPDATE}
+import states.models.CommandTypes.{DELETE, INSERT, PAYOUT, UPDATE}
 import states.models._
 import states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
 
 import io.getblok.subpooling_core.plasma.StateConversions.dualBalanceConversion
-import io.getblok.subpooling_core.states.transforms.InsertTransform
+import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform}
 import io.getblok.subpooling_core.states.transforms.dual.{DualPayoutTransform, DualSetupTransform, DualUpdateTransform}
 import org.ergoplatform.appkit.{BlockchainContext, ErgoId, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
@@ -30,7 +30,7 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
 
   final val MINER_BATCH_SIZE = 150
 
-  private val logger: Logger = LoggerFactory.getLogger("PayoutGroup")
+  private val logger: Logger = LoggerFactory.getLogger("DualPayoutGroup")
 
   val infoBuffer: ArrayBuffer[GroupInfo] = ArrayBuffer()
   var commandQueue: Seq[CommandState] = _
@@ -48,6 +48,8 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
                 updateTx(cmdState)
               case CommandTypes.PAYOUT =>
                 payoutTx(cmdState)
+              case CommandTypes.DELETE =>
+                deleteTx(cmdState)
             }
         }
       }
@@ -68,7 +70,8 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
     val result = transformer.apply(insertTransform)
     currentState = result.nextState.asInstanceOf[DualState]
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += GroupInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(INSERT, result.transaction.getId, result.transaction.getCost,
+      result.transaction.toBytes.length, result.manifest.get.digestString)
   }
 
   def updateTx(commandState: CommandState): Unit = {
@@ -77,7 +80,8 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
     val result = transformer.apply(updateTransform)
     currentState = result.nextState.asInstanceOf[DualState]
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += GroupInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(UPDATE, result.transaction.getId, result.transaction.getCost,
+      result.transaction.toBytes.length, result.manifest.get.digestString)
   }
 
   def payoutTx(commandState: CommandState): Unit = {
@@ -87,11 +91,26 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
 
     currentState = result.nextState.asInstanceOf[DualState]
     transformResults = transformResults ++ Seq(Try(result))
-    infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
+    infoBuffer += GroupInfo(PAYOUT, result.transaction.getId, result.transaction.getCost,
+      result.transaction.toBytes.length, result.manifest.get.digestString)
+  }
+
+
+  def deleteTx(commandState: CommandState): Unit = {
+    val deleteTransform = DeleteTransform[DualBalance](ctx, wallet, commandState)
+    val result = transformer.apply(deleteTransform)
+    currentState = result.nextState.asInstanceOf[DualState]
+    logger.info(s"${result.transaction.toJson(true)}")
+    transformResults = transformResults ++ Seq(Try(result))
+    infoBuffer += GroupInfo(DELETE, result.transaction.getId, result.transaction.getCost,
+      result.transaction.toBytes.length, result.manifest.get.digestString)
   }
 
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
+
+    balanceState.map.initiate()
+    logger.info("Initiated ProxyMap!")
     val setupTransform = DualSetupTransform(ctx, wallet, setupState, holdingBox, MINER_BATCH_SIZE)
     transformer.apply(setupTransform)
     commandQueue = setupTransform.commandQueue
