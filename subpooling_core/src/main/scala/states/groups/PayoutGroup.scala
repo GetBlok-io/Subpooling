@@ -55,6 +55,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def sendTransactions: Seq[Try[TransformResult]] = {
     transformResults = transformer.execute()
+    balanceState.map.dropChanges()
     transformResults
   }
 
