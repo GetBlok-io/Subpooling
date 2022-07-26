@@ -311,7 +311,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
             val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpNFT, template.distToken)
             logger.info("Emissions Contract generated")
             logger.info(s"EmEx address: ${emissionsContract.getAddress}")
-            Thread.sleep(60000)
+            //Thread.sleep(60000)
             val tokenInputs = ctx.getBoxesById("a14940f6f7c1d459bee8e825bfbefebe35bba3655d9992f7a00ceb143ebef02c")
             val totalDistributionToken = tokenInputs.head.getTokens.get(0)
             logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
