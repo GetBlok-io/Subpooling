@@ -106,7 +106,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //          }
           new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
           val balanceState = new BalanceState("backup")
-          balanceState.map.initiate()
+
           syncState(balanceState)
           balanceState.map.commitChanges()
         }
@@ -125,6 +125,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result)
     fStateHistory.map{
       stateHistory =>
+        balanceState.map.initiate()
         val historyGrouped = stateHistory.groupBy(_.gEpoch).map(h => h._1 -> h._2.sortBy(sh => sh.step)).toArray.sortBy(_._1)
 
 
