@@ -71,22 +71,26 @@ object Tables {
     def fromTransforms(transforms: Seq[TransformResult[_]], gEpoch: Long, block: Long): Seq[StateHistory] = {
       val histories = transforms.map{
         t =>
-          val poolTag = t.nextState.poolTag
-          val box = t.nextState.box.getId.toString
-          val tx = t.id
-          val commandBox = t.commandState.box.getId.toString
-          val command = t.command.toString
-          val step = t.step
-          val digest = t.manifest.map(_.digestString).getOrElse("none")
-          val manifest = t.manifest.map(_.manifestString).getOrElse("none")
-          val subTrees = t.manifest.map(_.subtreeStrings).getOrElse(Seq("none", "none", "none", "none"))
-
-          StateHistory(poolTag, gEpoch, box, tx, commandBox, command, PoolState.SUCCESS, step, digest, manifest,
-            subTrees.applyOrElse(0, (a: Int) => "none"), subTrees.applyOrElse(1, (a: Int) => "none"),
-            subTrees.applyOrElse(2, (a: Int) => "none"), subTrees.applyOrElse(3, (a: Int) => "none"),
-            block, LocalDateTime.now(), LocalDateTime.now())
+          makeHistory(t, gEpoch, block)
       }
       histories
+    }
+
+    def makeHistory(t: TransformResult[_], gEpoch: Long, block: Long) = {
+      val poolTag = t.nextState.poolTag
+      val box = t.nextState.box.getId.toString
+      val tx = t.id
+      val commandBox = t.commandState.box.getId.toString
+      val command = t.command.toString
+      val step = t.step
+      val digest = t.manifest.map(_.digestString).getOrElse("none")
+      val manifest = t.manifest.map(_.manifestString).getOrElse("none")
+      val subTrees = t.manifest.map(_.subtreeStrings).getOrElse(Seq("none", "none", "none", "none"))
+
+      StateHistory(poolTag, gEpoch, box, tx, commandBox, command, PoolState.SUCCESS, step, digest, manifest,
+        subTrees.applyOrElse(0, (a: Int) => "none"), subTrees.applyOrElse(1, (a: Int) => "none"),
+        subTrees.applyOrElse(2, (a: Int) => "none"), subTrees.applyOrElse(3, (a: Int) => "none"),
+        block, LocalDateTime.now(), LocalDateTime.now())
     }
 
   }
