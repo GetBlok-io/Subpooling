@@ -13,8 +13,10 @@ import states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransf
 import io.getblok.subpooling_core.plasma.StateConversions.dualBalanceConversion
 import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform}
 import io.getblok.subpooling_core.states.transforms.dual.{DualPayoutTransform, DualSetupTransform, DualUpdateTransform}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, ErgoId, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
+import special.sigma.AvlTree
 
 import java.time.LocalDateTime
 import scala.collection.mutable.ArrayBuffer
@@ -61,6 +63,8 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
 
   override def sendTransactions: Seq[Try[TransformResult[DualBalance]]] = {
     transformResults = transformer.execute()
+    logger.info("=========================================================")
+    logger.info(s"FINAL PERSISTENT DIGEST: ${balanceState.map.toString()}")
     transformResults
   }
 
@@ -107,10 +111,13 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
   }
 
   override def setup(): Unit = {
-    logger.info("Now setting up payout group")
-
+    logger.info("Now setting up dual payout group")
+    logger.info(s"Current digest: ${balanceState.map.toString}")
+    require(Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
+      s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
     balanceState.map.initiate()
-    logger.info("Initiated ProxyMap!")
+    logger.info("Balance state initiated!")
+
     val setupTransform = DualSetupTransform(ctx, wallet, setupState, holdingBox, MINER_BATCH_SIZE)
     transformer.apply(setupTransform)
     commandQueue = setupTransform.commandQueue
@@ -118,8 +125,13 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
   }
 
   def getMembers: Seq[PoolMember] = {
+    val noState = balanceState.map.getTempMap.isEmpty
+    if(noState)
+      balanceState.map.initiate()
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
 
+    if(noState)
+      balanceState.map.dropChanges()
     val updatedBalances = lookupMiners.map{
       m =>
         if(m._2.tryOp.get.get.balance == 0L && m._1.amountAdded > 0)
@@ -141,7 +153,14 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
   }
 
   def getPoolBalanceStates: Seq[PoolBalanceState] = {
+    val noState = balanceState.map.getTempMap.isEmpty
+    if(noState)
+      balanceState.map.initiate()
+
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
+
+    if(noState)
+      balanceState.map.dropChanges()
 
     val updatedBalances = lookupMiners.map{
       m =>

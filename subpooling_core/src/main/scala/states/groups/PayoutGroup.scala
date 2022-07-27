@@ -12,7 +12,7 @@ import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, Pla
 import io.getblok.subpooling_core.states.transforms.InsertTransform
 import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
 import io.getblok.subpooling_core.states.models.{CommandBatch, CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
-import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}

@@ -14,7 +14,8 @@ import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, Transac
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, SingleBalance, StateBalance}
 import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock, StateHistory}
 import models.ResponseModels.writesChangeKeys
@@ -165,7 +166,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def initBackup() = {
     new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
-    val balanceState = new BalanceState("backup")
+    val balanceState = new BalanceState[SingleBalance]("backup")
 
     syncState(balanceState).map {
       _ =>
@@ -175,11 +176,12 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def syncState(balanceState: BalanceState) = {
+  def syncState(balanceState: BalanceState[SingleBalance]) = {
 
     logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
 
-    val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result) // TODO: Make this per pool
+    val fStateHistory = db.run(Tables.StateHistoryTables.filter(_.poolTag === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
+      .sortBy(_.created).result) // TODO: Make this per pool
     fStateHistory.map{
       stateHistory =>
         balanceState.map.initiate()
@@ -218,24 +220,24 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def performCommand(balanceState: BalanceState, commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
+  def performCommand(balanceState: BalanceState[SingleBalance], commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
     command match{
       case "INSERT" =>
         val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
         val updates = keys.map{
           k =>
-            k -> StateBalance(0L)
+            k -> SingleBalance(0L)
         }
         balanceState.map.insert(updates: _*)
       case "UPDATE" =>
         val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
-        val additions = commandBytes.map(_._2).map(Longs.fromByteArray).map(StateBalance.apply)
+        val additions = commandBytes.map(_._2).map(Longs.fromByteArray).map(SingleBalance.apply)
         val lookup    = balanceState.map.lookUp(keys:_*)
 
         val updates = lookup.response.indices.map{
           idx =>
             val currBalance = lookup.response(idx).tryOp.get.get
-            val nextBalance = StateBalance(additions(idx).balance + currBalance.balance)
+            val nextBalance = SingleBalance(additions(idx).balance + currBalance.balance)
 
             val key = keys(idx)
 
@@ -247,7 +249,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
         val updates = keys.map{
           k =>
-            k -> StateBalance(0L)
+            k -> SingleBalance(0L)
         }
         balanceState.map.update(updates: _*)
     }

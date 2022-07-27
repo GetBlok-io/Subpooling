@@ -105,7 +105,14 @@ object StatsRecorder {
       val paymentInserts = Tables.Payments ++= payments
       val changeInserts = Tables.BalanceChanges ++= balanceChanges
 
-      balancesToUpdate.map(db.run)
+      balancesToUpdate.map{
+        bU =>
+          db.run(bU).recoverWith{
+            case e: Exception =>
+              logger.error("Fatal error while updating info!", e)
+              Future(Failure(e))
+          }
+      }
       logger.info("Sending writes...")
       val payR = db.run(paymentInserts)
       val changeR = db.run(changeInserts)
@@ -126,6 +133,45 @@ object StatsRecorder {
         Failure(ex)
     }
     logger.info("Payment insertions complete")
+
+    Try {
+      // Update pool info
+
+      db.run(
+        Tables.PoolInfoTable
+          .filter(_.poolTag === info.poolTag)
+          .map(i => (i.gEpoch, i.lastBlock, i.totalMembers, i.valueLocked, i.totalPaid))
+          .update((block.gEpoch, block.blockheight, members.length, members.map(_.stored).sum,
+            (info.total_paid + members.map(_.paid).sum))
+          )
+      ).recoverWith{
+        case e: Exception =>
+          logger.error("Fatal error while updating info!", e)
+          Future(Failure(e))
+      }
+
+
+    }.recoverWith{
+      case ex: Exception =>
+        logger.error("There was a fatal exception while updating info and deleting placements!", ex)
+        Failure(ex)
+    }
+
+    Try{
+      logger.info("Now deleting placements")
+      db.run(Tables.PoolPlacementsTable.filter(_.subpool === info.poolTag).filter(_.block === block.blockheight).delete)
+        .recoverWith{
+          case e: Exception =>
+            logger.error("Fatal error while deleting placements!", e)
+            Future(Failure(e))
+        }
+      logger.info("Finished deleting placements")
+    }.recoverWith{
+      case ex: Exception =>
+        logger.error("There was a fatal exception while deleting placements!", ex)
+        Failure(ex)
+    }
+
     Try {
       val shareDeletes = Tables.PoolSharesTable.filter(_.created < LocalDateTime.now().minusWeeks(params.keepSharesWindowInWeeks))
       val statsDeletes = Tables.MinerStats.filter(_.created < LocalDateTime.now().minusWeeks(params.keepMinerStatsWindowInWeeks))
@@ -146,25 +192,6 @@ object StatsRecorder {
         Failure(ex)
     }
     logger.info("Table pruning complete")
-    Try {
-      // Update pool info
-
-      db.run(
-        Tables.PoolInfoTable
-          .filter(_.poolTag === info.poolTag)
-          .map(i => (i.gEpoch, i.lastBlock, i.totalMembers, i.valueLocked, i.totalPaid))
-          .update((block.gEpoch, block.blockheight, members.length, members.map(_.stored).sum,
-            (info.total_paid + members.map(_.paid).sum))
-          )
-      )
-
-      db.run(Tables.PoolPlacementsTable.filter(_.subpool === info.poolTag).filter(_.block === block.blockheight).delete)
-      logger.info("Finished updating info and deleting placements")
-    }.recoverWith{
-      case ex: Exception =>
-        logger.error("There was a fatal exception while updating info and deleting placements!", ex)
-        Failure(ex)
-    }
     Try(logger.info("Pool data updates complete"))
   }
 
