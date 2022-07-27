@@ -113,8 +113,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
           val outputs = db.run(Tables.NodeOutputsTable
             .filter(_.txId === "d26fbc5c9b72bc6a4208a7b32acf604af85230b9da45bfb00cb317081aae7788")
-            .filterNot(_.address === "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
-            .filterNot(_.address === "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
+            .filter(_.address =!= "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
+            .filter(_.address =!= "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
             .result
             )
 
