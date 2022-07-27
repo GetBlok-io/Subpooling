@@ -4,7 +4,7 @@ import models.DatabaseModels.{NodeInput, NodeOutput}
 import slick.jdbc.PostgresProfile.api._
 import slick.lifted.Tag
 
-class NodeOutputsTable(tag: Tag) extends Table[NodeOutput](tag, "node_inputs") {
+class NodeOutputsTable(tag: Tag) extends Table[NodeOutput](tag, "node_outputs") {
   def boxId         = column[String]("box_id", O.PrimaryKey)
   def txId          = column[String]("tx_id", O.PrimaryKey)
   def headerId      = column[String]("header_id", O.PrimaryKey)
