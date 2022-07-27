@@ -63,7 +63,16 @@ class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boo
           logger.info(s"Transaction with id ${s} was successfully sent!")
           versionStack.push(tResult.nextState.digest)
           logger.info(s"Current local digest: ${currentState.balanceState.map.toString}")
-          currentState.balanceState.map.commitNextOperation()
+
+          if(tResult.command != CommandTypes.SETUP) {
+            logger.info("Now committing next operation")
+            Try(currentState.balanceState.map.commitNextOperation()).recoverWith {
+              case e: Exception =>
+                logger.error("Could not commit next operation!", e)
+                Failure(e)
+            }
+          }
+
           logger.info(s"Next local digest: ${currentState.balanceState.map.toString}")
           logger.info("Successfully committed operation to local map!")
           Success(tResult)

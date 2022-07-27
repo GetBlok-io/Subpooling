@@ -104,7 +104,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          initBackup()
+          regenHistory()
 
         }
     })(contexts.taskContext)
@@ -113,6 +113,53 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   case class ContextExtension(extZero: String)
   def parseExtension(json: String) = {
     ContextExtension(json.split(":")(1).split("\"")(1))
+  }
+
+
+  def regenHistory() = {
+    val poolTag = "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80"
+    val gEpoch = 26L
+    val success = "success"
+    val time = LocalDateTime.now()
+    val none = "none"
+    val block = 802100L
+    val history = Seq(
+      StateHistory(poolTag, gEpoch, "af86854bb1458c8df338d35aad8448a89cae7884291f38ec0f9ea1c90e631ab9",
+        "935a348cc48825a864ced3823febb19b0364a63e5ed0d97ce0ca783e6b17313d", "af86854bb1458c8df338d35aad8448a89cae7884291f38ec0f9ea1c90e631ab9",
+        "SETUP", success, -1, "7203172573f4cdef6603761e5742e0fcc3c18db8300fde74c52806c005f3202809", none, none, none, none, none,
+        block, time, time),
+      StateHistory(poolTag, gEpoch, "644e3def5f5da0a68f9447f7ed7c8d0d6864da5c8c05a79a15bf208756a71240",
+        "6e84bae64336d54428482239dc504bd8229d64258e2f391c1b2516e9d7f0a849", "b65c0979f692af25c753359fdce31fae1e970ea154c5ce005eebde5c8cc5ba80",
+        "UPDATE", success, 0, "9f372812c8d1a3f8ce74d30af3a7ea55d39c6526e1d095111452a99ee97af59109", none, none, none, none, none,
+        block, time, time),
+      StateHistory(poolTag, gEpoch, "4a81f844023b82333371904e365510c89571cd36892a06852b5fd7523565e245",
+        "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", "f49c12ad2adb5c1b160a726e28c0772122afc03d834cee12930f4900868f2749",
+        "PAYOUT", success, 1, "adfb447e6608055e34ebb5fbf8f22f38b35b58770973ea62eaa9d312ebbd352209", none, none, none, none, none,
+        block, time, time)
+    )
+    db.run(Tables.StateHistoryTables ++= history)
+    db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block).map(_.status).update(PoolBlock.PAID))
+    db.run(Tables.PoolInfoTable.filter(_.poolTag === poolTag).map(i => i.gEpoch -> i.updated)
+      .update(gEpoch -> LocalDateTime.now()))
+    db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map{
+      s => (s.tx, s.epoch, s.height, s.status, s.block, s.updated)
+    }.update("7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", gEpoch, 802418L, "confirmed", block, LocalDateTime.now()))
+
+    val outputs = db.run(Tables.NodeOutputsTable
+      .filter(_.txId === "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b")
+      .filterNot(_.address === "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
+      .filterNot(_.address === "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
+      .result
+    )
+    outputs.map{
+      outs =>
+        val payments = outs.map{
+          o =>
+            Payment(poolTag, o.address, "ERG", Helpers.convertFromWhole("ERG", o.value),
+              o.txId, None, LocalDateTime.now(), block, gEpoch)
+        }
+        db.run(Tables.Payments ++= payments)
+    }
   }
 
   def initBackup() = {
