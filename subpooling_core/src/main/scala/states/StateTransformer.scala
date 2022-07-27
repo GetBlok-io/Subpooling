@@ -41,6 +41,7 @@ class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boo
       logger.error(s"Exception occurred due to: ", transform.failed.get)
       logger.error(s"Now rolling back to initial state digest")
       revert()
+      txQueue.dequeueAll(t => true)
       throw new StateTransformationException
     }
 
@@ -61,7 +62,9 @@ class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boo
 
           logger.info(s"Transaction with id ${s} was successfully sent!")
           versionStack.push(tResult.nextState.digest)
+          logger.info(s"Current local digest: ${currentState.balanceState.toString}")
           currentState.balanceState.map.commitNextOperation()
+          logger.info(s"Next local digest: ${currentState.balanceState.toString}")
           logger.info("Successfully committed operation to local map!")
           Success(tResult)
 

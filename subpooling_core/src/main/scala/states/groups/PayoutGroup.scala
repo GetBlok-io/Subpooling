@@ -9,8 +9,10 @@ import io.getblok.subpooling_core.states.groups.PayoutGroup.GroupInfo
 import io.getblok.subpooling_core.states.models.CommandTypes.{Command, INSERT, PAYOUT, UPDATE}
 import io.getblok.subpooling_core.states.models.{CommandBatch, CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
 import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
+import special.sigma.AvlTree
 
 import java.time.LocalDateTime
 import scala.collection.mutable.ArrayBuffer
@@ -55,7 +57,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def sendTransactions: Seq[Try[TransformResult]] = {
     transformResults = transformer.execute()
-    balanceState.map.dropChanges()
+
     transformResults
   }
 
@@ -89,7 +91,8 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
-
+    require(Hex.toHexString(currentState.box.getRegisters.get(0).asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
+    s"${Hex.toHexString(currentState.box.getRegisters.get(0).asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
     balanceState.map.initiate()
     logger.info("Balance state initiated!")
 
@@ -106,7 +109,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
 
     if(noState)
-      balanceState.map.dropChanges()
+      balanceState.map.commitChanges()
     val updatedBalances = lookupMiners.map{
       m =>
         if(m._2.tryOp.get.get.balance == 0L && m._1.amountAdded > 0)
@@ -205,6 +208,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     for(ti <- infoBuffer){
       logger.info(ti.toString)
     }
+    logger.info(s"FINAL PERSISTENT DIGEST: ${balanceState.map.toString()}")
   }
 }
 

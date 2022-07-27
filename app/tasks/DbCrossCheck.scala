@@ -104,11 +104,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolStatesTable
-            .filter(_.subpool === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
-            .map(_.box)
-            .update("20593bdda485b222c4552dd0b2778d4ce4e76e82545f3e845eda04a74501e9d8")
-          )
+          initBackup()
         }
     })(contexts.taskContext)
   }
@@ -123,7 +119,10 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     val balanceState = new BalanceState("backup")
 
     syncState(balanceState).map {
-      _ => balanceState.map.commitChanges()
+      _ =>
+        logger.info(s"Old state digest: ${balanceState.map.toString()}")
+        balanceState.map.commitChanges()
+        logger.info(s"New state digest: ${balanceState.map.toString()}")
     }
   }
 
