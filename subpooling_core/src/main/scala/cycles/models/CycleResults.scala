@@ -5,6 +5,7 @@ import persistence.models.PersistenceModels.PoolPlacement
 
 import org.ergoplatform.appkit.{ErgoId, InputBox, SignedTransaction}
 
-case class CycleResults(nextCycleBox: InputBox, tx: SignedTransaction, emissionResults: EmissionResults) {
+case class CycleResults(nextCycleBox: InputBox, nextHoldingBox: InputBox, emTx: SignedTransaction, setupTx: SignedTransaction,
+                        emissionResults: EmissionResults, amountLeft: Long) {
 
 }

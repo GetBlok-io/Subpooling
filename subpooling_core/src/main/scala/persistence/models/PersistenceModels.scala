@@ -159,7 +159,7 @@ object PersistenceModels {
 
   case class PoolPlacement(subpool: String, subpool_id: Long, block: Long, holding_id: String, holding_val: Long,
                            miner: String, score: Long, minpay: Long, epochs_mined: Long, amount: Long,
-                           epoch: Long, g_epoch: Long){
+                           epoch: Long, g_epoch: Long, amountTwo: Option[Long] = None){
     /**
      * Converts placement into partially loaded member
      * @return Member with score, minpay, and epochs mined, but empty stored value and miner tag
@@ -171,7 +171,8 @@ object PersistenceModels {
   }
 
   object PoolPlacement extends DatabaseConversion[PoolPlacement]
-    with Function12[String, Long, Long, String, Long, String, Long, Long, Long, Long, Long, Long, PoolPlacement] {
+    with Function13[String, Long, Long, String, Long, String, Long, Long, Long, Long, Long, Long,
+      Option[Long], PoolPlacement] {
     override def fromResultSet(rs: ResultSet): PoolPlacement = {
       implicit val resultSet: ResultSet = rs
       PoolPlacement(str(1), long(2), long(3), str(4), long(5), str(6), long(7),

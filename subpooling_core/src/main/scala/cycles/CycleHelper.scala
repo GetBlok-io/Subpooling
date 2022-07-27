@@ -9,9 +9,14 @@ import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 object CycleHelper {
 
-  def reArrange(ctx: BlockchainContext, wallet: NodeWallet, boxes: Seq[InputBox], amount: Long): (InputBox, SignedTransaction) = {
+  def reArrange(ctx: BlockchainContext, wallet: NodeWallet, boxes: Seq[InputBox], amount: Long, amountTwo: Long): (Seq[InputBox], SignedTransaction) = {
     val outBox = ctx.newTxBuilder().outBoxBuilder()
       .value(amount)
+      .contract(wallet.contract)
+      .build()
+
+    val outBoxTwo = ctx.newTxBuilder().outBoxBuilder()
+      .value(amountTwo)
       .contract(wallet.contract)
       .build()
 
@@ -21,7 +26,7 @@ object CycleHelper {
       if(eip27.optToBurn.isDefined){
         ctx.newTxBuilder()
           .boxesToSpend(boxes.asJava)
-          .outputs((Seq(outBox) ++ eip27.p2reem): _*)
+          .outputs((Seq(outBox, outBoxTwo) ++ eip27.p2reem): _*)
           .fee(Helpers.MinFee)
           .sendChangeTo(wallet.p2pk.getErgoAddress)
           .tokensToBurn(eip27.optToBurn.get)
@@ -29,7 +34,7 @@ object CycleHelper {
       }else{
         ctx.newTxBuilder()
           .boxesToSpend(boxes.asJava)
-          .outputs(outBox)
+          .outputs(outBox, outBoxTwo)
           .fee(Helpers.MinFee)
           .sendChangeTo(wallet.p2pk.getErgoAddress)
           .build()
@@ -37,8 +42,8 @@ object CycleHelper {
     }
 
     val signed = wallet.prover.sign(uTx)
-    val nextInput = signed.getOutputsToSpend.get(0)
+    val nextInputs = Seq(signed.getOutputsToSpend.get(0), signed.getOutputsToSpend.get(1))
 
-    nextInput -> signed
+    nextInputs -> signed
   }
 }

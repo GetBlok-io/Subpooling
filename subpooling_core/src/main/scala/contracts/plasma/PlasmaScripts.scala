@@ -23,8 +23,10 @@ object PlasmaScripts {
   // Script constants
   val BALANCE_STATE_SCRIPT: String = makeScript("BalanceState")
 
+  // Emission Scripts
   val HYBRID_DEX_SCRIPT:    String = makeScript("HybridExchangedEmissions")
 
+  // Command Scripts
   val SINGLE_INSERT_SCRIPT: String = makeScript("InsertBalance")
   val SINGLE_UPDATE_SCRIPT: String = makeScript("UpdateBalance")
   val SINGLE_PAYOUT_SCRIPT: String = makeScript("PayoutBalance")
@@ -34,4 +36,7 @@ object PlasmaScripts {
   val HYBRID_UPDATE_SCRIPT: String = makeScript("DualUpdateBalance")
   val HYBRID_PAYOUT_SCRIPT: String = makeScript("DualPayoutBalance")
   val HYBRID_DELETE_SCRIPT: String = makeScript("DualDeleteBalance")
+
+  // Holding Scripts
+  val HOLDING_SCRIPT:       String = makeScript("PlasmaHolding")
 }
