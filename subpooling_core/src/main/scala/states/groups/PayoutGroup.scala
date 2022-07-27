@@ -57,7 +57,8 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def sendTransactions: Seq[Try[TransformResult]] = {
     transformResults = transformer.execute()
-
+    logger.info("=========================================================")
+    logger.info(s"FINAL PERSISTENT DIGEST: ${balanceState.map.toString()}")
     transformResults
   }
 
@@ -208,7 +209,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     for(ti <- infoBuffer){
       logger.info(ti.toString)
     }
-    logger.info(s"FINAL PERSISTENT DIGEST: ${balanceState.map.toString()}")
+
   }
 }
 

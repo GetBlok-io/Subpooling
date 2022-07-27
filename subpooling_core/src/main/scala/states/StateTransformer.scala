@@ -62,9 +62,9 @@ class StateTransformer(ctx: BlockchainContext, initState: State, applySetup: Boo
 
           logger.info(s"Transaction with id ${s} was successfully sent!")
           versionStack.push(tResult.nextState.digest)
-          logger.info(s"Current local digest: ${currentState.balanceState.toString}")
+          logger.info(s"Current local digest: ${currentState.balanceState.map.toString}")
           currentState.balanceState.map.commitNextOperation()
-          logger.info(s"Next local digest: ${currentState.balanceState.toString}")
+          logger.info(s"Next local digest: ${currentState.balanceState.map.toString}")
           logger.info("Successfully committed operation to local map!")
           Success(tResult)
 
