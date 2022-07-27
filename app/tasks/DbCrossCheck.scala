@@ -104,34 +104,11 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          val poolTag = "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80"
-          val gEpoch = 24L
-          val success = "success"
-          val time = LocalDateTime.now()
-          val none = "none"
-          val block = 801996L
-
-          val outputs = db.run(Tables.NodeOutputsTable
-            .filter(_.txId === "d26fbc5c9b72bc6a4208a7b32acf604af85230b9da45bfb00cb317081aae7788")
-            .filter(_.address =!= "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
-            .filter(_.address =!= "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
-            .result
-            )
-
-          outputs.onComplete{
-            case Success(outs) =>
-              logger.info(s"Got ${outs.size} outputs for tx d26fbc5c9b72bc6a4208a7b32acf604af85230b9da45bfb00cb317081aae7788")
-
-              val payments = outs.map{
-                o =>
-                  Payment(poolTag, o.address, "ERG", Helpers.convertFromWhole("ERG", o.value),
-                    o.txId, None, LocalDateTime.now(), block, gEpoch)
-              }
-              db.run(Tables.Payments ++= payments)
-            case Failure(e) =>
-              logger.error("Failure while getting outputs", e)
-          }
-
+          db.run(Tables.PoolStatesTable
+            .filter(_.subpool === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
+            .map(_.box)
+            .update("20593bdda485b222c4552dd0b2778d4ce4e76e82545f3e845eda04a74501e9d8")
+          )
         }
     })(contexts.taskContext)
   }
