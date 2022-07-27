@@ -91,8 +91,8 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
-    require(Hex.toHexString(currentState.box.getRegisters.get(0).asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
-    s"${Hex.toHexString(currentState.box.getRegisters.get(0).asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
+    require(Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
+    s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
     balanceState.map.initiate()
     logger.info("Balance state initiated!")
 
@@ -109,7 +109,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
 
     if(noState)
-      balanceState.map.commitChanges()
+      balanceState.map.dropChanges()
     val updatedBalances = lookupMiners.map{
       m =>
         if(m._2.tryOp.get.get.balance == 0L && m._1.amountAdded > 0)
