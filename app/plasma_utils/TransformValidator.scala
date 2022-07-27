@@ -56,7 +56,7 @@ class TransformValidator(expReq: ActorRef, contexts: Contexts, params: ParamsCon
           }
         }
         val poolState = db.run(Tables.PoolStatesTable.filter(_.subpool === poolBlock._1).result.head)
-        poolState.map(s => validateTransform(blocks, s))
+        poolState.map(s => validateTransform(blocksToUse, s))
       }
     }
   }
