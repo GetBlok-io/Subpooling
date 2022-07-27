@@ -4,6 +4,7 @@ package states
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.plasma.StateBalance
 import io.getblok.subpooling_core.states.models.{SingleState, State, StateTransition, TransformResult}
+import io.getblok.subpooling_core.states.models.{CommandTypes, State, StateTransition, TransformResult}
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, SignedTransaction}
 import org.slf4j.{Logger, LoggerFactory}
@@ -13,7 +14,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 
-class StateTransformer[T <: StateBalance](ctx: BlockchainContext, initState: State[T]) {
+class StateTransformer[T <: StateBalance](ctx: BlockchainContext, initState: State[T], applySetup: Boolean = true) {
   val txQueue: mutable.Queue[TransformResult[T]] = mutable.Queue.empty[TransformResult[T]]
   var currentState: State[T] = initState
   val initDigest: ADDigest = initState.digest
@@ -26,16 +27,23 @@ class StateTransformer[T <: StateBalance](ctx: BlockchainContext, initState: Sta
     if(transform.isSuccess){
       logger.info(s"Transformation was successful with id ${transform.get.transaction.getId}")
 
-      logger.info("Now adding to transaction queue and updating current state")
+      if(transform.get.command == CommandTypes.SETUP && !applySetup){
+        logger.info("Not applying setup due to existing command batch!")
+        currentState = transform.get.nextState
+        transform.get
+      }else {
+        logger.info("Now adding to transaction queue and updating current state")
 
-      txQueue.enqueue(transform.get)
-      currentState = transform.get.nextState
-      transform.get
+        txQueue.enqueue(transform.get)
+        currentState = transform.get.nextState
+        transform.get
+      }
     }else{
       logger.error("A state transformation failed!")
       logger.error(s"Exception occurred due to: ", transform.failed.get)
       logger.error(s"Now rolling back to initial state digest")
       revert()
+      txQueue.dequeueAll(t => true)
       throw new StateTransformationException
     }
 
@@ -50,13 +58,25 @@ class StateTransformer[T <: StateBalance](ctx: BlockchainContext, initState: Sta
       tResult =>
         logger.info(s"Now sending transaction ${tResult.transaction.getId}")
         val s = Try(ctx.sendTransaction(tResult.transaction))
-        Thread.sleep(500)
+        Thread.sleep(1500)
 
         if(!rolledBack && s.isSuccess) {
 
           logger.info(s"Transaction with id ${s} was successfully sent!")
           versionStack.push(tResult.nextState.digest)
-          currentState.balanceState.map.commitNextOperation()
+          logger.info(s"Current local digest: ${currentState.balanceState.map.toString}")
+
+          if(tResult.command != CommandTypes.SETUP) {
+            logger.info("Now committing next operation")
+            Try(currentState.balanceState.map.commitNextOperation()).recoverWith {
+              case e: Exception =>
+                logger.error("Could not commit next operation!", e)
+                Failure(e)
+            }
+          }
+
+          logger.info(s"Next local digest: ${currentState.balanceState.map.toString}")
+          logger.info("Successfully committed operation to local map!")
           Success(tResult)
 
         } else {
@@ -78,11 +98,11 @@ class StateTransformer[T <: StateBalance](ctx: BlockchainContext, initState: Sta
 
   def revert(version: Option[ADDigest] = None): Unit = {
 
+    logger.info(s"Now reverting back to local digest ${currentState.balanceState.map.toString()}")
+    logger.info(s"Digest in temp map: ${currentState.balanceState.map.getTempMap.get.toString()}")
+    logger.info(s"Digest passed: ${version.map(Hex.toHexString).getOrElse(Hex.toHexString(currentState.digest))}")
+    logger.info(s"Init Digest: ${Hex.toHexString(initDigest)}")
     currentState.balanceState.map.dropChanges()
-
-    logger.info("Successfully dropped uncommitted changes")
-    logger.info(s"Digest to revert to: ${Hex.toHexString(version.getOrElse(initDigest))}")
-    logger.info(s"Current digest: ${currentState.balanceState.map.toString()}")
-
+    logger.info("Un-committed transforms successfully dropped!")
   }
 }

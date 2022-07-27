@@ -8,7 +8,10 @@ import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.groups.entities.{Member, Pool}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import io.getblok.subpooling_core.registers.MemberInfo
+import okhttp3.OkHttpClient
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, InputBox, NetworkType, Parameters, RestApiErgoClient}
+
+import java.util.concurrent.TimeUnit
 
 object MockData {
   val mockAddressStrings: Array[String] = Array(
@@ -29,8 +32,9 @@ object MockData {
 
   val mockAddresses: Array[Address] = mockAddressStrings.map(Address.create)
 
-
-  val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
+  val builder = new OkHttpClient().newBuilder().callTimeout(60, TimeUnit.SECONDS)
+  val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder("http://188.34.207.91:9053/",
+    NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl, builder)
   val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"

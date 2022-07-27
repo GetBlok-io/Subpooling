@@ -151,7 +151,7 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
         orderedNoEffort.take(2).foreach{
           block =>
             if(block.gEpoch != 1){
-              val lastBlock = ordered.find(b => b.gEpoch == block.gEpoch - 1).get
+              val lastBlock = ordered( ordered.indexWhere(b => b.poolTag == block.poolTag && b.blockheight == block.blockheight) - 1)
               val start = lastBlock.created
               val end = block.created
               logger.info(s"Querying miners for pool ${block.poolTag}")

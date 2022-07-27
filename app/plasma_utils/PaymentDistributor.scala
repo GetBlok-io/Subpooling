@@ -24,7 +24,7 @@ import plasma_utils.payments.PaymentRouter
 import plasma_utils.stats.StatsRecorder
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader
-import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection}
+import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection, PLASMA_BATCH_SIZE}
 
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
@@ -50,7 +50,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
     val plasmaBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = true)
     if(plasmaBlocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true)
+      val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true, isPlasma = true)
       val inputBoxes = collectInputs(selectedBlocks)
       val collectedComponents = constructStateGroup(selectedBlocks, inputBoxes)
 
@@ -143,10 +143,10 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
           db.run(Tables.PoolBlocksTable
             .filter(b => b.poolTag === poolTag)
-            .filter(b => b.gEpoch >= gEpoch && b.gEpoch < gEpoch + ConcurrentBoxLoader.BLOCK_BATCH_SIZE)
+            .filter(b => b.gEpoch >= gEpoch && b.gEpoch < gEpoch + ConcurrentBoxLoader.PLASMA_BATCH_SIZE)
             .map(b => b.status -> b.updated)
             .update(PoolBlock.INITIATED -> LocalDateTime.now()))
-          logger.info(s"Finished updating blocks ${dr.members.head.block} with epoch ${gEpoch} and its next 4 epochs for pool" +
+          logger.info(s"Finished updating blocks ${dr.members.head.block} with epoch ${gEpoch} and its next ${PLASMA_BATCH_SIZE - 1} epochs for pool" +
             s" ${poolTag} and status INITIATED")
 
           db.run(Tables.StateHistoryTables ++= Tables.StateHistoryTables.fromTransforms(transforms, gEpoch, members.head.block))

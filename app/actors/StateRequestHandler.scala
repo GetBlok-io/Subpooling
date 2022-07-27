@@ -121,7 +121,10 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
         PlasmaMiner(Address.create(p.miner), p.score, 0L, p.amount, p.minpay, sharePerc, shareNum, p.epochs_mined)
     }
     val balState = balanceState.asInstanceOf[BalanceState[SingleBalance]]
+
+    balanceState.map.initiate()
     val balances = partialPlasmaMiners zip balState.map.lookUp(partialPlasmaMiners.map(_.toStateMiner.toPartialStateMiner):_*).response
+    balanceState.map.dropChanges()
     val plasmaMiners = balances.map(b => b._1.copy(balance = b._2.tryOp.get.map(_.balance).getOrElse(0L)))
       .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
     plasmaMiners

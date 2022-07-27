@@ -6,14 +6,17 @@ import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation}
 import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
 import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
-import io.getblok.subpooling_core.states.models.PlasmaMiner
+import io.getblok.subpooling_core.states.models.{CommandBatch, PlasmaMiner}
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
+import org.slf4j.{Logger, LoggerFactory}
 import persistence.shares.ShareCollector
+import scorex.crypto.authds.ADDigest
 import utils.ConcurrentBoxLoader.BatchSelection
 
 object PaymentRouter {
-
+  private val logger: Logger = LoggerFactory.getLogger("PaymentRouter")
   def routeProcessor(info: PoolInformation, settings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection, reward: Long): PaymentProcessor = {
     info.currency match {
       case PoolInformation.CURR_ERG =>

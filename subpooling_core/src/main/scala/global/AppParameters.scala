@@ -17,6 +17,7 @@ object AppParameters {
     val contract: ErgoContract = pk.contract
 
     def boxes(ctx: BlockchainContext, amount: Long): Option[util.List[InputBox]] = {
+
       val dataSource = ctx.getDataSource.asInstanceOf[NodeAndExplorerDataSourceImpl]
       val response = dataSource.getNodeWalletApi.walletBoxes(0, 0).execute()
       val boxes = response.body().asScala.toSeq

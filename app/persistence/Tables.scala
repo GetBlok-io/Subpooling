@@ -122,4 +122,7 @@ object Tables {
 
   object PoolBlocksTable extends TableQuery(new PoolBlocksTable(_))
   object BlocksTable extends TableQuery(new BlocksTable(_))
+  object NodeAssetsTable extends TableQuery(new NodeAssetsTable(_))
+  object NodeInputsTable extends TableQuery(new NodeInputsTable(_))
+  object NodeOutputsTable extends TableQuery(new NodeOutputsTable(_))
 }

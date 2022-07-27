@@ -6,6 +6,7 @@ import actors.QuickDbReader.{PaidAtGEpoch, PlacementsByBlock, PoolBlocksByStatus
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.google.common.primitives.Longs
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
 import io.getblok.subpooling_core.boxes.MetadataInputBox
@@ -13,21 +14,27 @@ import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, Transac
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
+import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, StateBalance}
 import io.getblok.subpooling_core.registers.PropBytes
-import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock}
+import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock, StateHistory}
 import models.ResponseModels.writesChangeKeys
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, NetworkType}
+import org.bouncycastle.util.encoders.Hex
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, NetworkType}
 import persistence.Tables
 import plasma_utils.TransformValidator
 import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsResult, JsValue, Json, Reads}
 import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
+import scorex.crypto.authds.{ADKey, ADValue}
+import scorex.crypto.authds.avltree.batch.Insert
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
+import special.collection.Coll
 import utils.ConcurrentBoxLoader
 
+import java.io.File
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 import javax.inject.{Inject, Named, Singleton}
 import scala.collection.mutable.ArrayBuffer
@@ -97,11 +104,157 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 794335L).filter(_.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 794335L).filter(_.nonce === "afb9ef55c66f94b9").delete)
+          db.run(Tables.PoolStatesTable.filter(_.subpool === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
+          .map(_.box).update("4a81f844023b82333371904e365510c89571cd36892a06852b5fd7523565e245"))
+
         }
     })(contexts.taskContext)
   }
+
+  case class ContextExtension(extZero: String)
+  def parseExtension(json: String) = {
+    ContextExtension(json.split(":")(1).split("\"")(1))
+  }
+
+
+  def regenHistory() = {
+    val poolTag = "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80"
+    val gEpoch = 26L
+    val success = "success"
+    val time = LocalDateTime.now()
+    val none = "none"
+    val block = 802100L
+    val history = Seq(
+      StateHistory(poolTag, gEpoch, "af86854bb1458c8df338d35aad8448a89cae7884291f38ec0f9ea1c90e631ab9",
+        "935a348cc48825a864ced3823febb19b0364a63e5ed0d97ce0ca783e6b17313d", "af86854bb1458c8df338d35aad8448a89cae7884291f38ec0f9ea1c90e631ab9",
+        "SETUP", success, -1, "7203172573f4cdef6603761e5742e0fcc3c18db8300fde74c52806c005f3202809", none, none, none, none, none,
+        block, time, time),
+      StateHistory(poolTag, gEpoch, "644e3def5f5da0a68f9447f7ed7c8d0d6864da5c8c05a79a15bf208756a71240",
+        "6e84bae64336d54428482239dc504bd8229d64258e2f391c1b2516e9d7f0a849", "b65c0979f692af25c753359fdce31fae1e970ea154c5ce005eebde5c8cc5ba80",
+        "UPDATE", success, 0, "9f372812c8d1a3f8ce74d30af3a7ea55d39c6526e1d095111452a99ee97af59109", none, none, none, none, none,
+        block, time, time),
+      StateHistory(poolTag, gEpoch, "4a81f844023b82333371904e365510c89571cd36892a06852b5fd7523565e245",
+        "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", "f49c12ad2adb5c1b160a726e28c0772122afc03d834cee12930f4900868f2749",
+        "PAYOUT", success, 1, "adfb447e6608055e34ebb5fbf8f22f38b35b58770973ea62eaa9d312ebbd352209", none, none, none, none, none,
+        block, time, time)
+    )
+    db.run(Tables.StateHistoryTables ++= history)
+    db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block).map(_.status).update(PoolBlock.PAID))
+    db.run(Tables.PoolInfoTable.filter(_.poolTag === poolTag).map(i => i.gEpoch -> i.updated)
+      .update(gEpoch -> LocalDateTime.now()))
+    db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map{
+      s => (s.tx, s.epoch, s.height, s.status, s.block, s.updated)
+    }.update("7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", gEpoch, 802418L, "confirmed", block, LocalDateTime.now()))
+
+    val outputs = db.run(Tables.NodeOutputsTable
+      .filter(_.txId === "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b")
+      .filterNot(_.address === "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
+      .filterNot(_.address === "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
+      .result
+    )
+    outputs.map{
+      outs =>
+        val payments = outs.map{
+          o =>
+            Payment(poolTag, o.address, "ERG", Helpers.convertFromWhole("ERG", o.value),
+              o.txId, None, LocalDateTime.now(), block, gEpoch)
+        }
+        db.run(Tables.Payments ++= payments)
+    }
+  }
+
+  def initBackup() = {
+    new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
+    val balanceState = new BalanceState("backup")
+
+    syncState(balanceState).map {
+      _ =>
+        logger.info(s"Old state digest: ${balanceState.map.toString()}")
+        balanceState.map.commitChanges()
+        logger.info(s"New state digest: ${balanceState.map.toString()}")
+    }
+  }
+
+  def syncState(balanceState: BalanceState) = {
+
+    logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
+
+    val fStateHistory = db.run(Tables.StateHistoryTables.sortBy(_.created).result) // TODO: Make this per pool
+    fStateHistory.map{
+      stateHistory =>
+        balanceState.map.initiate()
+        val historyGrouped = stateHistory.groupBy(_.gEpoch).map(h => h._1 -> h._2.sortBy(sh => sh.step)).toArray.sortBy(_._1)
+
+
+        historyGrouped.foreach{
+          historyPair =>
+            val historySteps = historyPair._2
+            logger.info(s"Checking history steps for gEpoch ${historyPair._1}")
+            historySteps.foreach{
+              step =>
+                logger.info("Now parsing steps")
+                if(step.step != -1) {
+                  val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
+                  val ext = parseExtension(boxExtension)
+                  logger.info("Extension parsed successfully!")
+                  logger.info("Now parsing into ErgoValue")
+                  val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
+                  val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
+                  logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
+                    s"and expected digest ${step.digest}")
+                  val nextDigest = Try(performCommand(balanceState, asArr, step.command)).recoverWith{
+                    case e: Exception =>
+                      logger.error("There was a fatal error performing a command!", e)
+                      Failure(e)
+                  }
+                  logger.info(s"New digest after command: ${nextDigest}")
+                  logger.info(s"Expected digest after command ${step.digest}")
+                }else{
+                  logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
+                }
+              }
+
+        }
+    }
+  }
+
+  def performCommand(balanceState: BalanceState, commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
+    command match{
+      case "INSERT" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val updates = keys.map{
+          k =>
+            k -> StateBalance(0L)
+        }
+        balanceState.map.insert(updates: _*)
+      case "UPDATE" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val additions = commandBytes.map(_._2).map(Longs.fromByteArray).map(StateBalance.apply)
+        val lookup    = balanceState.map.lookUp(keys:_*)
+
+        val updates = lookup.response.indices.map{
+          idx =>
+            val currBalance = lookup.response(idx).tryOp.get.get
+            val nextBalance = StateBalance(additions(idx).balance + currBalance.balance)
+
+            val key = keys(idx)
+
+            key -> nextBalance
+        }
+        balanceState.map.update(updates: _*)
+
+      case "PAYOUT" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val updates = keys.map{
+          k =>
+            k -> StateBalance(0L)
+        }
+        balanceState.map.update(updates: _*)
+    }
+    balanceState.map.digestStrings._2.get
+  }
+
+
   def cleanDB = {
     db.run(Tables.PoolBlocksTable.filter(b => b.gEpoch === 16L && b.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").map(_.status).update(PoolBlock.PROCESSED))
     db.run(Tables.SubPoolMembers.filter(b => b.g_epoch === 16L && b.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").delete)

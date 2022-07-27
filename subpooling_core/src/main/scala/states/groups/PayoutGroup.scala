@@ -11,15 +11,20 @@ import io.getblok.subpooling_core.states.models.CommandTypes.{Command, INSERT, P
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, SingleState, TransformResult}
 import io.getblok.subpooling_core.states.transforms.InsertTransform
 import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
+import io.getblok.subpooling_core.states.models.{CommandBatch, CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
+import io.getblok.subpooling_core.states.transforms.{InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
+import special.sigma.AvlTree
 
 import java.time.LocalDateTime
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
-                  balanceState: BalanceState[SingleBalance], gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long)
+                  balanceState: BalanceState[SingleBalance], gEpoch: Long, block: Long, poolTag: String, fee: Long, reward: Long,
+                  commandBatch: Option[CommandBatch] = None)
                   extends StateGroup[SingleBalance] {
 
   val initState: SingleState = SingleState(poolBox, balanceState, inputBoxes)
@@ -58,6 +63,8 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
 
   override def sendTransactions: Seq[Try[TransformResult[SingleBalance]]] = {
     transformResults = transformer.execute()
+    logger.info("=========================================================")
+    logger.info(s"FINAL PERSISTENT DIGEST: ${balanceState.map.toString()}")
     transformResults
   }
 
@@ -95,19 +102,25 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
     logger.info(s"Current digest: ${balanceState.map.toString}")
-    logger.info("Initiating ProxyMap")
+    require(Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
+    s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
     balanceState.map.initiate()
-    logger.info(s"tempMap digest: ${balanceState.map.getTempMap.get.toString()}")
-    logger.info(s"toPlasmaMap digest: ${balanceState.map.toPlasmaMap.toString()}")
-    val setupTransform = SetupTransform(ctx, wallet, setupState, MINER_BATCH_SIZE, fee, reward)
+    logger.info("Balance state initiated!")
+
+    val setupTransform = SetupTransform(ctx, wallet, setupState, MINER_BATCH_SIZE, fee, reward, commandBatch)
     transformer.apply(setupTransform)
     commandQueue = setupTransform.commandQueue
     logger.info(s"Payout group setup with ${commandQueue.length} commands")
   }
 
   def getMembers: Seq[PoolMember] = {
+    val noState = balanceState.map.getTempMap.isEmpty
+    if(noState)
+      balanceState.map.initiate()
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
 
+    if(noState)
+      balanceState.map.dropChanges()
     val updatedBalances = lookupMiners.map{
       m =>
         if(m._2.tryOp.get.get.balance == 0L && m._1.amountAdded > 0)
@@ -129,7 +142,14 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
   }
 
   def getPoolBalanceStates: Seq[PoolBalanceState] = {
+    val noState = balanceState.map.getTempMap.isEmpty
+    if(noState)
+      balanceState.map.initiate()
+
     val lookupMiners = miners zip balanceState.map.lookUp(miners.map(_.toStateMiner.toPartialStateMiner): _*).response
+
+    if(noState)
+      balanceState.map.dropChanges()
 
     val updatedBalances = lookupMiners.map{
       m =>

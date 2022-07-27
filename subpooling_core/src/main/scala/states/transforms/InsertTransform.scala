@@ -40,9 +40,6 @@ case class InsertTransform[T <: StateBalance](override val ctx: BlockchainContex
       val nextState = state.copyState(_box = nextInputState)
       val logger = LoggerFactory.getLogger("InsertTransform")
 
-      logger.info(s"Current digest: ${state.balanceState.map.toString()}")
-      logger.info(s"Current digest: ${state.balanceState.map.toPlasmaMap.toString()}")
-      logger.info(s"Current digest: ${state.balanceState.map.getTempMap.get.toString()}")
       val manifest = state.balanceState.map.getTempMap.get.getManifest(255)
       TransformResult(nextState, signedTx, commandState.data, CommandTypes.INSERT, Some(manifest), commandState.index, commandState)
     }

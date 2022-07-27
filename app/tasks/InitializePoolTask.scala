@@ -192,6 +192,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       client.execute{
         ctx =>
           logger.info(s"Making Plasma Pool for pool with name ${template.title}")
+          Thread.sleep(100000)
           val tokenBox = makeTokenTx(1, template.tokenName, template.tokenDesc, 0, Helpers.MinFee * 2)
           val tokenId = tokenBox.getTokens.get(0).getId
           val file = new File(AppParameters.plasmaStoragePath + s"/${tokenId.toString}").mkdir()
@@ -240,7 +241,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       case PoolInformation.CURR_TEST_TOKENS =>
         EmissionsTransactions.makeTestTokenTx(tag)
       case PoolInformation.CURR_NETA =>
-        val emMintBox = makeTokenTx(1L, "Extended Phase 2 NETA Emission Box NFT", "Token representing the extension of the Phase 2 NETA Emission Box", 0, Helpers.MinFee*2)
+        val emMintBox = makeTokenTx(1L, "Last Extended Phase 2 NETA Emission Box NFT", "Token representing the last extension of the Phase 2 NETA Emission Box", 0, Helpers.MinFee*2)
         EmissionsTransactions.makeNetaEmissionTx(tag, emMintBox)
       case PoolInformation.CURR_ERG_COMET =>
         logger.info("Making emissions for COMET pool")
@@ -311,8 +312,8 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
             val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpNFT, template.distToken)
             logger.info("Emissions Contract generated")
             logger.info(s"EmEx address: ${emissionsContract.getAddress}")
-
-            val tokenInputs = ctx.getBoxesById("9afdb38cf71a3d361237b425a3677e6a3c7c52b748278027ba612250295a3e40")
+            //Thread.sleep(60000)
+            val tokenInputs = ctx.getBoxesById("a14940f6f7c1d459bee8e825bfbefebe35bba3655d9992f7a00ceb143ebef02c")
             val totalDistributionToken = tokenInputs.head.getTokens.get(0)
             logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
             logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
@@ -390,33 +391,38 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
   }
 
   def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long): InputBox = {
-    client.execute{
-      ctx =>
-        logger.info("Making token tx")
-        val inputBoxes     = wallet.boxes(ctx, outVal + Helpers.MinFee).get
-        logger.info("Found boxes for token")
-        val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
-        logger.info("Building token minting transaction")
-        val outBox = ctx.newTxBuilder().outBoxBuilder()
-          .value(outVal)
-          .tokens(newToken)
-          .contract(wallet.contract)
-          .registers(newToken.getMintingBoxR4, newToken.getMintingBoxR5, newToken.getMintingBoxR6)
-          .build()
-        val unsignedTx = ctx.newTxBuilder()
-          .boxesToSpend(inputBoxes)
-          .outputs(outBox)
-          .fee(Helpers.MinFee)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .build()
-        logger.info("Emissions NFT transaction built, now signing")
-        val signed = wallet.prover.sign(unsignedTx)
-        logger.info("Transaction signed, now sending.")
-        val txId = ctx.sendTransaction(signed)
-        logger.info("Now returning box as input")
-        outBox.convertToInputWith(txId.replace("\"", ""), 0)
-    }
-
+    Try {
+      client.execute {
+        ctx =>
+          logger.info("Making token tx")
+          val inputBoxes = wallet.boxes(ctx, outVal + Helpers.MinFee).get
+          logger.info("Found boxes for token")
+          val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
+          logger.info("Building token minting transaction")
+          val outBox = ctx.newTxBuilder().outBoxBuilder()
+            .value(outVal)
+            .tokens(newToken)
+            .contract(wallet.contract)
+            .registers(newToken.getMintingBoxR4, newToken.getMintingBoxR5, newToken.getMintingBoxR6)
+            .build()
+          val unsignedTx = ctx.newTxBuilder()
+            .boxesToSpend(inputBoxes)
+            .outputs(outBox)
+            .fee(Helpers.MinFee)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+          logger.info("Emissions NFT transaction built, now signing")
+          val signed = wallet.prover.sign(unsignedTx)
+          logger.info("Transaction signed, now sending.")
+          val txId = ctx.sendTransaction(signed)
+          logger.info("Now returning box as input")
+          outBox.convertToInputWith(txId.replace("\"", ""), 0)
+      }
+    }.recoverWith{
+      case e: Exception =>
+        logger.error("A fatal error occurred while making token tx", e)
+        Failure(e)
+    }.get
   }
 
 
