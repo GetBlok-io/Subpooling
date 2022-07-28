@@ -27,12 +27,12 @@
   val feeNum: Int                   = LPBox.R4[Int].get
   val realLPToken:   Coll[Byte]     = LPBox.tokens(0)._1
   val realDistToken: Coll[Byte]     = LPBox.tokens(2)._1
-  val assetX:  Long                 = LPBox.value
-  val assetY:  Long                 = LPBox.tokens(2)._2
+  val assetX:  BigInt               = LPBox.value.toBigInt
+  val assetY:  BigInt               = LPBox.tokens(2)._2.toBigInt
 
   val holdingBox: Box               = OUTPUTS(1)
 
-  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+  def isValueInRange(valuesPair: (BigInt, BigInt)): Boolean = {
     val expected = valuesPair._1
     val actual   = valuesPair._2
     val amountTop = (expected - actual) * 100L
@@ -53,12 +53,12 @@
   val rewardInERG:     Long   = rewardAfterFees - rewardToSimSwap
 
   // Perform simulated swap
-  val outputNum    = (assetY / 100) * ((rewardToSimSwap * feeNum) / 100)
+  val outputNum    = (assetY * rewardToSimSwap * feeNum)
 
   val maxAssetX    = (assetX + ((assetX * slippage) / 10000)) * 1000
   val adjustedFee  = rewardToSimSwap * feeNum
 
-  val outputDenom  = ((maxAssetX) + (((adjustedFee)) )) / 10000
+  val outputDenom  = (maxAssetX + adjustedFee)
 
   val outputAmount = (outputNum / outputDenom)
 
@@ -78,7 +78,7 @@
       OUTPUTS(0).propositionBytes == SELF.propositionBytes,
       OUTPUTS(0).tokens(0)._1 == emToken,
       OUTPUTS(0).tokens(1)._1 == distToken,
-      isValueInRange((OUTPUTS(0).tokens(1)._2, distTokenAmnt - adjustedOutput)),
+      isValueInRange((OUTPUTS(0).tokens(1)._2.toBigInt, (distTokenAmnt - adjustedOutput).toBigInt)),
       OUTPUTS(0).value         == SELF.value,
       OUTPUTS(0).R4[Long].get  == percentChange, // Cannot be changed, but kept on registers rather than constants for visibility / transparency
       OUTPUTS(0).R5[Long].get  <= 3000, // Share operator may take max fee of 3000 / 100000 or 3%, and may change every emission cycle
@@ -87,18 +87,18 @@
     ))
   }
 
-  val outputSwapped = isValueInRange((OUTPUTS(2).value, rewardToSimSwap)) && OUTPUTS(2).propositionBytes == poolOperator.propBytes
-
+  val outputSwapped = isValueInRange((OUTPUTS(2).value.toBigInt, rewardToSimSwap.toBigInt)) && OUTPUTS(2).propositionBytes == poolOperator.propBytes
+  val feeOutputExists = isValueInRange((OUTPUTS(3).value.toBigInt, (blockReward - rewardAfterFees).toBigInt))
   val holdingValid: Boolean = {
     allOf(Coll(
       holdingBox.tokens(0)._1 == distToken,
-      isValueInRange((holdingBox.tokens(0)._2, adjustedOutput)),
-      isValueInRange((holdingBox.value, rewardInERG)),
+      isValueInRange((holdingBox.tokens(0)._2.toBigInt, adjustedOutput.toBigInt)),
+      isValueInRange((holdingBox.value.toBigInt, rewardInERG.toBigInt)),
       holdingBytes == blake2b256( holdingBox.propositionBytes )
     ))
   }
 
-  sigmaProp(validLPBox && hasNextEmissions && holdingValid && outputSwapped) && shareOperator
+  sigmaProp(validLPBox && hasNextEmissions && holdingValid && outputSwapped && feeOutputExists) && shareOperator
 
 
 }

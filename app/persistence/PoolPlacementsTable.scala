@@ -19,7 +19,7 @@ class PoolPlacementsTable(tag: Tag) extends Table[PoolPlacement](tag, "subpool_p
   def amount        = column[Long]("amount")
   def epoch         = column[Long]("epoch")
   def gEpoch        = column[Long]("g_epoch")
-
+  def amountTwo     = column[Option[Long]]("amountTwo")
 
   def creator       = column[String]("creator")
 
@@ -27,5 +27,5 @@ class PoolPlacementsTable(tag: Tag) extends Table[PoolPlacement](tag, "subpool_p
   def created       = column[LocalDateTime]("created")
 
   def * =   (subpool, subpool_id, block, holdingId, holdingVal,
-    miner, score, minpay, epochsMined, amount, epoch, gEpoch) <> (PoolPlacement.tupled, PoolPlacement.unapply)
+    miner, score, minpay, epochsMined, amount, epoch, gEpoch, amountTwo) <> (PoolPlacement.tupled, PoolPlacement.unapply)
 }

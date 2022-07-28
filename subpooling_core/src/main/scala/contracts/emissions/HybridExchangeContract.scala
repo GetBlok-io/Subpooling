@@ -7,7 +7,7 @@ import global.AppParameters.PK
 import registers.{LongReg, PoolFees}
 
 import io.getblok.subpooling_core.contracts.Models.Scripts
-import io.getblok.subpooling_core.contracts.emissions.HybridExchangeContract.{HybridExchangeResults, getSwapAddress, simulateSwap}
+import io.getblok.subpooling_core.contracts.emissions.HybridExchangeContract.{HybridExchangeResults, calculateMinOutputAmount, getSwapAddress, simulateSwap}
 import io.getblok.subpooling_core.contracts.holding.HoldingContract
 import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts
 import org.ergoplatform.appkit._
@@ -50,7 +50,7 @@ class HybridExchangeContract(contract: ErgoContract, shareOp: Address, poolOp: A
     logger.info(s"LP box json: ${lpBox.toJson(true)}")
     val amountToSwap = (ergAfterFees * emissionsBox.proportion.value) / PoolFees.POOL_FEE_CONST
     val amountInErg  = ergAfterFees - amountToSwap
-    val outputTokens = simulateSwap(amountToSwap, 0.01, lpBox.getValue.toLong,
+    val outputTokens = calculateMinOutputAmount(amountToSwap, 0.01, lpBox.getValue.toLong,
       lpBox.getTokens.get(2).getValue.toLong, lpBox.getRegisters.get(0).asInstanceOf[ErgoValue[Int]].getValue.toLong,
       1000)
 
@@ -96,15 +96,28 @@ object HybridExchangeContract {
     }
   }
   def simulateSwap(baseAmount: Long, maxSlippagePercentage: Double, xAssetAmount: Long, yAssetAmount: Long, feeNumerator: Long, feeDenominator: Long): Long = {
-    val outputNum = ((yAssetAmount / 100) * ((baseAmount * feeNumerator) / 100))
+    val outputNum = ((yAssetAmount / 100) * ((baseAmount * feeNumerator) / 100 ))
     logger.info(s"OutputNumerator: ${outputNum}")
-    val outputDenom = (((xAssetAmount + ((xAssetAmount * 1) / 10000)) * feeDenominator) + (baseAmount * feeNumerator)) / 10000
+    val outputDenom = (((xAssetAmount + ((xAssetAmount * 1) / 10000)) * feeDenominator) + (baseAmount * feeNumerator)) / 100
     logger.info(s"OutputDenominator: ${outputDenom}")
     val unadjustedOutput = outputNum / outputDenom
     logger.info(s"unAdj Output: ${unadjustedOutput}")
-    val reAdjOutput = unadjustedOutput
+    val reAdjOutput = unadjustedOutput * 100
     logger.info(s"Output reAdj: ${reAdjOutput}")
     val outputAmountLong: Long = reAdjOutput.toLong
+    outputAmountLong
+  }
+
+  def calculateMinOutputAmount(baseAmount: Long, maxSlippagePercentage: Double, xAssetAmount: Long, yAssetAmount: Long, feeNumerator: Long, feeDenominator: Long): Long = {
+    val swapInputAmount:  BigInt = BigInt.apply(baseAmount)
+    val xAmount:          BigInt = BigInt.apply(xAssetAmount)
+    val yAmount:          BigInt = BigInt.apply(yAssetAmount)
+    val feeNum:           BigInt = BigInt.apply(feeNumerator)
+    val feeDenom:   BigInt = BigInt.apply(feeDenominator)
+
+    val slippage: BigInt = BigInt.apply((maxSlippagePercentage * 100D).toInt)
+    val outputAmount: BigInt = (yAmount * swapInputAmount * feeNum) / ((xAmount + (xAmount * slippage) / (BigInt.apply(100) * BigInt.apply(100))) * feeDenom + swapInputAmount * feeNum)
+    val outputAmountLong: Long = outputAmount.toLong
     outputAmountLong
   }
 
