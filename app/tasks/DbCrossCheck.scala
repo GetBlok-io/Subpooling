@@ -104,8 +104,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolStatesTable.filter(_.subpool === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
-          .map(_.box).update("4a81f844023b82333371904e365510c89571cd36892a06852b5fd7523565e245"))
+          regenHistory()
 
         }
     })(contexts.taskContext)
@@ -119,48 +118,60 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
   def regenHistory() = {
     val poolTag = "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80"
-    val gEpoch = 26L
+    val gEpoch = 37L
     val success = "success"
     val time = LocalDateTime.now()
     val none = "none"
-    val block = 802100L
+    val block = 803331L
     val history = Seq(
-      StateHistory(poolTag, gEpoch, "af86854bb1458c8df338d35aad8448a89cae7884291f38ec0f9ea1c90e631ab9",
-        "935a348cc48825a864ced3823febb19b0364a63e5ed0d97ce0ca783e6b17313d", "af86854bb1458c8df338d35aad8448a89cae7884291f38ec0f9ea1c90e631ab9",
-        "SETUP", success, -1, "7203172573f4cdef6603761e5742e0fcc3c18db8300fde74c52806c005f3202809", none, none, none, none, none,
+      StateHistory(poolTag, gEpoch, "d9580c4d8c94790b782f224e558f518d7b465529bf70f9cae1116e3d69250b8c",
+        "ab31c9df88501a76156285bb749c5d92104cd05267c40d8ba22a75ad715a3d9f", "ffc9632a90e36963e5cb3338a31cad60d6eb4f11887821cbb8fdc751fed6c138",
+        "INSERT", success, 0, "3a551cbcc3a229c6f007434926909d688762394bf636afd62b9dbc330ef0162609", none, none, none, none, none,
         block, time, time),
-      StateHistory(poolTag, gEpoch, "644e3def5f5da0a68f9447f7ed7c8d0d6864da5c8c05a79a15bf208756a71240",
-        "6e84bae64336d54428482239dc504bd8229d64258e2f391c1b2516e9d7f0a849", "b65c0979f692af25c753359fdce31fae1e970ea154c5ce005eebde5c8cc5ba80",
-        "UPDATE", success, 0, "9f372812c8d1a3f8ce74d30af3a7ea55d39c6526e1d095111452a99ee97af59109", none, none, none, none, none,
+      StateHistory(poolTag, gEpoch, "80f9b748afe1d8926801f50b7593e4d1a45013096bff4f88b329d2545da04467",
+        "7615a34880073adae46bc111154bd285f404b2d876115f6e026f4a45854b9e27", "04e053f2039294f8081cebbb87cba6bf2868628121cf056cf2cf2e53b9972497",
+        "UPDATE", success, 1, "27da180e562f49c5576cdc5e1a917000ffe9651551142243b87bb85c4e84b87809", none, none, none, none, none,
         block, time, time),
-      StateHistory(poolTag, gEpoch, "4a81f844023b82333371904e365510c89571cd36892a06852b5fd7523565e245",
-        "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", "f49c12ad2adb5c1b160a726e28c0772122afc03d834cee12930f4900868f2749",
-        "PAYOUT", success, 1, "adfb447e6608055e34ebb5fbf8f22f38b35b58770973ea62eaa9d312ebbd352209", none, none, none, none, none,
-        block, time, time)
+      StateHistory(poolTag, gEpoch, "9698d8aadaa5464ab27361928cff74b95808962d1b50659dfcb7cfc0e7f8af2c",
+        "b9f132b6dc91cb4b72cb118d4033ee8b22e8df77eaea9fee248de066b4e18f78", "9f9415777a293e2633f3e71abcd69fd7a6090cbcba80ae7d83bfe71b9b6471ba",
+        "PAYOUT", success, 2, "5c45146ae3d80a446e64d54d6c3d0e906c53731889198112a85e36af6562fb9109", none, none, none, none, none,
+        block, time, time),
+      StateHistory(poolTag, gEpoch + 1, "3a2138994a1bbf9c045818b3985a4c1d076c5cd8757c98ae0562cc1a7a8a03ae",
+        "1a08d2a7f33624ab6e0a7ac72182da108ba1959a0edc73eace967f775a884360", "ef70ff2a2e409d7132e8d82bdb259bc9624faaaecdff7ba5e87f644b0f461c94",
+        "INSERT", success, 0, "2d16bf07475df901beee28de82c5cd9baf974dc7bd405aa3e99489446194de8709", none, none, none, none, none,
+        803400L, time, time),
+      StateHistory(poolTag, gEpoch + 1, "6a9df9399317ef213bd079bc927d44255f93416233b4e09433a4d8ba58d0cb9a",
+        "25cc0e884e66e5fdeafddf674e61028c7a502a8300ae6e31ead317ecd9050499", "38df58c5633c66368aa5f4f5098cbdc052df7def92d4c69369fce8ec06de9636",
+        "UPDATE", success, 1, "507c31a19deed123209e124b43be4b684df719c5123b0a0e3cc8bcf962903bda09", none, none, none, none, none,
+        803400L, time, time),
+      StateHistory(poolTag, gEpoch + 1, "edc78f7124b169c86a73c89039d89947e1a6649b2ee26a2294ae1899a13baa13",
+        "169c517d7efb0541d67b8c8b57ef1bcd03eec5f6842373fea3fda1205f98f22e", "e08c8ed9eb23f74d69cdf614a2f73b86e99ccad6a11654f71fd4015f735ed241",
+        "PAYOUT", success, 2, "072bb53167d02f4b6d1c3fa0f917102dc01cb6ae7f19a7b1d8ecdd63f42c4ad409", none, none, none, none, none,
+        803400L, time, time)
     )
     db.run(Tables.StateHistoryTables ++= history)
-    db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block).map(_.status).update(PoolBlock.PAID))
-    db.run(Tables.PoolInfoTable.filter(_.poolTag === poolTag).map(i => i.gEpoch -> i.updated)
-      .update(gEpoch -> LocalDateTime.now()))
-    db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map{
-      s => (s.tx, s.epoch, s.height, s.status, s.block, s.updated)
-    }.update("7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", gEpoch, 802418L, "confirmed", block, LocalDateTime.now()))
-
-    val outputs = db.run(Tables.NodeOutputsTable
-      .filter(_.txId === "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b")
-      .filterNot(_.address === "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
-      .filterNot(_.address === "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
-      .result
-    )
-    outputs.map{
-      outs =>
-        val payments = outs.map{
-          o =>
-            Payment(poolTag, o.address, "ERG", Helpers.convertFromWhole("ERG", o.value),
-              o.txId, None, LocalDateTime.now(), block, gEpoch)
-        }
-        db.run(Tables.Payments ++= payments)
-    }
+//    db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block).map(_.status).update(PoolBlock.PAID))
+//    db.run(Tables.PoolInfoTable.filter(_.poolTag === poolTag).map(i => i.gEpoch -> i.updated)
+//      .update(gEpoch -> LocalDateTime.now()))
+//    db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map{
+//      s => (s.tx, s.epoch, s.height, s.status, s.block, s.updated)
+//    }.update("7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b", gEpoch, 802418L, "confirmed", block, LocalDateTime.now()))
+//
+//    val outputs = db.run(Tables.NodeOutputsTable
+//      .filter(_.txId === "7f8d16238865dbc6cacd5241424bf1d912f639002cddac427ebdc653057e480b")
+//      .filterNot(_.address === "6ioi264iGHooExShvfCDyu7ar4PEzStvf61DWqf2PLUqM5bXff7sbP4T4X5fczBxijBawTb3oyza22EmTu7z5C6TB3bu9AJ1bP24BDTm2GbjHDxrbaN4P9Gy83yZWUdT8wEvUsWLs5wWNsLF68GCoWe3UnW8C2Xs5wZEWVaXcJJkRHAq9zLqZDZTMcko6zLGQjj55g3RkCjZUQ8WU7nsnXdGtxoPG1baTQ6m6DJK1GAy8SSRpJE9DaGNn749T68PJuMDdHNJvBU9JGHcKyDQBDwGYkKrZMLBr")
+//      .filterNot(_.address === "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe")
+//      .result
+//    )
+//    outputs.map{
+//      outs =>
+//        val payments = outs.map{
+//          o =>
+//            Payment(poolTag, o.address, "ERG", Helpers.convertFromWhole("ERG", o.value),
+//              o.txId, None, LocalDateTime.now(), block, gEpoch)
+//        }
+//        db.run(Tables.Payments ++= payments)
+//    }
   }
 
   def initBackup() = {
