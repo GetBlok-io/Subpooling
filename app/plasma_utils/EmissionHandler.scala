@@ -1,21 +1,15 @@
 package plasma_utils
 
-import actors.BlockingDbWriter._
-import actors.ExplorerRequestBus.ExplorerRequests.GetCurrentHeight
-import actors.GroupRequestHandler._
-import actors.StateRequestHandler.{ConstructedDist, DistConstructor, DistResponse, ExecuteDist, StateFailure}
+import actors.StateRequestHandler._
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
-import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolPlacement, PoolState}
 import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
 import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
-import io.getblok.subpooling_core.states.groups.StateGroup
-import io.getblok.subpooling_core.states.models.TransformResult
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
@@ -24,7 +18,7 @@ import plasma_utils.payments.PaymentRouter
 import plasma_utils.stats.StatsRecorder
 import slick.jdbc.PostgresProfile
 import utils.ConcurrentBoxLoader
-import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection, PLASMA_BATCH_SIZE}
+import utils.ConcurrentBoxLoader.{BatchSelection, PLASMA_BATCH_SIZE}
 
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
@@ -32,13 +26,13 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
-                         contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
-                         boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
+class EmissionHandler(expReq: ActorRef, stateHandler: ActorRef,
+                      contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
+                      boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
   val logger: Logger = LoggerFactory.getLogger("PaymentDistributor")
   import slick.jdbc.PostgresProfile.api._
 
-  def executeDistribution(): Unit = {
+  def startEmissions(): Unit = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now querying processed blocks for distribution")
@@ -220,13 +214,8 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
   // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
   def collectInputs(batchSelection: BatchSelection): Seq[InputBox] = {
-    if(batchSelection.info.currency == PoolInformation.CURR_ERG) {
-      val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
-      boxLoader.collectFromLoaded(blockSum).toSeq
-    }else{
-      val blockSum = Helpers.OneErg * 2
-      boxLoader.collectFromLoaded(blockSum).toSeq
-    }
+    val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
+    boxLoader.collectFromLoaded(blockSum).toSeq
   }
 
 }
