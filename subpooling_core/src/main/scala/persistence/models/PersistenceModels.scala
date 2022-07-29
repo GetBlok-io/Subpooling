@@ -139,6 +139,7 @@ object PersistenceModels {
     val CURR_NETA = "NETA"
     val CURR_COMET = "COMET"
     val CURR_ERG_COMET = "ERG+COMET"
+    val CURR_ERG_ERGOPAD = "ERG+ERGOPAD"
     val CURR_NUGS  = "Nuggies"
     val CURR_TEST_TOKENS = "tToken"
     val TEST_ID = "d35cc88ad1ae67539a95261736af734fa9922db35d0133c08df2e767bdc99c5f"

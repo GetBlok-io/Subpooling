@@ -35,7 +35,7 @@ class EmissionHandler(expReq: ActorRef, stateHandler: ActorRef,
   def startEmissions(): Unit = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    logger.info("Now querying processed blocks for distribution")
+    logger.info("Now querying pre-processed blocks for emissions")
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).result)
     val infoResp = db.run(Tables.PoolInfoTable.result)
     logger.info(s"Querying blocks with processed status")
@@ -139,7 +139,7 @@ class EmissionHandler(expReq: ActorRef, stateHandler: ActorRef,
             .filter(b => b.poolTag === poolTag)
             .filter(b => b.gEpoch >= gEpoch && b.gEpoch < gEpoch + ConcurrentBoxLoader.PLASMA_BATCH_SIZE)
             .map(b => b.status -> b.updated)
-            .update(PoolBlock.INITIATED -> LocalDateTime.now()))
+            .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
           logger.info(s"Finished updating blocks ${dr.members.head.block} with epoch ${gEpoch} and its next ${PLASMA_BATCH_SIZE - 1} epochs for pool" +
             s" ${poolTag} and status INITIATED")
 

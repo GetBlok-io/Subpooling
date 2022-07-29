@@ -1,6 +1,10 @@
 package plasma_utils.payments
 
 import actors.StateRequestHandler.PoolBox
+import akka.actor.ActorRef
+import io.getblok.subpooling_core.cycles.HybridExchangeCycle
+import io.getblok.subpooling_core.cycles.models.Cycle
+import io.getblok.subpooling_core.explorer.ExplorerHandler
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation}
@@ -9,20 +13,41 @@ import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.{CommandBatch, PlasmaMiner}
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.bouncycastle.util.encoders.Hex
-import org.ergoplatform.appkit.{BlockchainContext, InputBox}
+import org.ergoplatform.appkit.{Address, BlockchainContext, ErgoId, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.shares.ShareCollector
 import scorex.crypto.authds.ADDigest
 import utils.ConcurrentBoxLoader.BatchSelection
+import utils.EmissionTemplates
 
 object PaymentRouter {
   private val logger: Logger = LoggerFactory.getLogger("PaymentRouter")
-  def routeProcessor(info: PoolInformation, settings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection, reward: Long): PaymentProcessor = {
+  def routeProcessor(info: PoolInformation, settings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection, reward: Long,
+                     actor: Option[ActorRef] = None): PaymentProcessor = {
     info.currency match {
       case PoolInformation.CURR_ERG =>
         StandardProcessor(settings, collector, batch, reward, info.fees)
+      case PoolInformation.CURR_ERG_ERGOPAD =>
+        HybridExchangeProcessor(settings, collector, batch, reward, info.fees, actor.get)
       case _ =>
         throw new Exception("Unsupported currency found during processor routing!")
+    }
+  }
+
+  def routeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
+                 batchSelection: BatchSelection, explorerHandler: ExplorerHandler): Cycle = {
+    batchSelection.info.currency match {
+      case PoolInformation.CURR_ERG_ERGOPAD =>
+        val template = EmissionTemplates.getErgoPadTemplate(ctx.getNetworkType)
+
+        new HybridExchangeCycle(
+          ctx, wallet, reward, batchSelection.info.fees,
+          template.proportion, template.percent, template.swapAddress,
+          ErgoId.create(batchSelection.info.poolTag), template.distToken,
+          template.lpNFT, explorerHandler
+        )
+      case _ =>
+        throw new Exception("Unsupported currency found during cycle routing!")
     }
   }
 

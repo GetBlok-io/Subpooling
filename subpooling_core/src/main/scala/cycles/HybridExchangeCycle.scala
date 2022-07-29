@@ -5,7 +5,7 @@ package cycles
 import io.getblok.subpooling_core.contracts.emissions.HybridExchangeContract
 import io.getblok.subpooling_core.contracts.emissions.HybridExchangeContract.simulateSwap
 import io.getblok.subpooling_core.contracts.plasma.{PlasmaHoldingContract, PlasmaScripts}
-import io.getblok.subpooling_core.cycles.models.{CycleResults, CycleState, EmissionResults}
+import io.getblok.subpooling_core.cycles.models.{Cycle, CycleResults, CycleState, EmissionResults}
 import io.getblok.subpooling_core.explorer.ExplorerHandler
 import io.getblok.subpooling_core.explorer.Models.Output
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
@@ -23,7 +23,8 @@ import scala.util.{Failure, Try}
 
 class HybridExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long, fee: Long,
                           proportion: Long, percent: Long, poolOp: Address, poolNFT: ErgoId,
-                          distToken: ErgoId, lpNFT: ErgoId, explorerHandler: ExplorerHandler) {
+                          distToken: ErgoId, lpNFT: ErgoId, explorerHandler: ExplorerHandler)
+                          extends Cycle {
   private val logger: Logger = LoggerFactory.getLogger("HybridExchangeCycle")
 
   def getMemPoolLPBox = {
