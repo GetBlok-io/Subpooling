@@ -1,16 +1,18 @@
 package plasma_utils
 
+import actors.EmissionRequestHandler.{ConstructCycle, CycleEmissions, CycleResponse}
 import actors.StateRequestHandler._
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.cycles.models.Cycle
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolPlacement, PoolState}
 import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
 import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
-import models.DatabaseModels.SPoolBlock
+import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
@@ -26,7 +28,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-class EmissionHandler(expReq: ActorRef, stateHandler: ActorRef,
+class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
                       contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
                       boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
   val logger: Logger = LoggerFactory.getLogger("PaymentDistributor")
@@ -36,7 +38,7 @@ class EmissionHandler(expReq: ActorRef, stateHandler: ActorRef,
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     logger.info("Now querying pre-processed blocks for emissions")
-    val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PROCESSED).sortBy(_.created).result)
+    val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PRE_PROCESSED).sortBy(_.created).result)
     val infoResp = db.run(Tables.PoolInfoTable.result)
     logger.info(s"Querying blocks with processed status")
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
@@ -46,167 +48,86 @@ class EmissionHandler(expReq: ActorRef, stateHandler: ActorRef,
     if(plasmaBlocks.nonEmpty) {
       val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true, isPlasma = true)
       val inputBoxes = collectInputs(selectedBlocks)
-      val collectedComponents = constructStateGroup(selectedBlocks, inputBoxes)
+      val cycleResponse = executeCycle(selectedBlocks, inputBoxes)
 
-      collectedComponents.onComplete {
-        case Success(constDist) =>
-          val executions = {
-
-            logger.info("Now sending dist req")
-            val distResponse = (stateHandler ? ExecuteDist(constDist, AppParameters.sendTxs)).mapTo[DistResponse[StateBalance]]
-            logger.info("Waiting to eval dist response")
-            writeDist(distResponse)
-          }
+      cycleResponse.onComplete {
+        case Success(cycleResp) =>
+          logger.info(s"Successfully executed cycle for pool ${selectedBlocks.info.poolTag}")
+          logger.info("Now writing cycle response")
 
         case Failure(exception) =>
-          logger.error("There was an error collecting distribution components!", exception)
+          logger.error("An error occurred during cycle execution!", exception)
       }
     }else{
       logger.info("No processing blocks found, now exiting distribution execution")
     }
   }
 
-  def writeDist(distResponse: Future[DistResponse[StateBalance]]): Future[DistResponse[StateBalance]] = {
+  def writeCycle(cycleResponse: CycleResponse, batch: BatchSelection): Unit = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    distResponse.onComplete {
-      case Success(dr) =>
-        logger.info("Now evaluating dist response")
-        if (dr.members.isEmpty) {
-          logger.error("There was a fatal error during distribution execution, response returned empty")
-          logger.error("No updates being made")
-        } else {
-          val transforms = dr.transforms.filter(_.isSuccess).map(_.get)
-          val lastTf = transforms.last
-          val members = dr.members
-          val poolTag = members.head.subpool
-          val gEpoch = members.head.g_epoch
-          val nextStatus = {
-            if(dr.transforms.exists(_.isFailure))
-              PoolState.FAILURE
-            else
-              PoolState.SUCCESS
-          }
-          val nextState = dr.nextState.copy(tx = lastTf.id, epoch = gEpoch, height = lastTf.nextState.box.getCreationHeight,
-            block = members.head.block, status = nextStatus, updated = LocalDateTime.now())
+    val blockUpdate = (db.run(Tables.PoolBlocksTable
+      .filter(_.poolTag === batch.info.poolTag)
+      .filter(_.gEpoch >= batch.blocks.head.gEpoch)
+      .filter(_.gEpoch <= batch.blocks.last.gEpoch)
+      .map(b => b.status -> b.updated)
+      .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
 
-          val stateUpdates =
-              db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map{
-                s => (s.tx, s.epoch, s.height, s.status, s.members, s.block, s.updated)
-              }.update(nextState.tx, nextState.epoch, nextState.height, nextState.status, members.size, nextState.block, LocalDateTime.now()))
-
-
-          stateUpdates.onComplete {
-            case Success(rows) =>
-              if (rows > 0) {
-                logger.info(s"${rows} were updated successfully!")
-              } else {
-                logger.error("0 rows were updated!")
-              }
-            case Failure(exception) =>
-              logger.error(s"There was an error updating the pool states for pool ${poolTag}", exception)
-          }
-          logger.info("Now incrementing gEpoch for all states")
-          db.run(Tables.PoolStatesTable.filter(s => s.subpool === poolTag).map(_.gEpoch).update(gEpoch))
-
-          val insertMembersReq = db.run(Tables.SubPoolMembers ++= dr.members)
-          insertMembersReq.onComplete {
-            case Success(rows) =>
-              if (rows.getOrElse(0) > 0) {
-                logger.info(s"$rows in the members table were updated successfully!")
-              } else {
-                logger.error("0 rows were updated!")
-              }
-            case Failure(exception) =>
-              logger.error(s"There was an error inserting members for pool ${poolTag}", exception)
-          }
-         // val nextgEpoch = dr.nextMembers.head.g_epoch
-          val gEpochUpdate = db.run(Tables.PoolInfoTable.filter(_.poolTag === poolTag).map(i => i.gEpoch -> i.updated)
-            .update(gEpoch -> LocalDateTime.now()))
-          gEpochUpdate.onComplete {
-            case Success(rows) =>
-              if (rows > 0) {
-                logger.info(s"$rows in the states table were updated to have new gEpoch ${gEpoch}")
-              } else {
-                logger.error("0 rows were updated!")
-              }
-            case Failure(exception) =>
-              logger.error(s"There was an error updating the gEpoch for pool ${poolTag}", exception)
-          }
-
-
-          db.run(Tables.PoolBlocksTable
-            .filter(b => b.poolTag === poolTag)
-            .filter(b => b.gEpoch >= gEpoch && b.gEpoch < gEpoch + ConcurrentBoxLoader.PLASMA_BATCH_SIZE)
-            .map(b => b.status -> b.updated)
-            .update(PoolBlock.PROCESSING -> LocalDateTime.now()))
-          logger.info(s"Finished updating blocks ${dr.members.head.block} with epoch ${gEpoch} and its next ${PLASMA_BATCH_SIZE - 1} epochs for pool" +
-            s" ${poolTag} and status INITIATED")
-
-          db.run(Tables.StateHistoryTables ++= Tables.StateHistoryTables.fromTransforms(transforms, gEpoch, members.head.block))
-          logger.info("Finished writing transforms to StateHistory Table!")
-
-          StatsRecorder.writePoolBalances(poolTag, dr.poolBalanceStates, db)
-
-          logger.info(s"Finished all updates for distribution of pool ${poolTag}")
-        }
-      case Failure(exception) =>
-        logger.error("There was a fatal error while evaluating a distribution response!", exception)
-
+    val placeDeletes = {
+      db.run(Tables.PoolPlacementsTable
+        .filter(p => p.subpool === batch.blocks.head.poolTag)
+        .filter(p => p.block === batch.blocks.minBy(b => b.gEpoch).blockheight)
+        .delete)
     }
-    distResponse
+    val placeUpdates = placeDeletes.map {
+      i =>
+        logger.info(s"A total of ${i} rows were deleted from last placements")
+        logger.info("Now inserting new placement rows!")
+        db.run(Tables.PoolPlacementsTable ++= cycleResponse.nextPlacements)
+    }.flatten
+
+    for {
+      blockRowsUpdated <- blockUpdate
+      placeRowsInserted <- placeUpdates
+    } yield {
+      if (blockRowsUpdated > 0)
+        logger.info(s"${blockRowsUpdated} rows were updated for ${batch.blocks.length} blocks")
+      else
+        logger.error(s"No rows were updated for ${batch.blocks.length} blocks!")
+      if (placeRowsInserted.getOrElse(0) > 0)
+        logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${cycleResponse.nextPlacements.head.subpool}")
+      else
+        logger.error(s"No placements were inserted for pool ${cycleResponse.nextPlacements.head.subpool}")
+    }
   }
 
-  def constructStateGroup(batchSelection: BatchSelection, boxes: Seq[InputBox]): Future[ConstructedDist[_ <: StateBalance]] = {
+  def executeCycle(batchSelection: BatchSelection, boxes: Seq[InputBox]): Future[CycleResponse] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val collectedComponents = {
       val poolTag = batchSelection.info.poolTag
-      val poolInfo = batchSelection.info
       val block = batchSelection.blocks.head
 
-      val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
+
       val fPlacements = (db.run(Tables.PoolPlacementsTable.filter(p => p.subpool === poolTag && p.block === block.blockheight).result)).mapTo[Seq[PoolPlacement]]
+      val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
 
-      val initBlocks = Await.result((db.run(Tables.PoolBlocksTable.filter(b => b.status === PoolBlock.INITIATED && b.poolTag === block.poolTag).result)), 100 seconds)
-      require(initBlocks.isEmpty, s"Initiated batches already exist for pool ${poolTag}!")
-
-      val distComponents = for{
-        states <- poolStateResp
+      val cycleComponents = for{
         placements <- fPlacements
+        settings <- poolMinersResp
       } yield {
-
-        // TODO: Removed for right now, exercise caution
-        val gEpoch = poolInfo.g_epoch
-
-        // TODO: Make these trys in order to prevent whole group failure when multiple groups from same pool are used
-        require(states.head.status != PoolState.FAILURE, "A failed state exists!")
-        require(states.head.status == PoolState.CONFIRMED, "The pool state is unconfirmed!")
-        val constructDistResp = {
-
-          require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
-          logger.info(s"Constructing distributions for block ${block.blockheight}")
-          logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
-          logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
-          logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
-          require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-          val balanceState = new BalanceState[SingleBalance](states.head.subpool)
-          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, placements)
+        val withMinpay = placements.map{
+          p =>
+            p.copy(minpay = settings.find(s => s.address == p.miner).map(s => Helpers.ergToNanoErg(s.paymentthreshold)).getOrElse(p.minpay))
         }
+        val totalReward = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum)
+        val cycle = Await.result((emHandler ? ConstructCycle(batchSelection, totalReward)).mapTo[Cycle], 500 seconds)
 
-        constructDistResp.map {
-          case constDist: ConstructedDist[_] =>
-            constDist
-          case failure: StateFailure =>
-            logger.warn(s"A StateFailure was returned after DistConstruction!")
-            logger.error("Ending distribution due to fatal state failure!")
-            throw new Exception("Dist construction failed!")
-          case _ =>
-            logger.error("There was a fatal error during Distribution Construction")
-            throw new Exception("An unexpected type was returned during Distribution Construction!")
-        }
+        val cycleResponse = (emHandler ? CycleEmissions(cycle, withMinpay, boxes)).mapTo[CycleResponse]
+        cycleResponse
       }
-      distComponents.flatten
+
+      cycleComponents.flatten
     }
     collectedComponents
   }

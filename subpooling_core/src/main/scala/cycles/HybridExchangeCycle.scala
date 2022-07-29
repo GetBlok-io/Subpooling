@@ -23,11 +23,24 @@ import scala.util.{Failure, Try}
 
 class HybridExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long, fee: Long,
                           proportion: Long, percent: Long, poolOp: Address, poolNFT: ErgoId,
-                          distToken: ErgoId, lpNFT: ErgoId, explorerHandler: ExplorerHandler)
+                          emNFT: ErgoId, distToken: ErgoId, lpNFT: ErgoId, explorerHandler: ExplorerHandler)
                           extends Cycle {
   private val logger: Logger = LoggerFactory.getLogger("HybridExchangeCycle")
 
-  def getMemPoolLPBox = {
+
+  def getEmissionsBox: InputBox = {
+    logger.info(s"Searching for emissions box with NFT ${emNFT}")
+    val emissionBoxes = explorerHandler
+      .boxesByTokenId(lpNFT, 0, 100)
+      .getOrElse(throw new EmissionsBoxNotFoundException(emNFT))
+
+    emissionBoxes
+      .find(b => b.assets.exists(a => a.id.toString == emNFT.toString))
+      .flatMap(b => ctx.getBoxesById(b.id.toString).headOption)
+      .getOrElse(throw new EmissionsBoxNotFoundException(emNFT))
+  }
+
+  def getMemPoolLPBox: Try[InputBox] = {
     Try {
       logger.info("Checking mempool for LP box!")
       val dataSource = ctx.getDataSource

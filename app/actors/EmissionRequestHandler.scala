@@ -1,11 +1,12 @@
 package actors
 
-import actors.EmissionRequestHandler.{CalculateEmissions, ConstructCycle, EmissionRequest, EmissionResponse}
+import actors.EmissionRequestHandler.{CalculateEmissions, ConstructCycle, CycleEmissions, CycleResponse, EmissionRequest, EmissionResponse}
 import actors.StateRequestHandler._
 import akka.actor.{Actor, Props}
 import configs.{ExplorerConfig, NodeConfig}
-import io.getblok.subpooling_core.cycles.models.{Cycle, EmissionResults}
+import io.getblok.subpooling_core.cycles.models.{Cycle, CycleResults, CycleState, EmissionResults}
 import io.getblok.subpooling_core.explorer.ExplorerHandler
+import io.getblok.subpooling_core.global.AppParameters
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
@@ -45,8 +46,26 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
               val nextPlacements = cycle.morphPlacementValues(placements, emissionResults)
 
               sender ! EmissionResponse(emissionResults, nextPlacements)
+            case CycleEmissions(cycle, placements, inputs) =>
+
+              val cycleState = makeCycleState(cycle, inputs)
+              val emissionResults = cycle.simulateSwap
+              val cycleResults = cycle.cycle(cycleState, emissionResults, AppParameters.sendTxs)
+              val nextPlacements = cycle.morphPlacementHolding(
+                cycle.morphPlacementValues(placements, emissionResults),
+                cycleResults.nextHoldingBox
+              )
+
+              sender ! CycleResponse(cycleResults, nextPlacements)
           }
         }
+  }
+
+
+  def makeCycleState(cycle: Cycle, inputs: Seq[InputBox]): CycleState = {
+    val emBox = cycle.getEmissionsBox
+    val cycleState = CycleState(emBox, inputs)
+    cycleState
   }
 }
 
@@ -57,9 +76,10 @@ object EmissionRequestHandler {
 
   case class ConstructCycle(batch: BatchSelection, reward: Long) extends EmissionRequest
   case class CalculateEmissions(cycle: Cycle, placements: Seq[PoolPlacement]) extends EmissionRequest
-  case class CycleEmissions(cycle: Cycle, placements: Seq[PoolPlacement]) extends EmissionRequest
+  case class CycleEmissions(cycle: Cycle, placements: Seq[PoolPlacement], inputs: Seq[InputBox]) extends EmissionRequest
 
   case class EmissionResponse(results: EmissionResults, nextPlacements: Seq[PoolPlacement])
+  case class CycleResponse(cycleResults: CycleResults, nextPlacements: Seq[PoolPlacement])
 }
 
 

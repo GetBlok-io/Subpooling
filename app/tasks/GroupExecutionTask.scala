@@ -41,7 +41,7 @@ import scala.util.{Failure, Success, Try}
 class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                                    @Named("quick-db-reader") query: ActorRef, @Named("blocking-db-writer") write: ActorRef,
                                    @Named("explorer-req-bus") expReq: ActorRef, @Named("group-handler") groupHandler: ActorRef,
-                                   @Named("state-handler") stateHandler: ActorRef,
+                                   @Named("state-handler") stateHandler: ActorRef, @Named("em-handler") emHandler: ActorRef,
                                    protected val dbConfigProvider: DatabaseConfigProvider)
                                    extends HasDatabaseConfigProvider[PostgresProfile]{
   import dbConfig.profile.api._
@@ -100,7 +100,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
         if(tryPreCollection.isSuccess) {
           val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
-          val prePlacer = new PrePlacer(contexts, params, nodeConfig, boxLoader, db)
+          val prePlacer = new PrePlacer(contexts, params, nodeConfig, boxLoader, db, emHandler)
           val distributor = new PaymentDistributor(expReq, stateHandler, contexts, params, taskConfig, boxLoader, db)
           if (params.singularGroups) {
             if (currentRun == 0) {

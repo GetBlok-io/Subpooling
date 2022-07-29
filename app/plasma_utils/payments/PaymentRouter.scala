@@ -23,12 +23,12 @@ import utils.EmissionTemplates
 object PaymentRouter {
   private val logger: Logger = LoggerFactory.getLogger("PaymentRouter")
   def routeProcessor(info: PoolInformation, settings: Seq[SMinerSettings], collector: ShareCollector, batch: BatchSelection, reward: Long,
-                     actor: Option[ActorRef] = None): PaymentProcessor = {
+                     emReq: ActorRef): PaymentProcessor = {
     info.currency match {
       case PoolInformation.CURR_ERG =>
         StandardProcessor(settings, collector, batch, reward, info.fees)
       case PoolInformation.CURR_ERG_ERGOPAD =>
-        HybridExchangeProcessor(settings, collector, batch, reward, info.fees, actor.get)
+        HybridExchangeProcessor(settings, collector, batch, reward, info.fees, emReq)
       case _ =>
         throw new Exception("Unsupported currency found during processor routing!")
     }
@@ -43,8 +43,8 @@ object PaymentRouter {
         new HybridExchangeCycle(
           ctx, wallet, reward, batchSelection.info.fees,
           template.proportion, template.percent, template.swapAddress,
-          ErgoId.create(batchSelection.info.poolTag), template.distToken,
-          template.lpNFT, explorerHandler
+          ErgoId.create(batchSelection.info.poolTag), ErgoId.create(batchSelection.info.emissions_id),
+          template.distToken, template.lpNFT, explorerHandler
         )
       case _ =>
         throw new Exception("Unsupported currency found during cycle routing!")
