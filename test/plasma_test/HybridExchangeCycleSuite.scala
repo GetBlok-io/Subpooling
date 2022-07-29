@@ -27,7 +27,7 @@ class HybridExchangeCycleSuite extends AnyFunSuite {
 
 
       val cycle = new HybridExchangeCycle(ctx, dummyWallet, 48 * Helpers.OneErg, 3000L, 10000L,
-        10000L, sigmaTrue, dummyTokenId, ergopadToken, ergopadLPNFT, explorerHandler)
+        10000L, sigmaTrue, dummyTokenId, dummyTokenId, ergopadToken, ergopadLPNFT, explorerHandler)
 
       val result = cycle.simulateSwap
 

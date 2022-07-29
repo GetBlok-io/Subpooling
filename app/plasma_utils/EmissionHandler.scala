@@ -37,10 +37,11 @@ class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
   def startEmissions(): Unit = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
+
     logger.info("Now querying pre-processed blocks for emissions")
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.PRE_PROCESSED).sortBy(_.created).result)
     val infoResp = db.run(Tables.PoolInfoTable.result)
-    logger.info(s"Querying blocks with processed status")
+
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
     val infos = Await.result(infoResp, 1000 seconds)
 
@@ -66,39 +67,7 @@ class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
   def writeCycle(cycleResponse: CycleResponse, batch: BatchSelection): Unit = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
-    val blockUpdate = (db.run(Tables.PoolBlocksTable
-      .filter(_.poolTag === batch.info.poolTag)
-      .filter(_.gEpoch >= batch.blocks.head.gEpoch)
-      .filter(_.gEpoch <= batch.blocks.last.gEpoch)
-      .map(b => b.status -> b.updated)
-      .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
-
-    val placeDeletes = {
-      db.run(Tables.PoolPlacementsTable
-        .filter(p => p.subpool === batch.blocks.head.poolTag)
-        .filter(p => p.block === batch.blocks.minBy(b => b.gEpoch).blockheight)
-        .delete)
-    }
-    val placeUpdates = placeDeletes.map {
-      i =>
-        logger.info(s"A total of ${i} rows were deleted from last placements")
-        logger.info("Now inserting new placement rows!")
-        db.run(Tables.PoolPlacementsTable ++= cycleResponse.nextPlacements)
-    }.flatten
-
-    for {
-      blockRowsUpdated <- blockUpdate
-      placeRowsInserted <- placeUpdates
-    } yield {
-      if (blockRowsUpdated > 0)
-        logger.info(s"${blockRowsUpdated} rows were updated for ${batch.blocks.length} blocks")
-      else
-        logger.error(s"No rows were updated for ${batch.blocks.length} blocks!")
-      if (placeRowsInserted.getOrElse(0) > 0)
-        logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${cycleResponse.nextPlacements.head.subpool}")
-      else
-        logger.error(s"No placements were inserted for pool ${cycleResponse.nextPlacements.head.subpool}")
-    }
+    StatsRecorder.recordCycle(cycleResponse, batch, db)
   }
 
   def executeCycle(batchSelection: BatchSelection, boxes: Seq[InputBox]): Future[CycleResponse] = {

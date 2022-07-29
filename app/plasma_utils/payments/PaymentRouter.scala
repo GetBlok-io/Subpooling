@@ -8,8 +8,9 @@ import io.getblok.subpooling_core.explorer.ExplorerHandler
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{MinerSettings, PoolInformation}
-import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
-import io.getblok.subpooling_core.states.groups.{PayoutGroup, StateGroup}
+import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, dualBalanceConversion}
+import io.getblok.subpooling_core.plasma.{BalanceState, DualBalance, SingleBalance, StateBalance}
+import io.getblok.subpooling_core.states.groups.{DualGroup, PayoutGroup, StateGroup}
 import io.getblok.subpooling_core.states.models.{CommandBatch, PlasmaMiner}
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
 import org.bouncycastle.util.encoders.Hex
@@ -52,13 +53,29 @@ object PaymentRouter {
   }
 
   def routeStateGroup[T <: StateBalance](ctx: BlockchainContext, wallet: NodeWallet, batch: BatchSelection,
-                                        poolBox: PoolBox[T], miners: Seq[PlasmaMiner], inputBoxes: Seq[InputBox]): StateGroup[_ <: StateBalance] = {
+                                        poolBox: PoolBox[T], miners: Seq[PlasmaMiner], inputBoxes: Seq[InputBox],
+                                         holdingBox: Option[InputBox] = None): StateGroup[_ <: StateBalance] = {
     batch.info.currency match {
       case PoolInformation.CURR_ERG =>
         new PayoutGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState.asInstanceOf[BalanceState[SingleBalance]], batch.blocks.head.gEpoch,
           batch.blocks.head.blockheight, batch.info.poolTag, batch.info.fees, Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum))
+      case PoolInformation.CURR_ERG_ERGOPAD =>
+        require(holdingBox.isDefined, "Holding box was not defined!")
+        val template = EmissionTemplates.getErgoPadTemplate(ctx.getNetworkType)
+        new DualGroup(ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState.asInstanceOf[BalanceState[DualBalance]],
+          batch.blocks.head.gEpoch, batch.blocks.head.blockheight, batch.info.poolTag, holdingBox.get, template.distToken,
+        "ergopad")
       case _ =>
         throw new Exception("Unsupported currency found during StateGroup routing!")
+    }
+  }
+
+  def routeBalanceState(info: PoolInformation): BalanceState[_ <: StateBalance] = {
+    info.currency match {
+      case PoolInformation.CURR_ERG =>
+        new BalanceState[SingleBalance](info.poolTag)
+      case PoolInformation.CURR_ERG_ERGOPAD =>
+        new BalanceState[DualBalance](info.poolTag)
     }
   }
 

@@ -51,8 +51,9 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
                   ctx =>
                     val poolBox = grabPoolBox(ctx, poolState, balanceState)
                     val plasmaMiners = morphToPlasma(placements, balanceState, batch.blocks.head.netDiff)
-
-                    val stateGroup = PaymentRouter.routeStateGroup(ctx, wallet, batch, poolBox, plasmaMiners, inputBoxes)
+                    val holdingBox   = grabHoldingBox(ctx, placements.head).get
+                    val stateGroup = PaymentRouter.routeStateGroup(ctx, wallet, batch,
+                      poolBox, plasmaMiners, inputBoxes, holdingBox)
                     sender ! ConstructedDist(stateGroup, poolState)
                 }
               }.recoverWith{
@@ -128,6 +129,21 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
     val plasmaMiners = balances.map(b => b._1.copy(balance = b._2.tryOp.get.map(_.balance).getOrElse(0L)))
       .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
     plasmaMiners
+  }
+
+  def grabHoldingBox(ctx: BlockchainContext, placement: PoolPlacement): Try[Option[InputBox]] = {
+    if(placement.holding_id != "none"){
+      Try{
+        Some(ctx.getBoxesById(placement.holding_id).head)
+      }.recoverWith{
+        case t: Throwable =>
+          logger.error(s"A fatal error occurred while grabbing holding box with id ${placement.holding_id} for" +
+            s" pool ${placement.subpool}")
+          Failure(t)
+      }
+    }else{
+      Success(None)
+    }
   }
 
 }

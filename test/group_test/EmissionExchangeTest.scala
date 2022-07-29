@@ -11,6 +11,7 @@ import io.getblok.subpooling_core.groups.selectors.{SelectionParameters, Standar
 import io.getblok.subpooling_core.registers.PropBytes
 import MockData.SingleDistributionData._
 import MockData._
+import io.getblok.subpooling_core.contracts.emissions.HybridExchangeContract
 import org.ergoplatform.appkit.{ErgoId, NetworkType}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -38,12 +39,12 @@ class EmissionExchangeTest extends AnyFunSuite {
     val box = boxItems.get.head
     val POOL_FEE_DENOM = 1000
     logger.info(box.toString)
-    val swapAmount = calculateMinOutputAmount(Helpers.ergToNanoErg(65), .01,
-      box.value, box.assets(2).amount, Integer.valueOf(box.registers.R4.get.renderedValue).longValue(), POOL_FEE_DENOM)
+    val swapAmount = HybridExchangeContract.calculateMinOutputAmount(Helpers.ergToNanoErg(65), .01,
+      box.value, box.assets(2).amount / 1000, Integer.valueOf(box.registers.R4.get.renderedValue).longValue() / 10, POOL_FEE_DENOM)
 
     logger.info(s"Swap amount: $swapAmount")
   }
-
+  // 29178820000
   def calculateMinOutputAmount(baseAmount: Long, maxSlippagePercentage: Double, xAssetAmount: Long, yAssetAmount: Long, feeNumerator: Long, feeDenominator: Long): Long = {
     val swapInputAmount:  BigInt = BigInt.apply(baseAmount)
     val xAmount:          BigInt = BigInt.apply(xAssetAmount)

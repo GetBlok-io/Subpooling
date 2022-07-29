@@ -22,7 +22,7 @@ import models.ResponseModels.writesChangeKeys
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, NetworkType}
 import persistence.Tables
-import plasma_utils.TransformValidator
+import plasma_utils.{EmissionValidator, TransformValidator}
 import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.{JsResult, JsValue, Json, Reads}
@@ -95,6 +95,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }.recoverWith{
             case ex =>
               logger.error("There was a critical error while validating transforms!", ex)
+              Failure(ex)
+          }
+          Try {
+            val transformValidator = new EmissionValidator(expReq, contexts, params, db)
+            transformValidator.checkProcessing()
+          }.recoverWith{
+            case ex =>
+              logger.error("There was a critical error while validating emissions!", ex)
               Failure(ex)
           }
 

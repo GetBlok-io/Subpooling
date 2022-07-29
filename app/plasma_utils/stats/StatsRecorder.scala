@@ -1,6 +1,7 @@
 package plasma_utils.stats
 
 import actors.BlockingDbWriter.{DeletePlacementsAtBlock, UpdatePoolInfo}
+import actors.EmissionRequestHandler.CycleResponse
 import akka.util.Timeout
 import configs.ParamsConfig
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
@@ -10,6 +11,7 @@ import models.DatabaseModels.{Balance, BalanceChange, Payment, SPoolBlock}
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import slick.jdbc.PostgresProfile
+import utils.ConcurrentBoxLoader.BatchSelection
 
 import java.time.LocalDateTime
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,6 +32,16 @@ object StatsRecorder {
       .filter(_.gEpoch <= blockSort.last.gEpoch)
       .map(b => b.status -> b.updated)
       .update(PoolBlock.PAID -> LocalDateTime.now()))
+  }
+
+  def writeProcessed(blocks: Seq[SPoolBlock], db: PostgresProfile#Backend#Database): Future[Int] = {
+    val blockSort = blocks.sortBy(_.gEpoch)
+    db.run(Tables.PoolBlocksTable
+      .filter(_.poolTag === blockSort.head.poolTag)
+      .filter(_.gEpoch >= blockSort.head.gEpoch)
+      .filter(_.gEpoch <= blockSort.last.gEpoch)
+      .map(b => b.status -> b.updated)
+      .update(PoolBlock.PROCESSED -> LocalDateTime.now()))
   }
 
   def confirmTransform(poolState: PoolState, outputId: String, db: PostgresProfile#Backend#Database): Future[Int] = {
@@ -71,6 +83,42 @@ object StatsRecorder {
           case Failure(exception) =>
             logger.error("There was an error updating balance states!", exception)
         }
+    }
+  }
+
+  def recordCycle(cycleResponse: CycleResponse, batch: BatchSelection, db: PostgresProfile#Backend#Database)(implicit ec: ExecutionContext): Future[Unit] = {
+    val blockUpdate = (db.run(Tables.PoolBlocksTable
+      .filter(_.poolTag === batch.info.poolTag)
+      .filter(_.gEpoch >= batch.blocks.head.gEpoch)
+      .filter(_.gEpoch <= batch.blocks.last.gEpoch)
+      .map(b => b.status -> b.updated)
+      .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
+
+    val placeDeletes = {
+      db.run(Tables.PoolPlacementsTable
+        .filter(p => p.subpool === batch.blocks.head.poolTag)
+        .filter(p => p.block === batch.blocks.minBy(b => b.gEpoch).blockheight)
+        .delete)
+    }
+    val placeUpdates = placeDeletes.map {
+      i =>
+        logger.info(s"A total of ${i} rows were deleted from last placements")
+        logger.info("Now inserting new placement rows!")
+        db.run(Tables.PoolPlacementsTable ++= cycleResponse.nextPlacements)
+    }.flatten
+
+    for {
+      blockRowsUpdated <- blockUpdate
+      placeRowsInserted <- placeUpdates
+    } yield {
+      if (blockRowsUpdated > 0)
+        logger.info(s"${blockRowsUpdated} rows were updated for ${batch.blocks.length} blocks")
+      else
+        logger.error(s"No rows were updated for ${batch.blocks.length} blocks!")
+      if (placeRowsInserted.getOrElse(0) > 0)
+        logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${cycleResponse.nextPlacements.head.subpool}")
+      else
+        logger.error(s"No placements were inserted for pool ${cycleResponse.nextPlacements.head.subpool}")
     }
   }
 

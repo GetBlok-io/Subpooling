@@ -196,7 +196,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
           require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-          val balanceState = new BalanceState[SingleBalance](states.head.subpool)
+          val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
           stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, placements)
         }
 
