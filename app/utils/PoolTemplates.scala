@@ -42,8 +42,14 @@ object PoolTemplates {
     Some(PlasmaScripts.SINGLE)
   )
 
+  val SOLO_PLASMA_POOL: PoolTemplate = PoolTemplate("GetBlok.io SOLO Plasma Pool", 0.02, 1, PaymentType.PLASMA_SOLO_BATCH,
+    PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 10L, 1000L,
+    "GetBlok.io SOLO Plasma Pool", "This token represents the SOLO Plasma Pool on GetBlok.io",
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
+
   val templates: Array[UninitializedPool] = Array(
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
+    UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, STANDARD_POOL),
     UninitializedPool(poolMade = false, None, SOLO_POOL),
     UninitializedPool(poolMade = false, Some(false), COMET_POOL),

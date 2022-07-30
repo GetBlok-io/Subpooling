@@ -153,6 +153,7 @@ object PersistenceModels {
     val PAY_PLASMA_SOLO  = "SOLO_PLASMA"
     val TokenExchangeEmissions = "Exchange"
     val ProportionalEmissions  = "Proportional"
+    val HybridExchangeEmissions  = "HybridExchange"
     val NoEmissions   = "none"
   }
 
