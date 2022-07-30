@@ -28,6 +28,7 @@ import models.DatabaseModels.{Balance, BalanceChange, Payment}
 import models.ResponseModels.PoolGenerated
 import org.ergoplatform.appkit.{Address, ConstantsBuilder, Eip4Token, ErgoClient, ErgoId, ErgoToken, ErgoValue, InputBox, NetworkType}
 import persistence.Tables
+import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent}
@@ -79,21 +80,21 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
     system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
         performTestnetSetup
-        val incompleteTemps = Try {
-          findIncompletePools
-        }
-        incompleteTemps.recoverWith{
-          case ex =>
-            logger.error("There was a critical error while checking processing blocks!", ex)
-            Failure(ex)
-        }
-        if(incompleteTemps.isSuccess) {
-          Try(createNextPool(incompleteTemps.get)).recoverWith {
-            case ex =>
-              logger.error("There was a critical error creating the next pool!", ex)
-              Failure(ex)
-          }
-        }
+//        val incompleteTemps = Try {
+//          findIncompletePools
+//        }
+//        incompleteTemps.recoverWith{
+//          case ex =>
+//            logger.error("There was a critical error while checking processing blocks!", ex)
+//            Failure(ex)
+//        }
+//        if(incompleteTemps.isSuccess) {
+//          Try(createNextPool(incompleteTemps.get)).recoverWith {
+//            case ex =>
+//              logger.error("There was a critical error creating the next pool!", ex)
+//              Failure(ex)
+//          }
+//        }
     })(contexts.taskContext)
   }
 
@@ -192,11 +193,11 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       client.execute{
         ctx =>
           logger.info(s"Making Plasma Pool for pool with name ${template.title}")
-          Thread.sleep(100000)
+
           val tokenBox = makeTokenTx(1, template.tokenName, template.tokenDesc, 0, Helpers.MinFee * 2)
           val tokenId = tokenBox.getTokens.get(0).getId
           val file = new File(AppParameters.plasmaStoragePath + s"/${tokenId.toString}").mkdir()
-          val balanceState = new BalanceState[SingleBalance](tokenId.toString)
+          val balanceState = PaymentRouter.routeBalanceState(template.scriptType.get, tokenId.toString)
           val stateBox = BalanceStateContract.buildBox(ctx, balanceState, tokenId, wallet.p2pk, template.scriptType.get)
           val uTx = ctx.newTxBuilder()
             .boxesToSpend(Seq(tokenBox).asJava)
@@ -387,15 +388,19 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       val tNETA   = new ErgoToken(EmissionTemplates.NETA_TESTNET.distToken, 14538197936805L)
       val totalValue = Helpers.ergToNanoErg(124262.460493556)
       makeFakeLPTx(totalValue, lpNFT, lpTokens, tNETA, 996, "14a8fb5d0f61af67482c7d4de9360627ab10d6bab962329d5a81aef34aeb7068")*/
+      val nextInput = makeTokenTx(1, "ErgoPad Testnet LP NFT", "ErgoPad Testnet LP NFT", 0, Helpers.OneErg)
+      val fillerLPInput = makeTokenTx(1000000000L, "ErgoPad Testnet LP Token", "ErgoPad Testnet LP Token", 0, Helpers.OneErg / 2, Some(nextInput))
+      val tErgoPadInput = makeTokenTx(Long.MaxValue - 1, "tErgoPad", "Testnet ErgoPad for ErgoPad subpool", 2, Helpers.MinFee, Some(fillerLPInput))
     }
+
   }
 
-  def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long): InputBox = {
+  def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long, optInput: Option[InputBox] = None): InputBox = {
     Try {
       client.execute {
         ctx =>
           logger.info("Making token tx")
-          val inputBoxes = wallet.boxes(ctx, outVal + Helpers.MinFee).get
+          val inputBoxes = optInput.map(i => Seq(i).asJava).getOrElse(wallet.boxes(ctx, outVal + Helpers.MinFee).get)
           logger.info("Found boxes for token")
           val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
           logger.info("Building token minting transaction")

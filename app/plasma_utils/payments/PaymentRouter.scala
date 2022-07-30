@@ -2,6 +2,8 @@ package plasma_utils.payments
 
 import actors.StateRequestHandler.PoolBox
 import akka.actor.ActorRef
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts.ScriptType
 import io.getblok.subpooling_core.cycles.HybridExchangeCycle
 import io.getblok.subpooling_core.cycles.models.Cycle
 import io.getblok.subpooling_core.explorer.ExplorerHandler
@@ -76,6 +78,13 @@ object PaymentRouter {
         new BalanceState[SingleBalance](info.poolTag)
       case PoolInformation.CURR_ERG_ERGOPAD =>
         new BalanceState[DualBalance](info.poolTag)
+    }
+  }
+
+  def routeBalanceState(script: ScriptType, poolTag: String): BalanceState[_ <: StateBalance] = {
+    script match {
+      case PlasmaScripts.SINGLE => new BalanceState[SingleBalance](poolTag)
+      case PlasmaScripts.DUAL => new BalanceState[DualBalance](poolTag)
     }
   }
 

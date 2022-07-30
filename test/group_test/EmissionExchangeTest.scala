@@ -35,12 +35,12 @@ class EmissionExchangeTest extends AnyFunSuite {
   }
 
   test("Get NETA Pool"){
-    val boxItems = explorerHandler.boxesByTokenId(ErgoId.create("7d2e28431063cbb1e9e14468facc47b984d962532c19b0b14f74d0ce9ed459be"))
+    val boxItems = explorerHandler.boxesByTokenId(ErgoId.create("d7868533f26db1b1728c1f85c2326a3c0327b57ddab14e41a2b77a5d4c20f4b2"))
     val box = boxItems.get.head
     val POOL_FEE_DENOM = 1000
     logger.info(box.toString)
     val swapAmount = HybridExchangeContract.calculateMinOutputAmount(Helpers.ergToNanoErg(65), .01,
-      box.value, box.assets(2).amount / 1000, Integer.valueOf(box.registers.R4.get.renderedValue).longValue() / 10, POOL_FEE_DENOM)
+      box.value, box.assets(2).amount , Integer.valueOf(box.registers.R4.get.renderedValue).longValue() , POOL_FEE_DENOM)
 
     logger.info(s"Swap amount: $swapAmount")
   }
