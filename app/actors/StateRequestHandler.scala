@@ -50,7 +50,7 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
                 ergoClient.execute{
                   ctx =>
                     val poolBox = grabPoolBox(ctx, poolState, balanceState)
-                    val plasmaMiners = morphToPlasma(placements, balanceState, batch.blocks.head.netDiff)
+                    val plasmaMiners = morphToPlasma(placements, balanceState, batch.blocks.head.netDiff, batch)
                     val holdingBox   = grabHoldingBox(ctx, placements.head).get
                     val stateGroup = PaymentRouter.routeStateGroup(ctx, wallet, batch,
                       poolBox, plasmaMiners, inputBoxes, holdingBox)
@@ -112,23 +112,19 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
     PoolBox(box.getOrElse(throw new UntrackedPoolStateException(poolState.box, poolTag)), balanceState)
   }
 
-  def morphToPlasma[T <: StateBalance](placements: Seq[PoolPlacement], balanceState: BalanceState[T], netDiff: Double): Seq[PlasmaMiner] = {
+  def morphToPlasma[T <: StateBalance](placements: Seq[PoolPlacement], balanceState: BalanceState[T],
+                                       netDiff: Double, batch: BatchSelection): Seq[PlasmaMiner] = {
     val totalScore = placements.map(_.score).sum
 
     val partialPlasmaMiners = placements.map{
       p =>
         val sharePerc: Double = (BigDecimal(p.score) / totalScore).toDouble
         val shareNum: Long = (p.score * BigDecimal(netDiff)).toLong
-        PlasmaMiner(Address.create(p.miner), p.score, 0L, p.amount, p.minpay, sharePerc, shareNum, p.epochs_mined)
+        val secondBalanceAdd = p.amountTwo.getOrElse(0L)
+        PlasmaMiner(Address.create(p.miner), p.score, 0L, p.amount, p.minpay, sharePerc, shareNum, p.epochs_mined, addedTwo = secondBalanceAdd)
     }
-    val balState = balanceState.asInstanceOf[BalanceState[SingleBalance]]
 
-    balanceState.map.initiate()
-    val balances = partialPlasmaMiners zip balState.map.lookUp(partialPlasmaMiners.map(_.toStateMiner.toPartialStateMiner):_*).response
-    balanceState.map.dropChanges()
-    val plasmaMiners = balances.map(b => b._1.copy(balance = b._2.tryOp.get.map(_.balance).getOrElse(0L)))
-      .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
-    plasmaMiners
+    PaymentRouter.routeMinerBalances(balanceState, partialPlasmaMiners, batch)
   }
 
   def grabHoldingBox(ctx: BlockchainContext, placement: PoolPlacement): Try[Option[InputBox]] = {

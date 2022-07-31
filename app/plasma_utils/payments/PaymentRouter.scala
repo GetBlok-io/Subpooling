@@ -92,13 +92,52 @@ object PaymentRouter {
     val plasmaPayers = Seq(PoolInformation.PAY_PLASMA_SOLO, PoolInformation.PAY_PLASMA_PPLNS)
 
     if(routePlasma){
+      logger.info("Searching for Plasma Pools to pay")
       val plasmaInfos = infos.filter(i => plasmaPayers.contains(i.payment_type))
       val plasmaBlocks = blocks.filter(b => plasmaInfos.exists(pi => pi.poolTag == b.poolTag))
       plasmaBlocks
     }else{
+      logger.info("Searching for normal Pools to pay")
       val normalInfos = infos.filter(i => !plasmaPayers.contains(i.payment_type))
       val normalBlocks = blocks.filter(b => normalInfos.exists(pi => pi.poolTag == b.poolTag))
       normalBlocks
+    }
+  }
+
+  def routeMinerBalances[T <: StateBalance](balanceState: BalanceState[T], partialPlasmaMiners: Seq[PlasmaMiner],
+                                            batch: BatchSelection): Seq[PlasmaMiner] = {
+    batch.info.currency match {
+      case PoolInformation.CURR_ERG =>
+        logger.info("Routing Plasma Miners through Single Balance State")
+        val singleMap = balanceState.asInstanceOf[BalanceState[SingleBalance]]
+        singleMap.map.initiate()
+        val balances = partialPlasmaMiners zip singleMap.map.lookUp(partialPlasmaMiners.map(_.toStateMiner.toPartialStateMiner):_*).response
+        singleMap.map.dropChanges()
+        val plasmaMiners = balances.map{
+          b =>
+            b._1.copy(
+              balance = b._2.tryOp.get.map(_.balance).getOrElse(0L)
+            )
+        }
+          .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
+        plasmaMiners
+      case PoolInformation.CURR_ERG_ERGOPAD =>
+        logger.info("Routing Plasma Miners through Dual Balance State")
+
+        val dualMap = balanceState.asInstanceOf[BalanceState[DualBalance]]
+        dualMap.map.initiate()
+        val balances = partialPlasmaMiners zip dualMap.map.lookUp(partialPlasmaMiners.map(_.toStateMiner.toPartialStateMiner):_*).response
+        dualMap.map.dropChanges()
+        val plasmaMiners = balances.map{
+          b =>
+            b._1.copy(
+              balance = b._2.tryOp.get.map(_.balance).getOrElse(0L),
+              balanceTwo = b._2.tryOp.get.map(_.balanceTwo).getOrElse(0L)
+            )
+        }
+          .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
+        plasmaMiners
+
     }
   }
 }

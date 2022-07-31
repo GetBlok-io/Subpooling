@@ -20,7 +20,7 @@ import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, M
 import org.ergoplatform.appkit.{BoxOperations, ErgoClient, ErgoId, InputBox, Parameters}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import persistence.shares.ShareCollector
-import plasma_utils.{PaymentDistributor, PrePlacer}
+import plasma_utils.{EmissionHandler, PaymentDistributor, PrePlacer}
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.{Configuration, Logger}
 import slick.jdbc.PostgresProfile
@@ -102,6 +102,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val prePlacer = new PrePlacer(contexts, params, nodeConfig, boxLoader, db, emHandler)
           val distributor = new PaymentDistributor(expReq, stateHandler, contexts, params, taskConfig, boxLoader, db)
+          val emissions   = new EmissionHandler(expReq, emHandler, contexts, params, taskConfig, boxLoader, db)
           if (params.singularGroups) {
             if (currentRun == 0) {
               val tryPlacement = Try {
@@ -136,6 +137,9 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
             val tryDistributor = Try {
               distributor.executeDistribution()
             }
+            val tryEmissionHandler = Try {
+              emissions.startEmissions()
+            }
 
 
             val tryPlacement = Try {
@@ -166,6 +170,16 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 logger.error("There was a fatal error thrown during synchronous Distributor execution", exception)
                 currentRun = currentRun + 1
             }
+
+            tryEmissionHandler match {
+              case Success(value) =>
+                logger.info("Synchronous emission functions executed successfully!")
+                currentRun = currentRun + 1
+              case Failure(exception) =>
+                logger.error("There was a fatal error thrown during synchronous emission execution", exception)
+                currentRun = currentRun + 1
+            }
+
             tryPlacement match {
               case Success(value) =>
                 logger.info("Synchronous placement functions executed successfully!")
@@ -183,6 +197,8 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
                 logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
                 currentRun = currentRun + 1
             }
+
+
           }
         } else {
           logger.error("There was an error thrown while trying to pre-collect inputs!", tryPreCollection.failed.get)

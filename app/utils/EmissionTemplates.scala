@@ -55,10 +55,19 @@ object EmissionTemplates {
     500000L * 100L
   )
 
+  val ERGOPAD_TESTNET: HybridTemplate = HybridTemplate(
+    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    ErgoId.create("9bddf35f76aedb8409029c661024759c2ad5bdafc7e8784649354529c2bf5cde"),
+    ErgoId.create("544e2fe15462c84f6fd149422832da0b363abc03a831f4f4a8685c2479891d97"),
+    10000L,
+    10000L,
+    500000L * 100L
+  )
+
   def getErgoPadTemplate(networkType: NetworkType): HybridTemplate = {
     networkType match {
       case NetworkType.MAINNET => ERGOPAD_MAINNET
-      case NetworkType.TESTNET => ERGOPAD_MAINNET // TODO: CHANGE LATER
+      case NetworkType.TESTNET => ERGOPAD_TESTNET // TODO: CHANGE LATER
     }
   }
 

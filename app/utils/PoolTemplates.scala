@@ -47,16 +47,24 @@ object PoolTemplates {
     "GetBlok.io SOLO Plasma Pool", "This token represents the SOLO Plasma Pool on GetBlok.io",
     Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")),
     Some(PlasmaScripts.SINGLE)
+  )
 
+
+  val ERGOPAD_POOL: PoolTemplate = PoolTemplate("Ergopad Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
+    PoolInformation.HybridExchangeEmissions, PoolInformation.CURR_ERG_ERGOPAD, 10L, 1000L,
+    "Ergopad Smart Pool", "This token represents the Ergopad Smart Pool on GetBlok.io",
+    Some(Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh")),
+    Some(PlasmaScripts.DUAL)
   )
 
   val templates: Array[UninitializedPool] = Array(
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
-    UninitializedPool(poolMade = false, None, STANDARD_POOL),
-    UninitializedPool(poolMade = false, None, SOLO_POOL),
-    UninitializedPool(poolMade = false, Some(false), COMET_POOL),
-    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
+    UninitializedPool(poolMade = false, Some(false), ERGOPAD_POOL, isPlasma = true),
+//    UninitializedPool(poolMade = false, None, STANDARD_POOL),
+//    UninitializedPool(poolMade = false, None, SOLO_POOL),
+//    UninitializedPool(poolMade = false, Some(false), COMET_POOL),
+//    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
 
     )
 

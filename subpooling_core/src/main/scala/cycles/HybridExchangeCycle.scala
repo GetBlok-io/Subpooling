@@ -31,7 +31,7 @@ class HybridExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Lo
   def getEmissionsBox: InputBox = {
     logger.info(s"Searching for emissions box with NFT ${emNFT}")
     val emissionBoxes = explorerHandler
-      .boxesByTokenId(lpNFT, 0, 100)
+      .boxesByTokenId(emNFT, 0, 100)
       .getOrElse(throw new EmissionsBoxNotFoundException(emNFT))
 
     emissionBoxes
@@ -114,12 +114,14 @@ class HybridExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Lo
 
   def morphPlacementValues(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Seq[PoolPlacement] = {
     val totalScore = placements.map(_.score).sum
-
+    // We give all miners on the pool at least 1 token (not 1.0), to deal with issues relating to low token decimals
+    val emissionsAfterInit = emissionResults.amountEmitted - placements.size
+    require(emissionsAfterInit > 0)
     placements.map{
       p =>
         p.copy(
           amount = ((BigDecimal(p.score) / totalScore) * emissionResults.ergRewarded).longValue(),
-          amountTwo = Some(((BigDecimal(p.score) / totalScore) * emissionResults.amountEmitted).longValue())
+          amountTwo = Some(1 + ((BigDecimal(p.score) / totalScore) * emissionsAfterInit).longValue())
         )
     }
   }

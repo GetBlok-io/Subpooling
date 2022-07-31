@@ -24,7 +24,7 @@ import scala.util.Try
 
 class EmissionValidator(expReq: ActorRef, contexts: Contexts, params: ParamsConfig,
                         db: PostgresProfile#Backend#Database) {
-  val logger: Logger = LoggerFactory.getLogger("TransformValidator")
+  val logger: Logger = LoggerFactory.getLogger("EmissionValidator")
   import slick.jdbc.PostgresProfile.api._
   implicit val timeout: Timeout = Timeout(1000 seconds)
   implicit val taskContext: ExecutionContext = contexts.taskContext
@@ -83,6 +83,7 @@ class EmissionValidator(expReq: ActorRef, contexts: Contexts, params: ParamsConf
         if(output.isOnMainChain && output.spendingTxId.isEmpty) {
           logger.info("Holding box found on-chain!")
           StatsRecorder.writeProcessed(blocks, db)
+          logger.info("Finished updating blocks to processed")
         }else{
           if(!output.isOnMainChain){
             logger.warn("Did not find holding box on main chain! Maybe its on a forked one?")

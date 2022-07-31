@@ -31,7 +31,7 @@ import scala.util.{Failure, Success}
 class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
                       contexts: Contexts, params: ParamsConfig, taskConf: TaskConfiguration,
                       boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
-  val logger: Logger = LoggerFactory.getLogger("PaymentDistributor")
+  val logger: Logger = LoggerFactory.getLogger("EmissionHandler")
   import slick.jdbc.PostgresProfile.api._
 
   def startEmissions(): Unit = {
@@ -44,18 +44,22 @@ class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
 
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
     val infos = Await.result(infoResp, 1000 seconds)
-
+    logger.info("Number of normal blocks")
     val plasmaBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = true)
+    logger.info(s"Num plasma blocks: ${plasmaBlocks.size}")
     if(plasmaBlocks.nonEmpty) {
+      logger.info("Found plasma blocks to attempt emissions")
       val selectedBlocks = boxLoader.selectBlocks(plasmaBlocks, strictBatch = true, isPlasma = true)
+      logger.info("Blocks selected, now collecting inputs")
       val inputBoxes = collectInputs(selectedBlocks)
+      logger.info("Inputs collected, now executing cycle")
       val cycleResponse = executeCycle(selectedBlocks, inputBoxes)
 
       cycleResponse.onComplete {
         case Success(cycleResp) =>
           logger.info(s"Successfully executed cycle for pool ${selectedBlocks.info.poolTag}")
           logger.info("Now writing cycle response")
-
+          writeCycle(cycleResp, selectedBlocks)
         case Failure(exception) =>
           logger.error("An error occurred during cycle execution!", exception)
       }
@@ -74,6 +78,7 @@ class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val collectedComponents = {
+      logger.info(s"Now executing cycle for pool ${batchSelection.info.poolTag}")
       val poolTag = batchSelection.info.poolTag
       val block = batchSelection.blocks.head
 

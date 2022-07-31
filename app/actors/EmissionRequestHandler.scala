@@ -34,20 +34,23 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
   override def receive: Receive = {
     case emitReq: EmissionRequest =>
         Try {
+          logger.info("Received emission request")
           emitReq match {
             case ConstructCycle(batch, reward) =>
               ergoClient.execute{
                 ctx =>
+                  logger.info("Now constructing cycle")
                   sender ! PaymentRouter.routeCycle(ctx, wallet, reward, batch, explorer)
               }
             case CalculateEmissions(cycle, placements) =>
+              logger.info("Now calculating emissions")
               val emissionResults = cycle.simulateSwap
 
               val nextPlacements = cycle.morphPlacementValues(placements, emissionResults)
 
               sender ! EmissionResponse(emissionResults, nextPlacements)
             case CycleEmissions(cycle, placements, inputs) =>
-
+              logger.info("Now executing emission cycle")
               val cycleState = makeCycleState(cycle, inputs)
               val emissionResults = cycle.simulateSwap
               val cycleResults = cycle.cycle(cycleState, emissionResults, AppParameters.sendTxs)
