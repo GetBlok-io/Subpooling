@@ -197,7 +197,7 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
           poolTag, 0L, transformResult.transaction.getId.replace("\"", ""),
           currentState.box.getId.toString, gEpoch, gEpoch, currentState.box.getCreationHeight, miner.miner.toString,
           miner.shareScore, miner.shareNum, miner.sharePerc, miner.minPay, miner.balance, 0L, miner.amountAdded,
-          miner.epochsMined, s"${tokenName}", miner.balanceTwo, block, LocalDateTime.now()
+          miner.epochsMined, s"${tokenName}", 0L, block, LocalDateTime.now()
         )
     }
   }
