@@ -5,11 +5,11 @@ import group_test.dummyProver
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, StateBalance, StateMiner}
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateMiner}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.models.CommandTypes.{Command, DELETE, INSERT, PAYOUT, UPDATE}
-import io.getblok.subpooling_core.states.models.{CommandState, PlasmaMiner, State}
-import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform, PayoutTransform, UpdateTransform}
+import io.getblok.subpooling_core.states.models.{CommandState, PlasmaMiner, SingleState}
+import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform}
 import org.ergoplatform.appkit.impl.ErgoTreeContract
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoProver, InputBox, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
@@ -19,13 +19,15 @@ import plasma_test.StateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 import io.getblok.getblok_plasma.collections.Manifest
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, UpdateTransform}
 import org.bouncycastle.util.encoders.Hex
 class StateTransformationSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("plasmatesting")
+  val balanceState = new BalanceState[SingleBalance]("plasmatesting")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
-  var transformer: StateTransformer = _
-  var lastState: State = _
+  var transformer: StateTransformer[SingleBalance] = _
+  var lastState: SingleState = _
 
   case class TestInfo(transform: Command, txId: String, cost: Long, txSize: Long, manifest: Manifest){
     override def toString: String = {
@@ -55,8 +57,8 @@ class StateTransformationSuite extends AnyFunSuite{
   def setup() = {
     ergoClient.execute {
       ctx =>
-        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, dummyWallet.p2pk))
-        val initState = State(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg)))
+        stateBox = toInput(BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, dummyWallet.p2pk, PlasmaScripts.SINGLE))
+        val initState = SingleState(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg)))
         transformer = new StateTransformer(ctx, initState)
     }
   }
@@ -65,11 +67,11 @@ class StateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
 
-        val initCommandBox = toInput(InsertBalanceContract.buildBox(ctx, dummyTokenId))
+        val initCommandBox = toInput(InsertBalanceContract.buildBox(ctx, dummyTokenId, PlasmaScripts.SINGLE))
         val commandState = CommandState(initCommandBox, slicedData(dataSlice), INSERT, dataSlice)
         val insertTransform = InsertTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(insertTransform)
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         logger.info(s"${result.transaction.toJson(true)}")
 
         infoBuffer += TestInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get)
@@ -80,11 +82,11 @@ class StateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
 
-        val initCommandBox = toInput(DeleteBalanceContract.buildBox(ctx, dummyTokenId))
+        val initCommandBox = toInput(DeleteBalanceContract.buildBox(ctx, dummyTokenId, PlasmaScripts.SINGLE))
         val commandState = CommandState(initCommandBox, slicedData(dataSlice), DELETE, dataSlice)
         val deleteTransform = DeleteTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(deleteTransform)
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         logger.info(s"${result.transaction.toJson(true)}")
 
         infoBuffer += TestInfo(DELETE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get)
@@ -95,14 +97,14 @@ class StateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
 
-        val initCommandBox = toInput(UpdateBalanceContract.buildBox(ctx, dummyTokenId, Some(slicedData(dataSlice).map(_.amountAdded).sum + Helpers.MinFee * 10)))
+        val initCommandBox = toInput(UpdateBalanceContract.buildBox(ctx, dummyTokenId, PlasmaScripts.SINGLE, Some(slicedData(dataSlice).map(_.amountAdded).sum + Helpers.MinFee * 10)))
         val commandState = CommandState(initCommandBox, slicedData(dataSlice), UPDATE, dataSlice)
         val updateTransform = UpdateTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(updateTransform)
 
         logger.info(s"${result.transaction.toJson(true)}")
         stateBox = result.nextState.box
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         infoBuffer += TestInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get)
     }
   }
@@ -111,14 +113,14 @@ class StateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
 
-        val initCommandBox = toInput(PayoutBalanceContract.buildBox(ctx, dummyTokenId, Some(Helpers.MinFee * 10)))
+        val initCommandBox = toInput(PayoutBalanceContract.buildBox(ctx, dummyTokenId, PlasmaScripts.SINGLE, Some(Helpers.MinFee * 10)))
         val commandState = CommandState(initCommandBox,slicedData(dataSlice), PAYOUT, dataSlice)
         val payoutTransform = PayoutTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(payoutTransform)
 
         logger.info(s"${result.transaction.toJson(true)}")
         stateBox = result.nextState.box
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         infoBuffer += TestInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length, result.manifest.get)
     }
   }

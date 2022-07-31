@@ -1,6 +1,7 @@
 package plasma_utils.stats
 
 import actors.BlockingDbWriter.{DeletePlacementsAtBlock, UpdatePoolInfo}
+import actors.EmissionRequestHandler.CycleResponse
 import akka.util.Timeout
 import configs.ParamsConfig
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
@@ -10,6 +11,7 @@ import models.DatabaseModels.{Balance, BalanceChange, Payment, SPoolBlock}
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
 import slick.jdbc.PostgresProfile
+import utils.ConcurrentBoxLoader.BatchSelection
 
 import java.time.LocalDateTime
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,6 +32,16 @@ object StatsRecorder {
       .filter(_.gEpoch <= blockSort.last.gEpoch)
       .map(b => b.status -> b.updated)
       .update(PoolBlock.PAID -> LocalDateTime.now()))
+  }
+
+  def writeProcessed(blocks: Seq[SPoolBlock], db: PostgresProfile#Backend#Database): Future[Int] = {
+    val blockSort = blocks.sortBy(_.gEpoch)
+    db.run(Tables.PoolBlocksTable
+      .filter(_.poolTag === blockSort.head.poolTag)
+      .filter(_.gEpoch >= blockSort.head.gEpoch)
+      .filter(_.gEpoch <= blockSort.last.gEpoch)
+      .map(b => b.status -> b.updated)
+      .update(PoolBlock.PROCESSED -> LocalDateTime.now()))
   }
 
   def confirmTransform(poolState: PoolState, outputId: String, db: PostgresProfile#Backend#Database): Future[Int] = {
@@ -74,6 +86,42 @@ object StatsRecorder {
     }
   }
 
+  def recordCycle(cycleResponse: CycleResponse, batch: BatchSelection, db: PostgresProfile#Backend#Database)(implicit ec: ExecutionContext): Future[Unit] = {
+    val blockUpdate = (db.run(Tables.PoolBlocksTable
+      .filter(_.poolTag === batch.info.poolTag)
+      .filter(_.gEpoch >= batch.blocks.head.gEpoch)
+      .filter(_.gEpoch <= batch.blocks.last.gEpoch)
+      .map(b => b.status -> b.updated)
+      .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
+
+    val placeDeletes = {
+      db.run(Tables.PoolPlacementsTable
+        .filter(p => p.subpool === batch.blocks.head.poolTag)
+        .filter(p => p.block === batch.blocks.minBy(b => b.gEpoch).blockheight)
+        .delete)
+    }
+    val placeUpdates = placeDeletes.map {
+      i =>
+        logger.info(s"A total of ${i} rows were deleted from last placements")
+        logger.info("Now inserting new placement rows!")
+        db.run(Tables.PoolPlacementsTable ++= cycleResponse.nextPlacements)
+    }.flatten
+
+    for {
+      blockRowsUpdated <- blockUpdate
+      placeRowsInserted <- placeUpdates
+    } yield {
+      if (blockRowsUpdated > 0)
+        logger.info(s"${blockRowsUpdated} rows were updated for ${batch.blocks.length} blocks")
+      else
+        logger.error(s"No rows were updated for ${batch.blocks.length} blocks!")
+      if (placeRowsInserted.getOrElse(0) > 0)
+        logger.info(s"${placeRowsInserted} rows were inserted for placements for pool ${cycleResponse.nextPlacements.head.subpool}")
+      else
+        logger.error(s"No placements were inserted for pool ${cycleResponse.nextPlacements.head.subpool}")
+    }
+  }
+
   def enterNewPaymentStats(block: SPoolBlock, info: PoolInformation, members: Seq[PoolMember], params: ParamsConfig,
                            settings: Map[String, Option[String]], db: PostgresProfile#Backend#Database)(implicit ec: ExecutionContext): Try[Unit] = {
     // Build db changes
@@ -105,7 +153,14 @@ object StatsRecorder {
       val paymentInserts = Tables.Payments ++= payments
       val changeInserts = Tables.BalanceChanges ++= balanceChanges
 
-      balancesToUpdate.map(db.run)
+      balancesToUpdate.map{
+        bU =>
+          db.run(bU).recoverWith{
+            case e: Exception =>
+              logger.error("Fatal error while updating info!", e)
+              Future(Failure(e))
+          }
+      }
       logger.info("Sending writes...")
       val payR = db.run(paymentInserts)
       val changeR = db.run(changeInserts)
@@ -126,6 +181,45 @@ object StatsRecorder {
         Failure(ex)
     }
     logger.info("Payment insertions complete")
+
+    Try {
+      // Update pool info
+
+      db.run(
+        Tables.PoolInfoTable
+          .filter(_.poolTag === info.poolTag)
+          .map(i => (i.gEpoch, i.lastBlock, i.totalMembers, i.valueLocked, i.totalPaid))
+          .update((block.gEpoch, block.blockheight, members.length, members.map(_.stored).sum,
+            (info.total_paid + members.map(_.paid).sum))
+          )
+      ).recoverWith{
+        case e: Exception =>
+          logger.error("Fatal error while updating info!", e)
+          Future(Failure(e))
+      }
+
+
+    }.recoverWith{
+      case ex: Exception =>
+        logger.error("There was a fatal exception while updating info and deleting placements!", ex)
+        Failure(ex)
+    }
+
+    Try{
+      logger.info("Now deleting placements")
+      db.run(Tables.PoolPlacementsTable.filter(_.subpool === info.poolTag).filter(_.block === block.blockheight).delete)
+        .recoverWith{
+          case e: Exception =>
+            logger.error("Fatal error while deleting placements!", e)
+            Future(Failure(e))
+        }
+      logger.info("Finished deleting placements")
+    }.recoverWith{
+      case ex: Exception =>
+        logger.error("There was a fatal exception while deleting placements!", ex)
+        Failure(ex)
+    }
+
     Try {
       val shareDeletes = Tables.PoolSharesTable.filter(_.created < LocalDateTime.now().minusWeeks(params.keepSharesWindowInWeeks))
       val statsDeletes = Tables.MinerStats.filter(_.created < LocalDateTime.now().minusWeeks(params.keepMinerStatsWindowInWeeks))
@@ -146,25 +240,6 @@ object StatsRecorder {
         Failure(ex)
     }
     logger.info("Table pruning complete")
-    Try {
-      // Update pool info
-
-      db.run(
-        Tables.PoolInfoTable
-          .filter(_.poolTag === info.poolTag)
-          .map(i => (i.gEpoch, i.lastBlock, i.totalMembers, i.valueLocked, i.totalPaid))
-          .update((block.gEpoch, block.blockheight, members.length, members.map(_.stored).sum,
-            (info.total_paid + members.map(_.paid).sum))
-          )
-      )
-
-      db.run(Tables.PoolPlacementsTable.filter(_.subpool === info.poolTag).filter(_.block === block.blockheight).delete)
-      logger.info("Finished updating info and deleting placements")
-    }.recoverWith{
-      case ex: Exception =>
-        logger.error("There was a fatal exception while updating info and deleting placements!", ex)
-        Failure(ex)
-    }
     Try(logger.info("Pool data updates complete"))
   }
 

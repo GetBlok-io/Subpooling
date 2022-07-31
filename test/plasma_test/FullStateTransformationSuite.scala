@@ -4,13 +4,15 @@ import group_test.MockData.ergoClient
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.AppParameters.{NodeWallet, PK}
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, StateMiner}
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateMiner}
 import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
-import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, State}
-import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform, PayoutTransform, SetupTransform, UpdateTransform}
+import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, SingleState}
+import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform}
+import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
 import org.ergoplatform.appkit.impl.ErgoTreeContract
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, InputBox, NetworkType, OutBox, RestApiErgoClient}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoContract, ErgoId, ErgoProver, ErgoToken, InputBox, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 import plasma_test.FullStateTransformationSuite._
@@ -18,11 +20,11 @@ import plasma_test.FullStateTransformationSuite._
 import scala.collection.mutable.ArrayBuffer
 
 class FullStateTransformationSuite extends AnyFunSuite{
-  val balanceState = new BalanceState("state_transform_suite")
+  val balanceState = new BalanceState[SingleBalance]("state_transform_suite")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
-  var transformer: StateTransformer = _
-  var lastState: State = _
+  var transformer: StateTransformer[SingleBalance] = _
+  var lastState: SingleState = _
   var commandQueue: IndexedSeq[CommandState] = _
   case class TestInfo(transform: String, txId: String, cost: Long, txSize: Long){
     override def toString: String = s"${transform}: ${txId} ->  ${cost} tx cost -> ${txSize} bytes"
@@ -47,8 +49,8 @@ class FullStateTransformationSuite extends AnyFunSuite{
     ergoClient.execute {
       ctx =>
         logger.info(mockData.map(_.amountAdded).sum + " total value")
-        stateBox = toInput(BalanceStateContract.buildStateBox(ctx, balanceState, dummyTokenId, dummyWallet.p2pk))
-        val initState = State(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg * 1000000L)))
+        stateBox = toInput(BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, dummyWallet.p2pk, PlasmaScripts.SINGLE))
+        val initState = SingleState(stateBox, balanceState, Seq(buildUserBox(Helpers.OneErg * 1000000L)))
         transformer = new StateTransformer(ctx, initState)
     }
   }
@@ -85,7 +87,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
 
         val insertTransform = InsertTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(insertTransform)
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         logger.info(s"${result.transaction.toJson(true)}")
 
         infoBuffer += TestInfo(INSERT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
@@ -98,7 +100,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
 
         val deleteTransform = DeleteTransform(ctx, dummyWallet, commandState)
         val result = transformer.apply(deleteTransform)
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         logger.info(s"${result.transaction.toJson(true)}")
 
         infoBuffer += TestInfo(DELETE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
@@ -114,7 +116,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
 
         logger.info(s"${result.transaction.toJson(true)}")
         stateBox = result.nextState.box
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         infoBuffer += TestInfo(UPDATE, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
     }
   }
@@ -128,7 +130,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
 
         logger.info(s"${result.transaction.toJson(true)}")
         stateBox = result.nextState.box
-        lastState = result.nextState
+        lastState = result.nextState.asInstanceOf[SingleState]
         infoBuffer += TestInfo(PAYOUT, result.transaction.getId, result.transaction.getCost, result.transaction.toBytes.length)
     }
   }
@@ -169,7 +171,8 @@ object FullStateTransformationSuite {
 
         val randomMinPay = ((Math.random() * randMinPayRange) + randMinPayFloor).toLong
 
-        PlasmaMiner(Address.create(ad._1), 0L, 0L, ((Math.random() * randomRange) + randomFloor).toLong, randomMinPay, 0, 0, 0)
+        PlasmaMiner(Address.create(ad._1), 0L, 0L, ((Math.random() * randomRange) + randomFloor).toLong, randomMinPay, 0, 0, 0,
+          0L, ((Math.random() * randomRange) + randomFloor).toLong)
     }
   }
 
@@ -203,6 +206,20 @@ object FullStateTransformationSuite {
         val inputBox = ctx.newTxBuilder().outBoxBuilder()
           .value(value)
           .contract(new ErgoTreeContract(creatorAddress.getErgoAddress.script, NetworkType.MAINNET))
+          .build()
+          .convertToInputWith("ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d", 0)
+
+        return inputBox
+    }
+  }
+
+  def buildHoldingBox(value: Long, valueTwo: Long, id: ErgoId, contract: Option[ErgoContract] = None): InputBox = {
+    ergoClient.execute{
+      ctx =>
+        val inputBox = ctx.newTxBuilder().outBoxBuilder()
+          .value(value)
+          .contract(contract.getOrElse(new ErgoTreeContract(creatorAddress.getErgoAddress.script, NetworkType.MAINNET)))
+          .tokens(new ErgoToken(id, valueTwo))
           .build()
           .convertToInputWith("ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d", 0)
 

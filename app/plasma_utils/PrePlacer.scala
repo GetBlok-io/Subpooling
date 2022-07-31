@@ -30,7 +30,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 class PrePlacer(contexts: Contexts, params: ParamsConfig,
-                nodeConfig: NodeConfig, boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database) {
+                nodeConfig: NodeConfig, boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database,
+                emReq: ActorRef) {
   val logger: Logger = LoggerFactory.getLogger("PrePlacer")
   import slick.jdbc.PostgresProfile.api._
   implicit val timeout: Timeout = Timeout(1000 seconds)
@@ -144,7 +145,7 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
         ), 500 seconds
       )
       val totalReward = Helpers.ergToNanoErg(batch.blocks.map(_.reward).sum)
-      val processor = PaymentRouter.routeProcessor(poolInformation, minerSettings, collector, batch, totalReward)
+      val processor = PaymentRouter.routeProcessor(poolInformation, minerSettings, collector, batch, totalReward, emReq)
 
       if (lastPlacements.nonEmpty)
         processor.processNext(lastPlacements)

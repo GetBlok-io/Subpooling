@@ -21,18 +21,20 @@ import io.getblok.subpooling_core.groups.entities.{Pool, Subpool}
 import io.getblok.subpooling_core.groups.selectors.EmptySelector
 import io.getblok.subpooling_core.persistence.models.DataTable
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
-import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance}
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{Balance, BalanceChange, Payment}
 import models.ResponseModels.PoolGenerated
 import org.ergoplatform.appkit.{Address, ConstantsBuilder, Eip4Token, ErgoClient, ErgoId, ErgoToken, ErgoValue, InputBox, NetworkType}
 import persistence.Tables
+import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent}
 import play.api.{Configuration, Logger}
 import slick.jdbc.PostgresProfile
-import utils.{EmissionTemplates, PoolTemplates}
+import utils.{EmissionGenerator, EmissionTemplates, PoolTemplates}
 import utils.PoolTemplates.{PoolTemplate, UninitializedPool}
 
 import java.io.File
@@ -69,7 +71,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
   implicit val ec: ExecutionContext = contexts.taskContext
   val templates: ArrayBuffer[UninitializedPool] = ArrayBuffer() ++ PoolTemplates.templates
   val creator: String = wallet.p2pk.toString
-
+  val emissionGenerator: EmissionGenerator = EmissionGenerator(client, wallet, db)
   if(taskConfig.enabled) {
     logger.info(db.source.toString)
     logger.info(dbConfig.profileName)
@@ -191,12 +193,12 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       client.execute{
         ctx =>
           logger.info(s"Making Plasma Pool for pool with name ${template.title}")
-          Thread.sleep(100000)
+
           val tokenBox = makeTokenTx(1, template.tokenName, template.tokenDesc, 0, Helpers.MinFee * 2)
           val tokenId = tokenBox.getTokens.get(0).getId
           val file = new File(AppParameters.plasmaStoragePath + s"/${tokenId.toString}").mkdir()
-          val balanceState = new BalanceState(tokenId.toString)
-          val stateBox = BalanceStateContract.buildStateBox(ctx, balanceState, tokenId, wallet.p2pk)
+          val balanceState = PaymentRouter.routeBalanceState(template.scriptType.get, tokenId.toString)
+          val stateBox = BalanceStateContract.buildBox(ctx, balanceState, tokenId, wallet.p2pk, template.scriptType.get)
           val uTx = ctx.newTxBuilder()
             .boxesToSpend(Seq(tokenBox).asJava)
             .outputs(stateBox)
@@ -238,144 +240,23 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
   def createEmissions(tag: String, currency: String) = {
     currency match {
       case PoolInformation.CURR_TEST_TOKENS =>
-        EmissionsTransactions.makeTestTokenTx(tag)
+        emissionGenerator.makeTestTokenTx(tag)
       case PoolInformation.CURR_NETA =>
         val emMintBox = makeTokenTx(1L, "Last Extended Phase 2 NETA Emission Box NFT", "Token representing the last extension of the Phase 2 NETA Emission Box", 0, Helpers.MinFee*2)
-        EmissionsTransactions.makeNetaEmissionTx(tag, emMintBox)
+        emissionGenerator.makeNetaEmissionTx(tag, emMintBox)
       case PoolInformation.CURR_ERG_COMET =>
         logger.info("Making emissions for COMET pool")
         val emMintBox = makeTokenTx(1L, "COMET Emission Box NFT", "Token representing the COMET Emission Box", 0, Helpers.MinFee*2)
-        EmissionsTransactions.makeCometEmissionTx(tag, emMintBox)
+        emissionGenerator.makeCometEmissionTx(tag, emMintBox)
+      case PoolInformation.CURR_ERG_ERGOPAD =>
+        logger.info("Making emission for ErgoPad Pool")
+        val emMintBox = makeTokenTx(1L, "ErgoPad Emission Box NFT", "Token representing the ErgoPad Emission Box", 0, Helpers.MinFee * 5)
+        logger.info("Token made, now creating emissions")
+        emissionGenerator.makeErgoPadEmissions(tag, emMintBox)
        // makeTokenTx(1000000000000L, "tCOMET", "Testnet Comet", 0, Helpers.MinFee * 2)
     }
   }
-  object EmissionsTransactions {
-    def makeTestTokenTx(tag: String, emissionReward: Double = 67.5D) = {
-        client.execute {
-          ctx =>
-            // TODO: Change creator in real token pools
-            val fPoolCreator = db.run(Tables.PoolInfoTable.filter(_.poolTag === tag).map(_.creator).result.head)
-            for(poolCreator <- fPoolCreator){
-              val metadataContract = MetadataContract.generateMetadataContract(ctx)
-              val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(tag))
-              val emissionsContract = EmissionsContract.generate(ctx, wallet.p2pk, Address.create(poolCreator), holdingContract)
 
-
-              val distributionToken = new ErgoToken(ErgoId.create("b7ba3da6a1d09c0ec73d655779bfbf933b5306002747b1c9eedcadee6b9e6994"), 10000 * Helpers.OneErg)
-
-              val inputBoxes     = ctx.getCoveringBoxesFor(wallet.p2pk, Helpers.MinFee * 10, Seq().asJava).getBoxes
-              val emissionsToken = new Eip4Token(inputBoxes.get(0).getId.toString, 1L, "GetBlok.io Token Emissions Test", "Test token identifying an emissions box", 0)
-
-              val outBox     = ctx.newTxBuilder().outBoxBuilder()
-                .contract(wallet.pk.contract)
-                .value(Helpers.MinFee * 10)
-                .mintToken(emissionsToken)
-                .build()
-              val unsignedTokenTx = ctx.newTxBuilder().boxesToSpend(inputBoxes).outputs(outBox).fee(Helpers.MinFee).sendChangeTo(wallet.p2pk.getErgoAddress).build()
-              val signedTokenTx   = wallet.prover.sign(unsignedTokenTx)
-              val tokenTxId       = ctx.sendTransaction(signedTokenTx).replace("\"", "")
-              val tokenInputBox   = outBox.convertToInputWith(tokenTxId, 0.toShort)
-
-
-              val tokenInputs = ctx.getCoveringBoxesFor(wallet.p2pk, Helpers.MinFee, Seq(distributionToken).asJava).getBoxes
-                .asScala.toSeq.filter(i => i.getTokens.size() > 0).filter(i => i.getTokens.get(0).getId == distributionToken.getId)
-              val emissionsOutBox = EmissionsContract.buildGenesisBox(ctx, emissionsContract,
-                Helpers.ergToNanoErg(emissionReward), Address.create(poolCreator), emissionsToken.getId, distributionToken)
-              val txB = ctx.newTxBuilder()
-              val unsigned = txB.boxesToSpend((Seq(tokenInputBox)++tokenInputs).asJava)
-                .outputs(emissionsOutBox)
-                .fee(Helpers.MinFee)
-                .sendChangeTo(wallet.p2pk.getErgoAddress)
-                .build()
-              val signed = wallet.prover.sign(unsigned)
-              val txId = ctx.sendTransaction(signed)
-
-              val emissionsQuery = for { info <- Tables.PoolInfoTable if info.poolTag === tag } yield info.emissionsId
-              val updateEmissions = emissionsQuery.update(emissionsToken.getId.toString)
-              db.run(updateEmissions)
-
-          }
-       }
-    }
-
-    def makeNetaEmissionTx(tag: String, emTokenMintBox: InputBox) = {
-      Try {
-        client.execute {
-          ctx =>
-            //TODO: Use exact box id here if necessary
-            logger.info("Building transactions to create NETA Emissions Box")
-            val metadataContract = MetadataContract.generateMetadataContract(ctx)
-            val holdingContract = TokenHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(tag))
-            val template = EmissionTemplates.getNETATemplate(ctx.getNetworkType)
-            logger.info("Metadata and holding contracts generated")
-            val emissionsContract = ExchangeContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.lpNFT, template.distToken)
-            logger.info("Emissions Contract generated")
-            logger.info(s"EmEx address: ${emissionsContract.getAddress}")
-            //Thread.sleep(60000)
-            val tokenInputs = ctx.getBoxesById("a14940f6f7c1d459bee8e825bfbefebe35bba3655d9992f7a00ceb143ebef02c")
-            val totalDistributionToken = tokenInputs.head.getTokens.get(0)
-            logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
-            logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
-            val emissionsOutBox = ExchangeContract.buildGenesisBox(ctx, emissionsContract,
-              template.initPercent, template.initFee, emTokenMintBox.getTokens.get(0).getId, totalDistributionToken)
-            val txB = ctx.newTxBuilder()
-            val unsigned = txB.boxesToSpend((Seq(emTokenMintBox) ++ Seq(tokenInputs.head)).asJava)
-              .outputs(emissionsOutBox)
-              .fee(Helpers.MinFee)
-              .sendChangeTo(wallet.p2pk.getErgoAddress)
-              .build()
-            logger.info("Signing tx.")
-            val signed = wallet.prover.sign(unsigned)
-            logger.info("Transaction signed. Now sending transaction")
-            val txId = ctx.sendTransaction(signed)
-            logger.info("Transaction sent")
-            val emissionsQuery = for {info <- Tables.PoolInfoTable if info.poolTag === tag} yield info.emissionsId
-            val updateEmissions = emissionsQuery.update(emTokenMintBox.getTokens.get(0).getId.toString)
-            db.run(updateEmissions)
-            logger.info("Finished making NETA Emissions Box")
-        }
-      }.recoverWith{
-        case e: Exception =>
-          logger.error("A fatal exception occurred while making neta pool", e)
-          Failure(e)
-      }
-    }
-
-    def makeCometEmissionTx(tag: String, emTokenMintBox: InputBox) = {
-      client.execute{
-        ctx =>
-
-          logger.info("Building transactions to create COMET Emissions Box")
-          val metadataContract = MetadataContract.generateMetadataContract(ctx)
-          val holdingContract = AdditiveHoldingContract.generateHoldingContract(ctx, metadataContract.toAddress, ErgoId.create(tag))
-          val template = EmissionTemplates.getCOMETTemplate(ctx.getNetworkType)
-          logger.info("Metadata and holding contracts generated")
-          val emissionsContract = ProportionalEmissionsContract.generate(ctx, wallet.p2pk, template.swapAddress, holdingContract, template.distToken,
-            template.decimalPlaces)
-          logger.info("Emissions Contract generated")
-
-          val totalDistributionToken = new ErgoToken(template.distToken, template.totalEmissions)
-          val tokenInputs = ctx.getBoxesById("fbdeaacba434569f0412ae7a1b82b6f05e827847ce1e8fca8735d5f0bd740470")
-          logger.info("Token input boxes grabbed from chain")
-          val emissionsOutBox = ProportionalEmissionsContract.buildGenesisBox(ctx, emissionsContract,
-            template.initProportion, template.initFee, emTokenMintBox.getTokens.get(0).getId, totalDistributionToken)
-          val txB = ctx.newTxBuilder()
-          val unsigned = txB.boxesToSpend((Seq(emTokenMintBox)++tokenInputs).asJava)
-            .outputs(emissionsOutBox)
-            .fee(Helpers.MinFee)
-            .sendChangeTo(wallet.p2pk.getErgoAddress)
-            .build()
-          logger.info("Signing tx.")
-          val signed = wallet.prover.sign(unsigned)
-          val txId = ctx.sendTransaction(signed)
-          logger.info("Sending transaction")
-          val emissionsQuery = for { info <- Tables.PoolInfoTable if info.poolTag === tag } yield info.emissionsId
-          val updateEmissions = emissionsQuery.update(emTokenMintBox.getTokens.get(0).getId.toString)
-          db.run(updateEmissions)
-          logger.info("Finished making COMET Emissions Box")
-      }
-    }
-  }
 
   def performTestnetSetup = {
     if(AppParameters.networkType == NetworkType.TESTNET){
@@ -386,15 +267,27 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       val tNETA   = new ErgoToken(EmissionTemplates.NETA_TESTNET.distToken, 14538197936805L)
       val totalValue = Helpers.ergToNanoErg(124262.460493556)
       makeFakeLPTx(totalValue, lpNFT, lpTokens, tNETA, 996, "14a8fb5d0f61af67482c7d4de9360627ab10d6bab962329d5a81aef34aeb7068")*/
+//      val nextInput = makeTokenTx(1, "ErgoPad Testnet LP NFT", "ErgoPad Testnet LP NFT", 0, Helpers.OneErg)
+//      val fillerLPInput = makeTokenTx(1000000000L, "ErgoPad Testnet LP Token", "ErgoPad Testnet LP Token", 0, Helpers.OneErg / 2, Some(nextInput))
+//      val tErgoPadInput = makeTokenTx(Long.MaxValue - 1, "tErgoPad", "Testnet ErgoPad for ErgoPad subpool", 2, Helpers.MinFee, Some(fillerLPInput))
+//      makeFakeLPTx(
+//        65268594553658L,
+//        new ErgoToken(ErgoId.create("544e2fe15462c84f6fd149422832da0b363abc03a831f4f4a8685c2479891d97"), 1L),
+//        new ErgoToken(ErgoId.create("6d0508dc9f009eeb952f40466a53ebf8cfbfd1d9f10f070748e942613046514c"), 10000L),
+//        new ErgoToken(ErgoId.create("9bddf35f76aedb8409029c661024759c2ad5bdafc7e8784649354529c2bf5cde"), 381461844L),
+//        996,
+//        "b41268f464f0951ac3707d3fc8fa173d3c7cca212c2a2083f3e779610b952da1"
+//      )
     }
+
   }
 
-  def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long): InputBox = {
+  def makeTokenTx(amount: Long, name: String, desc: String, decimals: Int, outVal: Long, optInput: Option[InputBox] = None): InputBox = {
     Try {
       client.execute {
         ctx =>
           logger.info("Making token tx")
-          val inputBoxes = wallet.boxes(ctx, outVal + Helpers.MinFee).get
+          val inputBoxes = optInput.map(i => Seq(i).asJava).getOrElse(wallet.boxes(ctx, outVal + Helpers.MinFee).get)
           logger.info("Found boxes for token")
           val newToken = new Eip4Token(inputBoxes.get(0).getId.toString, amount, name, desc, decimals)
           logger.info("Building token minting transaction")

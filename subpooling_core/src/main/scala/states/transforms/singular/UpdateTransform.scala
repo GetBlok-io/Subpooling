@@ -1,11 +1,12 @@
 package io.getblok.subpooling_core
-package states.transforms
+package states.transforms.singular
 
-import contracts.plasma.{InsertBalanceContract, UpdateBalanceContract}
+import contracts.plasma.UpdateBalanceContract
 import global.AppParameters.NodeWallet
-import states.models.{CommandState, CommandTypes, State, StateTransition, TransformResult}
+import global.Helpers
+import states.models._
 
-import io.getblok.subpooling_core.global.Helpers
+import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import org.ergoplatform.appkit.BlockchainContext
 import org.slf4j.{Logger, LoggerFactory}
@@ -13,17 +14,18 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 import scala.util.Try
 
-
 case class UpdateTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
-                          extends StateTransition(ctx, wallet, commandState){
+  extends StateTransition[SingleBalance](ctx, wallet, commandState) {
   private val logger: Logger = LoggerFactory.getLogger("UpdateTransform")
-  override def transform(state: State): Try[TransformResult] = {
-    Try{
+
+  override def transform(inputState: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
+    Try {
+      val state = inputState.asInstanceOf[SingleState]
       val allPositive = commandState.data.forall(_.amountAdded > 0)
       require(allPositive, "Not all updates were positive!")
       require(commandState.box.getValue >= commandState.data.map(_.amountAdded).sum, s"UpdateBox with value ${commandState.box.getValue} was not" +
         s" big enough for command state with total added value of ${commandState.data.map(_.amountAdded).sum}")
-      val appliedCommand = UpdateBalanceContract.applyContext(commandState.box, state.balanceState, commandState.data.map(_.toUpdateStateValues))
+      val appliedCommand = UpdateBalanceContract.applySingleContext(commandState.box, state.balanceState, commandState.data.map(_.toUpdateSingleValues))
 
       logger.info(s"Update transform is adding ${appliedCommand._2} accumulated balance!")
       logger.info(s"Paying transaction fee of ${appliedCommand._1.getValue - appliedCommand._2}")

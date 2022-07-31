@@ -11,8 +11,9 @@ import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
-import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolPlacement, PoolState}
-import io.getblok.subpooling_core.plasma.BalanceState
+import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
+import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
+import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance, StateBalance}
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.TransformResult
 import models.DatabaseModels.SPoolBlock
@@ -58,7 +59,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           val executions = {
 
             logger.info("Now sending dist req")
-            val distResponse = (stateHandler ? ExecuteDist(constDist, AppParameters.sendTxs)).mapTo[DistResponse]
+            val distResponse = (stateHandler ? ExecuteDist(constDist, AppParameters.sendTxs)).mapTo[DistResponse[StateBalance]]
             logger.info("Waiting to eval dist response")
             writeDist(distResponse)
           }
@@ -71,7 +72,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
     }
   }
 
-  def writeDist(distResponse: Future[DistResponse]): Future[DistResponse] = {
+  def writeDist(distResponse: Future[DistResponse[StateBalance]]): Future[DistResponse[StateBalance]] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     distResponse.onComplete {
@@ -162,7 +163,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
     distResponse
   }
 
-  def constructStateGroup(batchSelection: BatchSelection, boxes: Seq[InputBox]): Future[ConstructedDist] = {
+  def constructStateGroup(batchSelection: BatchSelection, boxes: Seq[InputBox]): Future[ConstructedDist[_ <: StateBalance]] = {
     implicit val timeout: Timeout = Timeout(1000 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext
     val collectedComponents = {
@@ -195,12 +196,12 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
           require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-          val balanceState = new BalanceState(states.head.subpool)
+          val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
           stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, placements)
         }
 
         constructDistResp.map {
-          case constDist: ConstructedDist =>
+          case constDist: ConstructedDist[_] =>
             constDist
           case failure: StateFailure =>
             logger.warn(s"A StateFailure was returned after DistConstruction!")
@@ -219,8 +220,13 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
   // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
   def collectInputs(batchSelection: BatchSelection): Seq[InputBox] = {
-    val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
-    boxLoader.collectFromLoaded(blockSum).toSeq
+    if(batchSelection.info.currency == PoolInformation.CURR_ERG) {
+      val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
+      boxLoader.collectFromLoaded(blockSum).toSeq
+    }else{
+      val blockSum = Helpers.OneErg * 2
+      boxLoader.collectFromLoaded(blockSum).toSeq
+    }
   }
 
 }

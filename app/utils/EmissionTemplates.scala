@@ -42,4 +42,34 @@ object EmissionTemplates {
         COMET_TESTNET
     }
   }
+
+  case class HybridTemplate(swapAddress: Address, distToken: ErgoId, lpNFT: ErgoId, proportion: Long, percent: Long,
+                            totalEmissions: Long)
+
+  val ERGOPAD_MAINNET: HybridTemplate = HybridTemplate(
+    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    ErgoId.create("d71693c49a84fbbecd4908c94813b46514b18b67a99952dc1e6e4791556de413"),
+    ErgoId.create("d7868533f26db1b1728c1f85c2326a3c0327b57ddab14e41a2b77a5d4c20f4b2"),
+    10000L,
+    10000L,
+    500000L * 100L
+  )
+
+  val ERGOPAD_TESTNET: HybridTemplate = HybridTemplate(
+    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    ErgoId.create("9bddf35f76aedb8409029c661024759c2ad5bdafc7e8784649354529c2bf5cde"),
+    ErgoId.create("544e2fe15462c84f6fd149422832da0b363abc03a831f4f4a8685c2479891d97"),
+    10000L,
+    10000L,
+    500000L * 100L
+  )
+
+  def getErgoPadTemplate(networkType: NetworkType): HybridTemplate = {
+    networkType match {
+      case NetworkType.MAINNET => ERGOPAD_MAINNET
+      case NetworkType.TESTNET => ERGOPAD_TESTNET // TODO: CHANGE LATER
+    }
+  }
+
+
 }

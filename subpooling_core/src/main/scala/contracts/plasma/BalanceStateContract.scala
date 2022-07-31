@@ -3,8 +3,9 @@ package contracts.plasma
 
 import io.getblok.getblok_plasma.collections.Proof
 import io.getblok.subpooling_core.contracts.Models.Scripts
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts.ScriptType
 import io.getblok.subpooling_core.global.Helpers
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, ShareState, StateBalance, StateMiner, StateScore}
+import io.getblok.subpooling_core.plasma.{BalanceState, DualBalance, PartialStateMiner, ShareState, SingleBalance, StateMiner, StateScore}
 import org.ergoplatform.appkit.JavaHelpers.JByteRType
 import org.ergoplatform.appkit.{Address, BlockchainContext, Constants, ConstantsBuilder, ContextVar, ErgoContract, ErgoId, ErgoToken, ErgoType, ErgoValue, InputBox, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
@@ -25,16 +26,18 @@ case class BalanceStateContract(contract: ErgoContract){
 
 object BalanceStateContract {
 
-  val script: String = Scripts.BALANCE_STATE_SCRIPT
+  val script: String = PlasmaScripts.BALANCE_STATE_SCRIPT
   private val logger: Logger = LoggerFactory.getLogger("BalanceStateContract")
 
-  def generateSingle(ctx: BlockchainContext, poolOp: Address, poolTag: ErgoId): ErgoContract = {
-    val commands = Seq(
-      InsertBalanceContract.generate(ctx, poolTag),
-      UpdateBalanceContract.generate(ctx, poolTag),
-      PayoutBalanceContract.generate(ctx, poolTag),
-      DeleteBalanceContract.generate(ctx, poolTag)
-    )
+  def generate(ctx: BlockchainContext, poolOp: Address, poolTag: ErgoId, scriptType: ScriptType): ErgoContract = {
+    val commands = {
+      Seq(
+        InsertBalanceContract.generate(ctx, poolTag, scriptType),
+        UpdateBalanceContract.generate(ctx, poolTag, scriptType),
+        PayoutBalanceContract.generate(ctx, poolTag, scriptType),
+        DeleteBalanceContract.generate(ctx, poolTag, scriptType)
+      )
+    }
     val commandBytes = commands.map(c => Colls.fromArray(Blake2b256(c.getErgoTree.bytes)).asInstanceOf[Coll[java.lang.Byte]])
     val commandColl = Colls.fromArray(commandBytes.toArray)
     val constants = ConstantsBuilder.create()
@@ -45,14 +48,20 @@ object BalanceStateContract {
     contract
   }
 
-  def buildStateBox(ctx: BlockchainContext, balanceState: BalanceState, poolTag: ErgoId, poolOp: Address ,optValue: Option[Long] = None): OutBox = {
+  def buildBox(ctx: BlockchainContext, balanceState: BalanceState[_], poolTag: ErgoId, poolOp: Address,
+               scriptType: ScriptType, optValue: Option[Long] = None, optToken: Option[ErgoToken] = None): OutBox = {
+
+    var tokenSeq = Seq(new ErgoToken(poolTag, 1L))
+    if(optToken.isDefined)
+      tokenSeq = tokenSeq ++ Seq(optToken.get)
     ctx.newTxBuilder().outBoxBuilder()
       .value(optValue.getOrElse(Helpers.MinFee))
       .registers(balanceState.map.ergoValue)
-      .contract(generateSingle(ctx, poolOp, poolTag))
-      .tokens(new ErgoToken(poolTag, 1L))
+      .contract(generate(ctx, poolOp, poolTag, scriptType))
+      .tokens(tokenSeq: _*)
       .build()
   }
+
 
   def buildRewardBox(ctx: BlockchainContext, value: Long, initReward: Long, contract: ErgoContract): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
@@ -69,7 +78,7 @@ object BalanceStateContract {
       .build()
   }
 
-  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, StateBalance)]): Seq[OutBox] = {
+  def buildPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, SingleBalance)]): Seq[OutBox] = {
     for(u <- payouts) yield {
       logger.info(s"Balance: ${u._2}")
       ctx.newTxBuilder().outBoxBuilder()

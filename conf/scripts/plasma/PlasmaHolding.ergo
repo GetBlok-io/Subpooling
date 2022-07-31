@@ -1,0 +1,53 @@
+{
+  // Plasma Holding Contract
+  // Only spent if value + tokens(0) of SELF goes to sum of update boxes
+
+  // Constants
+  val shareOperator: SigmaProp  = const_shareOpPK
+  val updateBytes: Coll[Byte]   = const_hashedUpdateBytes
+
+  val selfToken   = SELF.tokens.getOrElse(0, (Coll(1.toByte), 0L) )
+  val totalTokens = selfToken._2
+  val tokenId     = selfToken._1
+  val totalERG    = SELF.value
+
+  val updateBoxes = OUTPUTS.filter{ (box: Box) => blake2b256( box.propositionBytes ) == updateBytes }
+
+  def isValueInRange(valuesPair: (Long, Long)): Boolean = {
+    val expected = valuesPair._1
+    val actual   = valuesPair._2
+    val amountTop = (expected - actual) * 100L
+    val percentage = amountTop / actual
+    (percentage < 1L) && (percentage > -1L) // 1% margin of error during calculations
+  }
+
+  val outputERG = updateBoxes.fold(0L, {
+    (z: Long, box: Box) =>
+      z + box.value
+  })
+
+  val distributedERG = isValueInRange( (outputERG, totalERG) )
+
+  if(totalTokens != 0L){
+    val outputTokens = {
+      updateBoxes.fold(0L, {
+         (z: Long, box: Box) =>
+           z + box.tokens(0)._2
+       })
+    }
+
+    val distributedTokens = isValueInRange( (outputTokens, totalTokens) )
+    val validId           = updateBoxes.forall{ (box: Box) => box.tokens(0)._1 == tokenId }
+
+    val validSpend = allOf(
+      Coll(
+        distributedERG,
+        distributedTokens,
+        validId
+      )
+    )
+    sigmaProp(validSpend) && shareOperator
+  }else{
+    sigmaProp(distributedERG) && shareOperator
+  }
+}

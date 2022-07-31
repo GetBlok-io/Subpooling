@@ -1,0 +1,74 @@
+{
+  val balanceState = INPUTS(0).R4[AvlTree].get
+  val nextStateBox = OUTPUTS(0)
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+  val poolNFT = INPUTS(0).tokens(0)._1
+
+  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val proof         = getVar[Coll[Byte]](1).get
+  val currentTokens = INPUTS(0).tokens.map{ (t: (Coll[Byte], Long)) => t._2 }.getOrElse(1, 0L)
+
+  val keys = stateData.map{ (keyVal: (Coll[Byte], Coll[Byte])) => keyVal._1 }
+  val updateBalances = {
+    val oldBalances   = balanceState.getMany(keys, proof)
+    val totalAmount     = stateData.fold((0L, 0L), {
+      (z: (Long, Long), keyVal: (Coll[Byte], Coll[Byte])) =>
+        val minerBalanceChange: Long = byteArrayToLong( keyVal._2.slice(0, 8) )
+        val minerTokenChange: Long = byteArrayToLong( keyVal._2.slice(8, 16) )
+        (z._1 + minerBalanceChange, z._2 + minerTokenChange)
+      }
+    )
+
+    val totalPaid = totalAmount._1
+    val totalTokens = totalAmount._2
+
+    val newBalances: Coll[(Coll[Byte], Coll[Byte])] = stateData.map{
+      (keyVal: (Coll[Byte], Coll[Byte])) =>
+        val index =   keys.indexOf(keyVal._1, 0)
+        val oldMinerBalance: Coll[Byte]      = oldBalances(index).get
+        val balanceChangeBytes: Coll[Byte]   = keyVal._2
+
+        val lastBalance = byteArrayToLong( oldMinerBalance.slice(0, 8) )
+        val lastTokens  = byteArrayToLong( oldMinerBalance.slice(8, 16) )
+        val minerBalanceChange = byteArrayToLong( balanceChangeBytes.slice(0, 8) )
+        val minerTokenChange   = byteArrayToLong( balanceChangeBytes.slice(8, 16) )
+        // Correct miner balance to always ensure that negative values are not entered
+        val correctedBalance = {
+          if(minerBalanceChange < 0)
+            minerBalanceChange * -1
+          else
+            minerBalanceChange
+        }
+
+        val correctedTokens = {
+          if(minerTokenChange < 0)
+            minerTokenChange * -1
+          else
+            minerTokenChange
+        }
+
+        val nextBalance = correctedBalance + lastBalance
+        val nextTokens  = correctedTokens + lastTokens
+        (keyVal._1, longToByteArray( nextBalance ).append( longToByteArray( nextTokens ) ))
+    }
+
+    val updatedBalanceState  = balanceState.update(newBalances, proof).get
+    val nextRewardValid = nextStateBox.value == INPUTS(0).value + totalPaid
+    val nextTokensValid = nextStateBox.tokens(1)._2 == currentTokens + totalTokens
+
+    val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
+    val secureSpend = poolNFT == const_poolNFT
+
+    val validUpdate = allOf(
+      Coll(
+        nextRewardValid,
+        nextTokensValid,
+        nextBalanceStateValid,
+        secureSpend
+      )
+    )
+    validUpdate
+  }
+
+  sigmaProp(updateBalances)
+}

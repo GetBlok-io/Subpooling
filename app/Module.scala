@@ -1,4 +1,4 @@
-import actors.{BlockingDbWriter, DbConnectionManager, ExplorerRequestBus, GroupRequestHandler, PushMessageNotifier, QuickDbReader, StateRequestHandler}
+import actors.{BlockingDbWriter, DbConnectionManager, EmissionRequestHandler, ExplorerRequestBus, GroupRequestHandler, PushMessageNotifier, QuickDbReader, StateRequestHandler}
 import akka.actor.Props
 import akka.routing.RoundRobinPool
 import com.google.inject.AbstractModule
@@ -15,6 +15,8 @@ class Module(environment: Environment, configuration: Configuration) extends Abs
     bindActor[GroupRequestHandler]("group-handler", p => p.withDispatcher("subpool-contexts.group-dispatcher")
       .withRouter(new RoundRobinPool(subpoolActorConfig.numGroupReqHandlers)))
     bindActor[StateRequestHandler]("state-handler", p => p.withDispatcher("subpool-contexts.group-dispatcher")
+      .withRouter(new RoundRobinPool(subpoolActorConfig.numGroupReqHandlers)))
+    bindActor[EmissionRequestHandler]("em-handler", p => p.withDispatcher("subpool-contexts.group-dispatcher")
       .withRouter(new RoundRobinPool(subpoolActorConfig.numGroupReqHandlers)))
     bindActor[QuickDbReader]("quick-db-reader", p => p.withDispatcher("subpool-contexts.quick-query-dispatcher")
       .withRouter(new RoundRobinPool(subpoolActorConfig.numQuickQueries)))

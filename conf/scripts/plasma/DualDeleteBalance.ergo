@@ -1,0 +1,42 @@
+{
+  val balanceState = INPUTS(0).R4[AvlTree].get
+  val nextStateBox = OUTPUTS(0)
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+  val poolNFT = INPUTS(0).tokens(0)._1
+
+  val keys             = getVar[Coll[Coll[Byte]]](0).get
+  val getProof         = getVar[Coll[Byte]](1).get
+  val delProof         = getVar[Coll[Byte]](2).get
+
+  val deleteBalances = {
+
+    val oldBalances   = balanceState.getMany(keys, getProof)
+
+    val validStateTransition = oldBalances.forall{
+      (optVal: Option[Coll[Byte]]) =>
+        val balanceBytes = optVal.get
+        val oldBalance = byteArrayToLong(balanceBytes.slice(0, 8))
+        val oldTokens  = byteArrayToLong(balanceBytes.slice(8, 16))
+        oldBalance == 0L && oldTokens == 0L
+    }
+
+    val updatedBalanceState  = balanceState.remove(keys, delProof).get
+    val nextRewardValid = nextStateBox.value == INPUTS(0).value
+    val nextTokensValid = {
+      nextStateBox.tokens.map{ (t: (Coll[Byte], Long)) => t._2}.getOrElse(1, 0L) == INPUTS(0).tokens.map{ (t: (Coll[Byte], Long)) => t._2}.getOrElse(1, 0L)
+    }
+    val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
+    val secureSpend = poolNFT == const_poolNFT
+    val validDelete = allOf(
+      Coll(
+        validStateTransition,
+        nextRewardValid,
+        nextBalanceStateValid,
+        secureSpend
+      )
+    )
+    validDelete
+  }
+
+  sigmaProp(deleteBalances)
+}

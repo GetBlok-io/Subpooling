@@ -17,7 +17,7 @@ import io.getblok.subpooling_core.groups.selectors.{LoadingSelector, SelectionPa
 import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmissionsRoot, HoldingRoot, ProportionalEmissionsRoot}
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager, HoldingGroup}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
-import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState}
+import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState, SingleBalance, StateBalance}
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.{PlasmaMiner, TransformResult}
 import models.DatabaseModels.SPoolBlock
@@ -50,9 +50,10 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
                 ergoClient.execute{
                   ctx =>
                     val poolBox = grabPoolBox(ctx, poolState, balanceState)
-                    val plasmaMiners = morphToPlasma(placements, balanceState, batch.blocks.head.netDiff)
-
-                    val stateGroup: StateGroup = PaymentRouter.routeStateGroup(ctx, wallet, batch, poolBox, plasmaMiners, inputBoxes)
+                    val plasmaMiners = morphToPlasma(placements, balanceState, batch.blocks.head.netDiff, batch)
+                    val holdingBox   = grabHoldingBox(ctx, placements.head).get
+                    val stateGroup = PaymentRouter.routeStateGroup(ctx, wallet, batch,
+                      poolBox, plasmaMiners, inputBoxes, holdingBox)
                     sender ! ConstructedDist(stateGroup, poolState)
                 }
               }.recoverWith{
@@ -91,6 +92,7 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
                 }
               }
               logger.info("Making group members!")
+
               val members = stateGroup.getMembers
               val poolBalanceStates = stateGroup.getPoolBalanceStates
               logger.info("Now sending DistResponse to sender!")
@@ -103,28 +105,41 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
         }
   }
 
-  def grabPoolBox(ctx: BlockchainContext, poolState: PoolState, balanceState: BalanceState): PoolBox = {
+  def grabPoolBox[T <: StateBalance](ctx: BlockchainContext, poolState: PoolState, balanceState: BalanceState[T]): PoolBox[T] = {
     val poolTag = poolState.subpool
     val box = Try{ctx.getBoxesById(poolState.box).head}
 
     PoolBox(box.getOrElse(throw new UntrackedPoolStateException(poolState.box, poolTag)), balanceState)
   }
 
-  def morphToPlasma(placements: Seq[PoolPlacement], balanceState: BalanceState, netDiff: Double): Seq[PlasmaMiner] = {
+  def morphToPlasma[T <: StateBalance](placements: Seq[PoolPlacement], balanceState: BalanceState[T],
+                                       netDiff: Double, batch: BatchSelection): Seq[PlasmaMiner] = {
     val totalScore = placements.map(_.score).sum
 
     val partialPlasmaMiners = placements.map{
       p =>
         val sharePerc: Double = (BigDecimal(p.score) / totalScore).toDouble
         val shareNum: Long = (p.score * BigDecimal(netDiff)).toLong
-        PlasmaMiner(Address.create(p.miner), p.score, 0L, p.amount, p.minpay, sharePerc, shareNum, p.epochs_mined)
+        val secondBalanceAdd = p.amountTwo.getOrElse(0L)
+        PlasmaMiner(Address.create(p.miner), p.score, 0L, p.amount, p.minpay, sharePerc, shareNum, p.epochs_mined, addedTwo = secondBalanceAdd)
     }
-    balanceState.map.initiate()
-    val balances = partialPlasmaMiners zip balanceState.map.lookUp(partialPlasmaMiners.map(_.toStateMiner.toPartialStateMiner):_*).response
-    balanceState.map.dropChanges()
-    val plasmaMiners = balances.map(b => b._1.copy(balance = b._2.tryOp.get.map(_.balance).getOrElse(0L)))
-      .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
-    plasmaMiners
+
+    PaymentRouter.routeMinerBalances(balanceState, partialPlasmaMiners, batch)
+  }
+
+  def grabHoldingBox(ctx: BlockchainContext, placement: PoolPlacement): Try[Option[InputBox]] = {
+    if(placement.holding_id != "none"){
+      Try{
+        Some(ctx.getBoxesById(placement.holding_id).head)
+      }.recoverWith{
+        case t: Throwable =>
+          logger.error(s"A fatal error occurred while grabbing holding box with id ${placement.holding_id} for" +
+            s" pool ${placement.subpool}")
+          Failure(t)
+      }
+    }else{
+      Success(None)
+    }
   }
 
 }
@@ -133,14 +148,14 @@ object StateRequestHandler {
   def props: Props = Props[StateRequestHandler]
   trait StateRequest
 
-  case class DistConstructor(poolState: PoolState, inputBoxes: Seq[InputBox],
-                             batch: BatchSelection, balanceState: BalanceState, placements: Seq[PoolPlacement]) extends StateRequest
-  case class ConstructedDist(stateGroup: StateGroup, poolState: PoolState)
-  case class ExecuteDist(constDist: ConstructedDist, sendTxs: Boolean) extends StateRequest
-  case class DistResponse(transforms: Seq[Try[TransformResult]], members: Seq[PoolMember], poolBalanceStates: Seq[PoolBalanceState], nextState: PoolState)
-  case class DistGroup(group: StateGroup)
+  case class DistConstructor[T <: StateBalance](poolState: PoolState, inputBoxes: Seq[InputBox],
+                             batch: BatchSelection, balanceState: BalanceState[T], placements: Seq[PoolPlacement]) extends StateRequest
+  case class ConstructedDist[T <: StateBalance](stateGroup: StateGroup[T], poolState: PoolState)
+  case class ExecuteDist[T <: StateBalance](constDist: ConstructedDist[T], sendTxs: Boolean) extends StateRequest
+  case class DistResponse[T <: StateBalance](transforms: Seq[Try[TransformResult[T]]],
+                                             members: Seq[PoolMember], poolBalanceStates: Seq[PoolBalanceState], nextState: PoolState)
 
-  case class PoolBox(box: InputBox, balanceState: BalanceState)
+  case class PoolBox[T <: StateBalance](box: InputBox, balanceState: BalanceState[T])
 
   case class StateFailure(ex: Throwable)
 

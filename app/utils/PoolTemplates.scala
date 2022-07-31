@@ -1,5 +1,7 @@
 package utils
 
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts
+import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts.ScriptType
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import org.ergoplatform.appkit.Address
@@ -7,7 +9,7 @@ import org.ergoplatform.appkit.Address
 object PoolTemplates {
   case class PoolTemplate(title: String, fee: Double, numSubpools: Int, paymentType: PaymentType, emissionsType: String,
                           currency: String, epochKick: Long, maxMembers: Long, tokenName: String, tokenDesc: String,
-                          feeOp: Option[Address] = None)
+                          feeOp: Option[Address] = None, scriptType: Option[ScriptType] = None)
 
   case class UninitializedPool(poolMade: Boolean, emissionsMade: Option[Boolean], template: PoolTemplate, isPlasma: Boolean = false)
   val STANDARD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Smart Pool", 0.005, 100, PaymentType.PPLNS_WINDOW,
@@ -36,14 +38,33 @@ object PoolTemplates {
   val PLASMA_STD_POOL: PoolTemplate = PoolTemplate("GetBlok.io Default Plasma Pool", 0.01, 1, PaymentType.PLASMA_PPLNS_WINDOW,
     PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 5L, 10L,
     "GetBlok.io Default Plasma Pool", "This token represents the default Plasma Pool on GetBlok.io",
-    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")))
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")),
+    Some(PlasmaScripts.SINGLE)
+  )
+
+  val SOLO_PLASMA_POOL: PoolTemplate = PoolTemplate("GetBlok.io SOLO Plasma Pool", 0.02, 1, PaymentType.PLASMA_SOLO_BATCH,
+    PoolInformation.NoEmissions, PoolInformation.CURR_ERG, 10L, 1000L,
+    "GetBlok.io SOLO Plasma Pool", "This token represents the SOLO Plasma Pool on GetBlok.io",
+    Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")),
+    Some(PlasmaScripts.SINGLE)
+  )
+
+
+  val ERGOPAD_POOL: PoolTemplate = PoolTemplate("Ergopad Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
+    PoolInformation.HybridExchangeEmissions, PoolInformation.CURR_ERG_ERGOPAD, 10L, 1000L,
+    "Ergopad Smart Pool", "This token represents the Ergopad Smart Pool on GetBlok.io",
+    Some(Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh")),
+    Some(PlasmaScripts.DUAL)
+  )
 
   val templates: Array[UninitializedPool] = Array(
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
-    UninitializedPool(poolMade = false, None, STANDARD_POOL),
-    UninitializedPool(poolMade = false, None, SOLO_POOL),
-    UninitializedPool(poolMade = false, Some(false), COMET_POOL),
-    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
+    UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
+    UninitializedPool(poolMade = false, Some(false), ERGOPAD_POOL, isPlasma = true),
+//    UninitializedPool(poolMade = false, None, STANDARD_POOL),
+//    UninitializedPool(poolMade = false, None, SOLO_POOL),
+//    UninitializedPool(poolMade = false, Some(false), COMET_POOL),
+//    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
 
     )
 

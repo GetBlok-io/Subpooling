@@ -1,0 +1,75 @@
+{
+  val balanceState = INPUTS(0).R4[AvlTree].get
+  val nextStateBox = OUTPUTS(0)
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+  val poolNFT = INPUTS(0).tokens(0)._1
+
+  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val proof         = getVar[Coll[Byte]](1).get
+
+  val keys = stateData.map{ (keyVal: (Coll[Byte], Coll[Byte])) => keyVal._1 }
+  val payoutBalances = {
+
+    val oldBalances   = balanceState.getMany(keys, proof)
+    val totalAmount     = oldBalances.fold( (0L, 0L), {
+    (z: (Long, Long), balance: Option[Coll[Byte]]) =>
+      val minerBalance: Long = byteArrayToLong( balance.get.slice(0, 8) )
+      val minerTokens: Long  = byteArrayToLong( balance.get.slice(8, 16) )
+      (z._1 + minerBalance, z._2 + minerTokens)
+     }
+    )
+
+    val totalPaid = totalAmount._1
+    val totalTokens = totalAmount._2
+
+    val validStateTransition: Coll[(Coll[Byte], Coll[Byte])] = stateData.forall{
+      (keyVal: (Coll[Byte], Coll[Byte])) =>
+        val index =   keys.indexOf(keyVal._1, 0)
+        val oldMinerBalance: Coll[Byte]      = oldBalances(index).get
+        val balanceChangeBytes: Coll[Byte]   = keyVal._2
+        val output = OUTPUTS(1 + index)
+
+        val lastBalance = byteArrayToLong( oldMinerBalance.slice(0, 8) )
+        val lastTokens = byteArrayToLong( oldMinerBalance.slice(8, 16) )
+
+        val nextBalance = byteArrayToLong( balanceChangeBytes.slice(0, 8) )
+        val nextTokens = byteArrayToLong( balanceChangeBytes.slice(8, 16) )
+
+        val paymentIsValid = output.value == lastBalance
+        val tokensValid    = output.tokens(0)._2 == lastTokens
+        val tokenIdValid   = output.tokens(0)._1 == INPUTS(0).tokens(1)._1
+
+        val balanceReset = nextBalance == 0L
+        val tokensReset  = nextTokens == 0L
+        val boxIsCorrect = blake2b256( output.propositionBytes ) == keyVal._1
+
+        allOf(
+          Coll(
+            paymentIsValid,
+            tokensValid,
+            tokenIdValid,
+            balanceReset,
+            boxIsCorrect
+          )
+        )
+    }
+
+    val updatedBalanceState  = balanceState.update(stateData, proof).get
+    val nextRewardValid = nextStateBox.value == INPUTS(0).value - totalPaid
+    val nextTokensValid = nextStateBox.tokens.map{ (t: (Coll[Byte], Long)) => t._2 }.getOrElse(1, 0L) == INPUTS(0).tokens(1)._2 - totalTokens
+    val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
+    val secureSpend = poolNFT == const_poolNFT
+    val validPayout = allOf(
+      Coll(
+        validStateTransition,
+        nextRewardValid,
+        nextTokensValid,
+        nextBalanceStateValid,
+        secureSpend
+      )
+    )
+    validPayout
+  }
+
+  sigmaProp(payoutBalances)
+}
