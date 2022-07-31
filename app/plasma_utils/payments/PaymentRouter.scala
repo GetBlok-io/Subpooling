@@ -137,6 +137,7 @@ object PaymentRouter {
         }
           .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
         plasmaMiners
+          .filter(_.amountAdded > 0) // Ensure all miners made a contribution
 
     }
   }
