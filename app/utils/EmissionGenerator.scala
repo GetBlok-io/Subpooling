@@ -126,7 +126,7 @@ class EmissionGenerator(client: ErgoClient, wallet: NodeWallet, db: PostgresProf
           logger.info("Emissions Contract generated")
           logger.info(s"HyExEm address: ${emissionsContract.getAddress}")
           //Thread.sleep(60000)
-          val tokenInputs = ctx.getBoxesById("748401e99ea751162ed5b5e6c189d42f367d8d977fd887211a8827c0e01f6443")
+          val tokenInputs = ctx.getBoxesById("d2ebcfde059685db32fdfece7a4938f6bc7adf3fcf8b16f15b9e375973be1d67")
           val emissionToken = emTokenMintBox.getTokens.get(0)
           logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
           logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
