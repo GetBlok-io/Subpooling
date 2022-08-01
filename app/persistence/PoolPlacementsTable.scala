@@ -19,7 +19,7 @@ class PoolPlacementsTable(tag: Tag) extends Table[PoolPlacement](tag, "subpool_p
   def amount        = column[Long]("amount")
   def epoch         = column[Long]("epoch")
   def gEpoch        = column[Long]("g_epoch")
-  def amountTwo     = column[Option[Long]]("amountTwo")
+  def amountTwo     = column[Option[Long]]("amounttwo")
 
   def creator       = column[String]("creator")
 
