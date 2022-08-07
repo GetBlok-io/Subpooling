@@ -28,7 +28,13 @@ class NodeConfig(config: Configuration) {
     explorerURL = RestApiErgoClient.getDefaultExplorerUrl(networkType)
 
 
-  val httpClientBuilder = new OkHttpClient().newBuilder().callTimeout(60, TimeUnit.SECONDS)
+  val httpClientBuilder = new OkHttpClient()
+    .newBuilder()
+    .callTimeout(60, TimeUnit.SECONDS)
+    .readTimeout(60, TimeUnit.SECONDS)
+    .writeTimeout(60, TimeUnit.SECONDS)
+    .connectTimeout(60, TimeUnit.SECONDS)
+
 
   private val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder(nodeURL, networkType, nodeKey, getExplorerURL, httpClientBuilder)
   val apiClient = new ApiClient(nodeURL, "ApiKeyAuth", nodeKey)

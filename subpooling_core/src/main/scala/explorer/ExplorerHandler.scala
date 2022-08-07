@@ -21,7 +21,12 @@ class ExplorerHandler(networkType: NetworkType, customURL: Option[String] = None
       customURL.getOrElse(RestApiErgoClient.getDefaultExplorerUrl(networkType))
     }
   }
-  private val httpClientBuilder = new OkHttpClient().newBuilder().callTimeout(60, TimeUnit.SECONDS)
+  private val httpClientBuilder = new OkHttpClient()
+    .newBuilder()
+    .callTimeout(60, TimeUnit.SECONDS)
+    .readTimeout(60, TimeUnit.SECONDS)
+    .writeTimeout(60, TimeUnit.SECONDS)
+    .connectTimeout(60, TimeUnit.SECONDS)
   private val apiClient = new ExplorerApiClient(url)
   apiClient.configureFromOkClientBuilder(httpClientBuilder)
 
