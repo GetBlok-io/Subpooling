@@ -100,7 +100,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
         if(tryPreCollection.isSuccess) {
           val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
           val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
-          val prePlacer = new PrePlacer(contexts, params, nodeConfig, boxLoader, db, emHandler)
+
           val distributor = new PaymentDistributor(expReq, stateHandler, contexts, params, taskConfig, boxLoader, db)
           val emissions   = new EmissionHandler(expReq, emHandler, contexts, params, taskConfig, boxLoader, db)
           if (params.singularGroups) {
@@ -131,9 +131,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
 
             }
           }else{
-            val tryPrePlacer = Try {
-              prePlacer.preparePlacements()
-            }
+
             val tryDistributor = Try {
               distributor.executeDistribution()
             }
@@ -149,17 +147,6 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
               logger.info("Sleeping for 30 seconds before starting dists")
               Thread.sleep(30000)
               distributionFunctions.executeDistribution()
-            }
-
-
-
-            tryPrePlacer match {
-              case Success(value) =>
-                logger.info("Synchronous PrePlacement functions executed successfully!")
-                currentRun = currentRun + 1
-              case Failure(exception) =>
-                logger.error("There was a fatal error thrown during synchronous PrePlacement execution", exception)
-                currentRun = currentRun + 1
             }
 
             tryDistributor match {
