@@ -24,7 +24,7 @@ import scala.util.Try
 
 class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMiner], poolBox: InputBox, inputBoxes: Seq[InputBox],
                 balanceState: BalanceState[DualBalance], gEpoch: Long, block: Long, poolTag: String, holdingBox: InputBox,
-                tokenId: ErgoId, tokenName: String) extends StateGroup[DualBalance] {
+                tokenId: ErgoId, tokenName: String, commandBatch: Option[CommandBatch] = None) extends StateGroup[DualBalance] {
   val initState: DualState = DualState(poolBox, balanceState, inputBoxes, tokenId)
   var currentState: DualState = initState
   val transformer: StateTransformer[DualBalance] = new StateTransformer(ctx, initState)
@@ -118,7 +118,7 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
     balanceState.map.initiate()
     logger.info("Balance state initiated!")
 
-    val setupTransform = DualSetupTransform(ctx, wallet, setupState, holdingBox, MINER_BATCH_SIZE)
+    val setupTransform = DualSetupTransform(ctx, wallet, setupState, holdingBox, MINER_BATCH_SIZE, commandBatch)
     transformer.apply(setupTransform)
     commandQueue = setupTransform.commandQueue
     logger.info(s"Payout group setup with ${commandQueue.length} commands")
