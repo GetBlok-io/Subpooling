@@ -30,6 +30,7 @@ import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
 import scorex.crypto.authds.{ADKey, ADValue}
 import scorex.crypto.authds.avltree.batch.Insert
+import sigmastate.BoolToSigmaProp
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
 import special.collection.Coll
@@ -113,7 +114,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 820922L).map(_.status).update(PoolBlock.PRE_PROCESSED))
+          db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 821430L).map(_.status).update(PoolBlock.PRE_PROCESSED))
 
         }
     })(contexts.taskContext)
