@@ -1,0 +1,63 @@
+{
+  val balanceState = INPUTS(0).R4[AvlTree].get
+  val nextStateBox = OUTPUTS(0)
+  val nextBalanceState = OUTPUTS(0).R4[AvlTree].get
+  val poolNFT = INPUTS(0).tokens(0)._1
+
+  val stateData     = getVar[Coll[(Coll[Byte], Coll[Byte])]](0).get
+  val proof         = getVar[Coll[Byte]](1).get
+
+  val keys = stateData.map{ (keyVal: (Coll[Byte], Coll[Byte])) => keyVal._1 }
+  val payoutBalances = {
+
+    val oldBalances   = balanceState.getMany(keys, proof)
+    val totalPaid     = oldBalances.fold(0L, {
+    (z: Long, balance: Option[Coll[Byte]]) =>
+      val minerBalance: Long = byteArrayToLong( balance.get )
+      z + minerBalance
+     }
+    )
+
+    val validStateTransition: Coll[(Coll[Byte], Coll[Byte])] = stateData.forall{
+      (keyVal: (Coll[Byte], Coll[Byte])) =>
+        val index =   keys.indexOf(keyVal._1, 0)
+        val oldMinerBalance: Coll[Byte]      = oldBalances(index).get
+        val balanceChangeBytes: Coll[Byte]   = keyVal._2
+        val output = OUTPUTS(1 + index)
+
+        val lastBalance = byteArrayToLong( oldMinerBalance )
+        val nextBalance = byteArrayToLong( balanceChangeBytes )
+
+        val paymentIsValid = output.tokens(0)._2 == lastBalance
+        val tokensValid = output.tokens(0)._1 == INPUTS(0).tokens(1)._1
+        val balanceReset = nextBalance == 0L
+        val boxIsCorrect = blake2b256( output.propositionBytes ) == keyVal._1
+
+        allOf(
+          Coll(
+            paymentIsValid,
+            tokensValid,
+            balanceReset,
+            boxIsCorrect
+          )
+        )
+    }
+
+    val updatedBalanceState  = balanceState.update(stateData, proof).get
+
+    val nextTokensValid = nextStateBox.tokens.map{ (t: (Coll[Byte], Long)) => t._2 }.getOrElse(1, 0L) == INPUTS(0).tokens(1)._2 - totalTokens
+    val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
+    val secureSpend = poolNFT == const_poolNFT
+    val validPayout = allOf(
+      Coll(
+        validStateTransition,
+        nextTokensValid,
+        nextBalanceStateValid,
+        secureSpend
+      )
+    )
+    validPayout
+  }
+
+  sigmaProp(payoutBalances)
+}

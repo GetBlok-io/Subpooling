@@ -3,11 +3,13 @@ package plasma_test
 import io.getblok.subpooling_core.contracts.plasma.ShareStateContract
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{ShareState, StateMiner, StateScore}
+import okhttp3.OkHttpClient
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoProver, NetworkType, OutBox, RestApiErgoClient, SecretString}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 import plasma_test.ShareStateSuite.{NUM_MINERS, creatorAddress, dummyProver, ergoClient, logger, mockData, partialMockData, toInput}
 
+import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 class ShareStateSuite extends AnyFunSuite{
@@ -141,7 +143,11 @@ object ShareStateSuite {
   }
 
   val partialMockData = mockData.map(m => m._1.toPartialStateMiner -> m._2)
-  val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
+  val builder = new OkHttpClient().newBuilder()
+    .callTimeout(60, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
+    .connectTimeout(60, TimeUnit.SECONDS)
+  val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder("http://213.239.193.208:9053/",
+    NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl, builder)
   val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
 

@@ -25,8 +25,9 @@ object PayoutBalanceContract {
 
   def routeScript(scriptType: ScriptType): String = {
     scriptType match {
-      case PlasmaScripts.SINGLE => PlasmaScripts.SINGLE_PAYOUT_SCRIPT
-      case PlasmaScripts.DUAL => PlasmaScripts.HYBRID_PAYOUT_SCRIPT
+      case PlasmaScripts.SINGLE       => PlasmaScripts.SINGLE_PAYOUT_SCRIPT
+      case PlasmaScripts.DUAL         => PlasmaScripts.HYBRID_PAYOUT_SCRIPT
+      case PlasmaScripts.SINGLE_TOKEN => PlasmaScripts.TOKEN_PAYOUT_SCRIPT
     }
   }
 
@@ -68,6 +69,18 @@ object PayoutBalanceContract {
       logger.info(s"${u._1.toString}: ${u._2}")
       ctx.newTxBuilder().outBoxBuilder()
         .value( u._2.balance )
+        .contract(u._1.address.toErgoContract)
+        .build()
+    }
+  }
+
+  def buildTokenPaymentBoxes(ctx: BlockchainContext, tokenId: ErgoId, payouts: Seq[(StateMiner, SingleBalance)]): Seq[OutBox] = {
+    logger.info("Building payout boxes: ")
+    for(u <- payouts) yield {
+      logger.info(s"${u._1.toString}: ${u._2}")
+      ctx.newTxBuilder().outBoxBuilder()
+        .value( Helpers.MinFee )
+        .tokens(new ErgoToken(tokenId, u._2.balance))
         .contract(u._1.address.toErgoContract)
         .build()
     }

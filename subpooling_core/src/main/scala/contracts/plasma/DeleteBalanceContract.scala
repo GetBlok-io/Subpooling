@@ -33,6 +33,8 @@ object DeleteBalanceContract {
         PlasmaScripts.SINGLE_DELETE_SCRIPT
       case PlasmaScripts.DUAL =>
         PlasmaScripts.HYBRID_DELETE_SCRIPT
+      case PlasmaScripts.SINGLE_TOKEN =>
+        PlasmaScripts.SINGLE_DELETE_SCRIPT
     }
   }
 
