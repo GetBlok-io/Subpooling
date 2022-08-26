@@ -50,23 +50,23 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       logger.info(s"Payout Batches: ${payoutBatches.size}")
       val insertOutBoxes = insertBatches.indices.map{
         idx =>
-          InsertBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 20)) -> idx
+          InsertBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 10)) -> idx
       }
       val updateOutBoxes = updateBatches.indices.map {
         idx =>
           val amountToPayout = updateBatches(idx).map(_.amountAdded).sum
           logger.info(s"Building update box with total balances of ${amountToPayout} nanoErg")
-          UpdateBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(amountToPayout + (AppParameters.groupFee * 20))) -> (insertBatches.size + idx)
+          UpdateBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(amountToPayout + (AppParameters.groupFee * 10))) -> (insertBatches.size + idx)
       }
       val payoutOutBoxes = payoutBatches.indices.map {
         idx =>
-          PayoutBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 20)) -> (insertBatches.size + updateBatches.size + idx)
+          PayoutBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 10)) -> (insertBatches.size + updateBatches.size + idx)
       }
 
       val indexedOutputs = insertOutBoxes ++ updateOutBoxes ++ payoutOutBoxes
 
       logger.info(s"Paying transaction fee of ${commandState.box.getValue} nanoERG")
-      val txFee = AppParameters.groupFee * 20
+      val txFee = AppParameters.groupFee * 5
 
       var inputBoxes = state.boxes.asJava
 
