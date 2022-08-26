@@ -32,7 +32,9 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
         state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
       )
 
-      val newMiners = minerLookupResults.filter(_._2.tryOp.get.isEmpty).map(_._1)
+      val newMiners = minerLookupResults.filter(ml => ml._2.tryOp.get.isEmpty || ml._2.tryOp.isFailure).map(_._1)
+      logger.info("New miners being added: ")
+      logger.info(newMiners.mkString("Seq(", ", ", ")"))
       require(commandState.data.forall(_.amountAdded > 0L), "Not all miners made a contribution!")
       require(newMiners.forall(_.balance == 0L), "Not all new miners had a balance of 0!")
 
