@@ -45,7 +45,7 @@
 
     val updatedBalanceState  = balanceState.update(stateData, proof).get
 
-    val nextTokensValid = nextStateBox.tokens.map{ (t: (Coll[Byte], Long)) => t._2 }.getOrElse(1, 0L) == INPUTS(0).tokens(1)._2 - totalTokens
+    val nextTokensValid = nextStateBox.tokens.map{ (t: (Coll[Byte], Long)) => t._2 }.getOrElse(1, 0L) == INPUTS(0).tokens(1)._2 - totalPaid
     val nextBalanceStateValid = nextBalanceState.digest == updatedBalanceState.digest
     val secureSpend = poolNFT == const_poolNFT
     val validPayout = allOf(

@@ -76,10 +76,12 @@ case class TokenSetupTransform(override val ctx: BlockchainContext, override val
       logger.info(s"Paying transaction fee of ${commandState.box.getValue} nanoERG")
       val txFee = AppParameters.groupFee * 20
 
-      var inputBoxes = state.boxes.asJava
+      var inputBoxes = (state.boxes ++ Seq(holdingBox)).asJava
 
       val outputs = indexedOutputs.map(_._1)
-      require(state.boxes.map(_.getValue).sum > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
+      val inputSum = state.boxes.map(_.getValue).sum + holdingBox.getValue
+      val outputSum = outputs.map(_.getValue).sum + txFee
+      require( inputSum >= outputSum , s"Input value ${inputSum} was not big enough for required outputs ${outputSum}")
 
       val unsignedTx = {
         if (AppParameters.enableEIP27) {

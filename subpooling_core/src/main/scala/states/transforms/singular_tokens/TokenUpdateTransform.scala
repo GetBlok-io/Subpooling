@@ -8,7 +8,7 @@ import states.models._
 
 import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
-import org.ergoplatform.appkit.BlockchainContext
+import org.ergoplatform.appkit.{BlockchainContext, ErgoToken}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
@@ -16,7 +16,7 @@ import scala.util.Try
 
 case class TokenUpdateTransform(override val ctx: BlockchainContext, override val wallet: NodeWallet, override val commandState: CommandState)
   extends StateTransition[SingleBalance](ctx, wallet, commandState) {
-  private val logger: Logger = LoggerFactory.getLogger("UpdateTransform")
+  private val logger: Logger = LoggerFactory.getLogger("TokenUpdateTransform")
 
   override def transform(inputState: State[SingleBalance]): Try[TransformResult[SingleBalance]] = {
     Try {
@@ -29,14 +29,14 @@ case class TokenUpdateTransform(override val ctx: BlockchainContext, override va
       val appliedCommand = UpdateBalanceContract.applySingleContext(commandState.box, state.balanceState, commandState.data.map(_.toUpdateSingleValues))
 
       logger.info(s"Update transform is adding ${appliedCommand._2} accumulated balance!")
-      logger.info(s"Paying transaction fee of ${appliedCommand._1.getValue - appliedCommand._2}")
+      logger.info(s"Paying transaction fee of ${appliedCommand._1.getValue}")
       require(appliedCommand._1.getValue - appliedCommand._2 <= Helpers.OneErg, "A tx fee greater than 1 erg is being paid!")
       val inputBoxes = Seq(state.box, appliedCommand._1).asJava
-      val nextStateBox = state.output(ctx, wallet.p2pk, Some(state.box.getValue.toLong + appliedCommand._2))
+      val nextStateBox = state.output(ctx, wallet.p2pk, Some(state.box.getValue), Some(new ErgoToken(state.tokenId, appliedCommand._2)))
       val unsignedTx = ctx.newTxBuilder()
         .boxesToSpend(inputBoxes)
         .outputs(nextStateBox)
-        .fee(appliedCommand._1.getValue - appliedCommand._2)
+        .fee(appliedCommand._1.getValue)
         .sendChangeTo(wallet.p2pk.getErgoAddress)
         .build()
 

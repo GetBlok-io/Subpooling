@@ -27,7 +27,7 @@ object InsertBalanceContract {
     scriptType match {
       case PlasmaScripts.SINGLE       => PlasmaScripts.SINGLE_INSERT_SCRIPT
       case PlasmaScripts.DUAL         => PlasmaScripts.HYBRID_INSERT_SCRIPT
-      case PlasmaScripts.SINGLE_TOKEN => PlasmaScripts.SINGLE_DELETE_SCRIPT
+      case PlasmaScripts.SINGLE_TOKEN => PlasmaScripts.SINGLE_INSERT_SCRIPT
     }
   }
 
