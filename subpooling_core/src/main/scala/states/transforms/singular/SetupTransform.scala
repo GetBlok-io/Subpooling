@@ -29,9 +29,13 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
     Try {
       val state = inputState.asInstanceOf[SingleState]
       val minerLookupResults = commandState.data.zip(
-        state.balanceState.map.localLookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
+        state.balanceState.map.insert(commandState.data.map(_.toStateMiner.toPartialStateMiner -> SingleBalance(0L)): _*).response
       )
-
+      logger.info("Dropping false insert")
+      state.balanceState.map.dropChanges()
+      logger.info("Re-initiating map")
+      state.balanceState.map.initiate()
+      logger.info(s"Current digests: ${state.balanceState.map.digestStrings}")
       val newMinersResults = minerLookupResults.filter(ml => ml._2.tryOp.get.isEmpty)
       val newMiners = newMinersResults.map(_._1)
       logger.info("New miners being added: ")
