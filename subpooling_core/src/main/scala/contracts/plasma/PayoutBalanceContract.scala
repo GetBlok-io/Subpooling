@@ -83,7 +83,7 @@ object PayoutBalanceContract {
           .build()
       }
     }
-
+    paymentBoxes
   }
 
   def buildHybridPaymentBoxes(ctx: BlockchainContext, tokenId: ErgoId, payouts: Seq[(StateMiner, DualBalance)]): Seq[OutBox] = {
@@ -98,14 +98,7 @@ object PayoutBalanceContract {
           .build()
       }
     }
-    paymentBoxes.foldLeft(Seq[OutBox]()){
-      (z, b) =>
-        if(!z.exists(o => o.getBytesWithNoRef sameElements b.getBytesWithNoRef)){
-          z ++ Seq(b)
-        }else{
-          z
-        }
-    }
+    paymentBoxes
   }
 }
 
