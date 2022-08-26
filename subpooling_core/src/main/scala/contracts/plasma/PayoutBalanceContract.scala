@@ -64,24 +64,44 @@ object PayoutBalanceContract {
 
   def buildERGPaymentBoxes(ctx: BlockchainContext, payouts: Seq[(StateMiner, SingleBalance)]): Seq[OutBox] = {
     logger.info("Building payout boxes: ")
-    for(u <- payouts) yield {
-      logger.info(s"${u._1.toString}: ${u._2}")
-      ctx.newTxBuilder().outBoxBuilder()
-        .value( u._2.balance )
-        .contract(u._1.address.toErgoContract)
-        .build()
+    val paymentBoxes = {
+      for(u <- payouts) yield {
+        logger.info(s"${u._1.toString}: ${u._2}")
+        ctx.newTxBuilder().outBoxBuilder()
+          .value( u._2.balance )
+          .contract(u._1.address.toErgoContract)
+          .build()
+      }
+    }
+    paymentBoxes.foldLeft(Seq[OutBox]()){
+      (z, b) =>
+        if(!z.exists(o => o.getBytesWithNoRef sameElements b.getBytesWithNoRef)){
+          z ++ Seq(b)
+        }else{
+          z
+        }
     }
   }
 
   def buildHybridPaymentBoxes(ctx: BlockchainContext, tokenId: ErgoId, payouts: Seq[(StateMiner, DualBalance)]): Seq[OutBox] = {
     logger.info("Building payout boxes: ")
-    for(u <- payouts) yield {
-      logger.info(s"${u._1.toString}: ${u._2}")
-      ctx.newTxBuilder().outBoxBuilder()
-        .value( u._2.balance )
-        .tokens( new ErgoToken(tokenId, u._2.balanceTwo) )
-        .contract(u._1.address.toErgoContract)
-        .build()
+    val paymentBoxes = {
+      for(u <- payouts) yield {
+        logger.info(s"${u._1.toString}: ${u._2}")
+        ctx.newTxBuilder().outBoxBuilder()
+          .value( u._2.balance )
+          .tokens( new ErgoToken(tokenId, u._2.balanceTwo) )
+          .contract(u._1.address.toErgoContract)
+          .build()
+      }
+    }
+    paymentBoxes.foldLeft(Seq[OutBox]()){
+      (z, b) =>
+        if(!z.exists(o => o.getBytesWithNoRef sameElements b.getBytesWithNoRef)){
+          z ++ Seq(b)
+        }else{
+          z
+        }
     }
   }
 }
