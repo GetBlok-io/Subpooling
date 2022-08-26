@@ -46,9 +46,16 @@ object InsertBalanceContract {
   def applyContext[T <: StateBalance](updateBox: InputBox, balanceState: BalanceState[T], inserts: Seq[PartialStateMiner],
                                      zero: T): InputBox = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val updateErgoVal = ErgoValue.of(Colls.fromArray(inserts.map(u => u -> zero).toArray.map(u => u._1.toColl -> u._2.toColl)
-    )(insertType.getRType), insertType)
     val result = balanceState.map.insert(inserts.map(u => u -> zero):_*)
+    val successful = inserts.zip(result.response)
+
+    logger.info("Insertions:")
+    logger.info(successful.mkString("( ", ", ", ")"))
+    logger.info("Now filtering to successes")
+    val successMiners = successful.filter(_._2.tryOp.isSuccess).map(_._1)
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(successMiners.map(u => u -> zero).toArray.map(u => u._1.toColl -> u._2.toColl)
+    )(insertType.getRType), insertType)
+
     logger.info(s"Inserting ${inserts.length} share states")
     logger.info(s"Sample: ${updateErgoVal.getValue.toArray.head}")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
