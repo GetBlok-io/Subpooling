@@ -50,6 +50,16 @@ object PayoutBalanceContract {
     val lastBalances = balanceState.map.lookUp((payouts.map(_.toPartialStateMiner)):_*).response.map(_.tryOp.get)
     val lastBalanceMap = payouts.indices.map(i => payouts(i) -> lastBalances(i).get)
     val nextBalanceMap = payouts.map(u => u.toPartialStateMiner -> zero)
+
+    nextBalanceMap.foldLeft(Seq[(PartialStateMiner, T)]()){
+      (z, b) =>
+        if(!z.exists(p => p._1.toString == b._1.toString)){
+          z ++ Seq(b)
+        }else{
+          z
+        }
+    }
+
     val updateErgoVal = ErgoValue.of(Colls.fromArray(nextBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
 
@@ -73,14 +83,7 @@ object PayoutBalanceContract {
           .build()
       }
     }
-    paymentBoxes.foldLeft(Seq[OutBox]()){
-      (z, b) =>
-        if(!z.exists(o => o.getBytesWithNoRef sameElements b.getBytesWithNoRef)){
-          z ++ Seq(b)
-        }else{
-          z
-        }
-    }
+
   }
 
   def buildHybridPaymentBoxes(ctx: BlockchainContext, tokenId: ErgoId, payouts: Seq[(StateMiner, DualBalance)]): Seq[OutBox] = {

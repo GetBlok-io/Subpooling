@@ -53,37 +53,57 @@ object UpdateBalanceContract {
 
   def applySingleContext(stateBox: InputBox, balanceState: BalanceState[SingleBalance], balanceChanges: Seq[(PartialStateMiner, SingleBalance)]): (InputBox, Long) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val updateErgoVal = ErgoValue.of(Colls.fromArray(balanceChanges.map(u => u._1.toColl -> u._2.toColl).toArray
+
+    val distinctChanges = balanceChanges.foldLeft(Seq[(PartialStateMiner, SingleBalance)]()){
+      (z, b) =>
+        if(!z.exists(p => p._1.toString == b._1.toString)){
+          z ++ Seq(b)
+        }else{
+          z
+        }
+    }
+
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(distinctChanges.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
 
-    val oldBalances = balanceState.map.lookUp(balanceChanges.map(_._1):_*).response
+    val oldBalances = balanceState.map.lookUp(distinctChanges.map(_._1):_*).response
 
-    val updates = balanceChanges.indices.map{
+    val updates = distinctChanges.indices.map{
       idx =>
-        val keyChange = balanceChanges(idx)
+        val keyChange = distinctChanges(idx)
         val oldBalance = oldBalances(idx).tryOp.get.get
 
         (keyChange._1 -> keyChange._2.copy(balance = keyChange._2.balance + oldBalance.balance))
     }
 
     val result = balanceState.map.update(updates:_*)
-    logger.info(s"${balanceChanges.head.toString()}")
-    logger.info(s"Updating ${balanceChanges.length} share states")
+    logger.info(s"${distinctChanges.head.toString()}")
+    logger.info(s"Updating ${distinctChanges.length} share states")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
     logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
-    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> balanceChanges.map(_._2.balance).sum
+    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> distinctChanges.map(_._2.balance).sum
   }
 
   def applyDualContext(stateBox: InputBox, balanceState: BalanceState[DualBalance], balanceChanges: Seq[(PartialStateMiner, DualBalance)]): (InputBox, (Long, Long)) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val updateErgoVal = ErgoValue.of(Colls.fromArray(balanceChanges.map(u => u._1.toColl -> u._2.toColl).toArray
+
+    val distinctChanges = balanceChanges.foldLeft(Seq[(PartialStateMiner, DualBalance)]()){
+      (z, b) =>
+        if(!z.exists(p => p._1.toString == b._1.toString)){
+          z ++ Seq(b)
+        }else{
+          z
+        }
+    }
+
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(distinctChanges.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
 
-    val oldBalances = balanceState.map.lookUp(balanceChanges.map(_._1):_*).response
+    val oldBalances = balanceState.map.lookUp(distinctChanges.map(_._1):_*).response
 
-    val updates = balanceChanges.indices.map{
+    val updates = distinctChanges.indices.map{
       idx =>
-        val keyChange = balanceChanges(idx)
+        val keyChange = distinctChanges(idx)
         val oldBalance = oldBalances(idx).tryOp.get.get
 
         (keyChange._1 -> keyChange._2.copy(
@@ -93,12 +113,12 @@ object UpdateBalanceContract {
     }
 
     val result = balanceState.map.update(updates:_*)
-    logger.info(s"${balanceChanges.head.toString()}")
-    logger.info(s"Updating ${balanceChanges.length} share states")
+    logger.info(s"${distinctChanges.head.toString()}")
+    logger.info(s"Updating ${distinctChanges.length} share states")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
     logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
     stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal),
-      ContextVar.of(1.toByte, result.proof.ergoValue)) -> (balanceChanges.map(_._2.balance).sum, balanceChanges.map(_._2.balanceTwo).sum)
+      ContextVar.of(1.toByte, result.proof.ergoValue)) -> (distinctChanges.map(_._2.balance).sum, distinctChanges.map(_._2.balanceTwo).sum)
   }
 
 }
