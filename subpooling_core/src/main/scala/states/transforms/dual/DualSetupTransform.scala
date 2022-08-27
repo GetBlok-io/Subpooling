@@ -27,19 +27,27 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
   override def transform(inputState: State[DualBalance]): Try[TransformResult[DualBalance]] = {
     Try {
       val state = inputState.asInstanceOf[DualState]
-      val minerLookupResults = commandState.data.zip(
-        state.balanceState.map.lookUp(commandState.data.map(_.toStateMiner.toPartialStateMiner): _*).response
+      val distinctPlasmaMiners = commandState.data.foldLeft(Seq[PlasmaMiner]()){
+        (z, b) =>
+          if(!z.exists(p => p.toStateMiner.address.toString != b.toStateMiner.address.toString)){
+            z ++ Seq(b)
+          }else{
+            z
+          }
+      }
+      val minerLookupResults = distinctPlasmaMiners.zip(
+        state.balanceState.map.lookUp(distinctPlasmaMiners.map(_.toStateMiner.toPartialStateMiner): _*).response
       )
 
       val newMiners = minerLookupResults.filter(_._2.tryOp.get.isEmpty).map(_._1)
-      require(commandState.data.forall(_.amountAdded > 0L), "Not all miners made a contribution!")
+      require(distinctPlasmaMiners.forall(_.amountAdded > 0L), "Not all miners made a contribution!")
       require(newMiners.forall(_.balance == 0L), "Not all new miners had a balance of 0!")
 
       val minersToPayout = minerLookupResults.filter(m => m._1.balance + m._1.amountAdded >= m._1.minPay).map(_._1)
 
       val insertBatches = newMiners.sliding(minerBatchSize, minerBatchSize).toSeq
       val payoutBatches = minersToPayout.sliding(minerBatchSize, minerBatchSize).toSeq
-      val updateBatches = commandState.data.sliding(minerBatchSize, minerBatchSize).toSeq
+      val updateBatches = distinctPlasmaMiners.sliding(minerBatchSize, minerBatchSize).toSeq
 
       val insertOutBoxes = insertBatches.indices.map {
         idx =>
@@ -125,7 +133,7 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
           .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
         val manifest = state.balanceState.map.toPlasmaMap.getManifest(255)
         commandQueue = insertCommands ++ updateCommands ++ payoutCommands
-        TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
+        TransformResult(state, signedTx, distinctPlasmaMiners, SETUP, Some(manifest), -1, commandState)
       }else{
         val insertCommands = commandBatch.get
           .inserts
@@ -143,7 +151,7 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
           .map(i => CommandState(i._1, payoutBatches(i._2), PAYOUT, insertCommands.length + updateCommands.length + i._2))
         val manifest = state.balanceState.map.getTempMap.get.getManifest(255)
         commandQueue = (insertCommands ++ updateCommands ++ payoutCommands).toIndexedSeq
-        TransformResult(state, signedTx, commandState.data, SETUP, Some(manifest), -1, commandState)
+        TransformResult(state, signedTx, distinctPlasmaMiners, SETUP, Some(manifest), -1, commandState)
       }
     }
   }

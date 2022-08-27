@@ -47,11 +47,21 @@ object PayoutBalanceContract {
 
   def applyContext[T <: StateBalance](stateBox: InputBox, balanceState: BalanceState[T], payouts: Seq[StateMiner], zero: T): (InputBox, immutable.IndexedSeq[(StateMiner, T)]) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
-    val lastBalances = balanceState.map.lookUp((payouts.map(_.toPartialStateMiner)):_*).response.map(_.tryOp.get)
-    val lastBalanceMap = payouts.indices.map(i => payouts(i) -> lastBalances(i).get)
-    val nextBalanceMap = payouts.map(u => u.toPartialStateMiner -> zero)
 
-    nextBalanceMap.foldLeft(Seq[(PartialStateMiner, T)]()){
+    val distinctPayouts = payouts.foldLeft(Seq[StateMiner]()){
+      (z, b) =>
+        if(!z.exists(p => p.address.toString != b.address.toString)){
+          z ++ Seq(b)
+        }else{
+          z
+        }
+    }
+    val lastBalances = balanceState.map.lookUp((distinctPayouts.map(_.toPartialStateMiner)):_*).response.map(_.tryOp.get)
+
+    val lastBalanceMap = distinctPayouts.indices.map(i => distinctPayouts(i) -> lastBalances(i).get)
+    val nextBalanceMap = distinctPayouts.map(u => u.toPartialStateMiner -> zero)
+
+    val distinctBalanceMap = nextBalanceMap.foldLeft(Seq[(PartialStateMiner, T)]()){
       (z, b) =>
         if(!z.exists(p => p._1.toString == b._1.toString)){
           z ++ Seq(b)
@@ -60,12 +70,12 @@ object PayoutBalanceContract {
         }
     }
 
-    val updateErgoVal = ErgoValue.of(Colls.fromArray(nextBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(distinctBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
 
-    val result = balanceState.map.update(nextBalanceMap:_*)
-    logger.info(s"${nextBalanceMap.head.toString()}")
-    logger.info(s"Updating ${nextBalanceMap.length} balance states")
+    val result = balanceState.map.update(distinctBalanceMap:_*)
+    logger.info(s"${distinctBalanceMap.head.toString()}")
+    logger.info(s"Updating ${distinctBalanceMap.length} balance states")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
     logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
     stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> lastBalanceMap
