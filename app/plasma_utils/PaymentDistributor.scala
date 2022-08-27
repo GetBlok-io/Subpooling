@@ -192,22 +192,22 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
           require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
 
-          val distinctPlacements = placements.foldLeft(Seq[PoolPlacement]()){
-            (z, b) =>
-              if(!z.exists(p => p.miner == b.miner)){
-                z ++ Seq(b)
-              }else{
-                z
-              }
-          }
+//          val distinctPlacements = placements.foldLeft(Seq[PoolPlacement]()){
+//            (z, b) =>
+//              if(!z.exists(p => p.miner == b.miner)){
+//                z ++ Seq(b)
+//              }else{
+//                z
+//              }
+//          }
 
           logger.info(s"Constructing distributions for block ${block.blockheight}")
-          logger.info(s"Placements gEpoch: ${distinctPlacements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
+          logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
-          require(distinctPlacements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
+          require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
           val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
-          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, distinctPlacements)
+          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, placements)
         }
 
         constructDistResp.map {

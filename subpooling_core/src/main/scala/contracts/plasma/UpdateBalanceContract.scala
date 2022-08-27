@@ -51,29 +51,29 @@ object UpdateBalanceContract {
 
   }
 
-  def applySingleContext(stateBox: InputBox, balanceState: BalanceState[SingleBalance], nextBalanceMap: Seq[(PartialStateMiner, SingleBalance)]): (InputBox, Long) = {
+  def applySingleContext(stateBox: InputBox, balanceState: BalanceState[SingleBalance], balanceChanges: Seq[(PartialStateMiner, SingleBalance)]): (InputBox, Long) = {
     val insertType = ErgoType.pairType(ErgoType.collType(ErgoType.byteType()), ErgoType.collType(ErgoType.byteType()))
 
 
-    val updateErgoVal = ErgoValue.of(Colls.fromArray(nextBalanceMap.map(u => u._1.toColl -> u._2.toColl).toArray
+    val updateErgoVal = ErgoValue.of(Colls.fromArray(balanceChanges.map(u => u._1.toColl -> u._2.toColl).toArray
     )(insertType.getRType), insertType)
 
-    val oldBalances = balanceState.map.lookUp(nextBalanceMap.map(_._1):_*).response
+    val oldBalances = balanceState.map.lookUp(balanceChanges.map(_._1):_*).response
 
-    val updates = nextBalanceMap.indices.map{
+    val updates = balanceChanges.indices.map{
       idx =>
-        val keyChange = nextBalanceMap(idx)
+        val keyChange = balanceChanges(idx)
         val oldBalance = oldBalances(idx).tryOp.get.get
 
         (keyChange._1 -> keyChange._2.copy(balance = keyChange._2.balance + oldBalance.balance))
     }
 
     val result = balanceState.map.update(updates:_*)
-    logger.info(s"${nextBalanceMap.head.toString()}")
-    logger.info(s"Updating ${nextBalanceMap.length} share states")
+    logger.info(s"${balanceChanges.head.toString()}")
+    logger.info(s"Updating ${balanceChanges.length} share states")
     logger.info(s"Proof size: ${result.proof.bytes.length} bytes")
     logger.info(s"Result: ${result.response.mkString("( ", ", ", " )")}")
-    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> nextBalanceMap.map(_._2.balance).sum
+    stateBox.withContextVars(ContextVar.of(0.toByte, updateErgoVal), ContextVar.of(1.toByte, result.proof.ergoValue)) -> balanceChanges.map(_._2.balance).sum
   }
 
   def applyDualContext(stateBox: InputBox, balanceState: BalanceState[DualBalance], balanceChanges: Seq[(PartialStateMiner, DualBalance)]): (InputBox, (Long, Long)) = {
