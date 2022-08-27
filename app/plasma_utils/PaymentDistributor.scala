@@ -27,6 +27,7 @@ import utils.ConcurrentBoxLoader
 import utils.ConcurrentBoxLoader.{BLOCK_BATCH_SIZE, BatchSelection, PLASMA_BATCH_SIZE}
 
 import java.time.LocalDateTime
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -191,15 +192,29 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
         val constructDistResp = {
 
           require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
-
+          val mergedPlacements = {
+            placements.foldLeft(Seq[PoolPlacement]()){
+              (z, b) =>
+                val existing = z.indexWhere(p => p.miner == b.miner)
+                if(existing != -1){
+                  val currentPlacement = z(existing)
+                  z.updated(existing, currentPlacement.copy(
+                    amount = currentPlacement.amount + b.amount,
+                    amountTwo = currentPlacement.amountTwo.flatMap(l => b.amountTwo.map(l2 => l2 + l))
+                  ))
+                }else{
+                  z ++ Seq(b)
+                }
+            }
+          }
 
           logger.info(s"Constructing distributions for block ${block.blockheight}")
-          logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
+          logger.info(s"Placements gEpoch: ${mergedPlacements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
-          require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
+          require(mergedPlacements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
           val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
-          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, placements)
+          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, mergedPlacements)
         }
 
         constructDistResp.map {
