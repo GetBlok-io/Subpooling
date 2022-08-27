@@ -3,7 +3,7 @@ package states.transforms.dual
 
 import contracts.plasma.{DeleteBalanceContract, InsertBalanceContract, PayoutBalanceContract, PlasmaScripts, UpdateBalanceContract}
 import global.AppParameters.NodeWallet
-import global.{AppParameters, EIP27Constants}
+import global.{AppParameters, EIP27Constants, Helpers}
 import plasma.{DualBalance, SingleBalance}
 import plasma.StateConversions.{balanceConversion, dualBalanceConversion, minerConversion}
 import registers.PoolFees
@@ -46,10 +46,12 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
         idx =>
           InsertBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 10)) -> idx
       }
+      var updateTokens = 0L
       val updateOutBoxes = updateBatches.indices.map {
         idx =>
           val amountToPayout = updateBatches(idx).map(_.amountAdded).sum
           val tokensToPayout = updateBatches(idx).map(_.addedTwo).sum
+          updateTokens = updateTokens + tokensToPayout
           val updateToken = new ErgoToken(state.tokenId, tokensToPayout)
           logger.info(s"Building update box with total balances of ${amountToPayout} nanoErg and secondary balances of" +
             s" ${tokensToPayout} for token ${state.tokenId}")
@@ -58,6 +60,26 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
             Some(updateToken)
           ) -> (insertBatches.size + idx)
       }
+
+      val extraUpdate = {
+        val difference = holdingBox.getTokens.get(0).getValue - updateTokens
+        val percentChange = {
+          Math.abs(((BigDecimal(holdingBox.getTokens.get(0).getValue) - updateTokens) / holdingBox.getTokens.get(0).getValue).toDouble)
+        }
+        if(percentChange > 0.99999 && difference > 0){
+          logger.info(s"Tokens outside of range for holding box, adding another update box with tokens ${difference}")
+          val updateToken = new ErgoToken(state.tokenId, difference)
+          Some(
+            UpdateBalanceContract.buildBox(ctx, state.poolNFT, scriptType,
+              Some(Helpers.MinFee),
+              Some(updateToken)
+            )
+          )
+        }else{
+          None
+        }
+      }
+
       val payoutOutBoxes = payoutBatches.indices.map {
         idx =>
           PayoutBalanceContract.buildBox(ctx, state.poolNFT, scriptType, Some(AppParameters.groupFee * 10)) -> (insertBatches.size + updateBatches.size + idx)
@@ -75,7 +97,12 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
       val inputBoxes = (Seq(holdingBox) ++ state.boxes).asJava
 
 
-      val outputs = indexedOutputs.map(_._1)
+      var outputs = indexedOutputs.map(_._1)
+
+      if(extraUpdate.isDefined){
+        outputs = outputs ++ Seq(extraUpdate.get)
+      }
+
       require(state.boxes.map(_.getValue).sum + holdingBox.getValue > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
 
       val unsignedTx = {

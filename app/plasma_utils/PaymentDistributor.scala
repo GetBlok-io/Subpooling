@@ -192,14 +192,6 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
           require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
 
-//          val distinctPlacements = placements.foldLeft(Seq[PoolPlacement]()){
-//            (z, b) =>
-//              if(!z.exists(p => p.miner == b.miner)){
-//                z ++ Seq(b)
-//              }else{
-//                z
-//              }
-//          }
 
           logger.info(s"Constructing distributions for block ${block.blockheight}")
           logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
