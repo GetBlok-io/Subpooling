@@ -192,29 +192,15 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
         val constructDistResp = {
 
           require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
-          val mergedPlacements = {
-            placements.foldLeft(Seq[PoolPlacement]()){
-              (z, b) =>
-                val existing = z.indexWhere(p => p.miner == b.miner)
-                if(existing != -1){
-                  val currentPlacement = z(existing)
-                  z.updated(existing, currentPlacement.copy(
-                    amount = currentPlacement.amount + b.amount,
-                    amountTwo = currentPlacement.amountTwo.flatMap(l => b.amountTwo.map(l2 => l2 + l))
-                  ))
-                }else{
-                  z ++ Seq(b)
-                }
-            }
-          }
 
+          val modifiedPlacements = modifyPlacements(placements)
           logger.info(s"Constructing distributions for block ${block.blockheight}")
-          logger.info(s"Placements gEpoch: ${mergedPlacements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
+          logger.info(s"Placements gEpoch: ${modifiedPlacements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
-          require(mergedPlacements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
+          require(modifiedPlacements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
           val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
-          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, mergedPlacements)
+          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, modifiedPlacements)
         }
 
         constructDistResp.map {
@@ -234,6 +220,47 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
     collectedComponents
   }
 
+  def modifyPlacements(placements: Seq[PoolPlacement]): Seq[PoolPlacement] = {
+    placements.head.subpool match {
+      case "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80" =>
+        distinctPlacements(placements)
+      case "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0" =>
+        mergePlacements(placements)
+      case _ =>
+        distinctPlacements(placements)
+    }
+  }
+
+  def mergePlacements(placements: Seq[PoolPlacement]): Seq[PoolPlacement] = {
+    val mergedPlacements = {
+      placements.foldLeft(Seq[PoolPlacement]()){
+        (z, b) =>
+          val existing = z.indexWhere(p => p.miner == b.miner)
+          if(existing != -1){
+            val currentPlacement = z(existing)
+            z.updated(existing, currentPlacement.copy(
+              amount = currentPlacement.amount + b.amount,
+              amountTwo = currentPlacement.amountTwo.flatMap(l => b.amountTwo.map(l2 => l2 + l))
+            ))
+          }else{
+            z ++ Seq(b)
+          }
+      }
+    }
+    mergedPlacements
+  }
+
+  def distinctPlacements(placements: Seq[PoolPlacement]): Seq[PoolPlacement] = {
+    placements.foldLeft(Seq[PoolPlacement]()){
+      (z, b) =>
+        val existing = z.find(p => p.miner == b.miner)
+        if(existing.isDefined){
+          z
+        }else{
+          z ++ Seq(b)
+        }
+    }
+  }
 
   // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
   def collectInputs(batchSelection: BatchSelection): Seq[InputBox] = {
@@ -241,7 +268,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
       val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 8)
       boxLoader.collectFromLoaded(blockSum).toSeq
     }else{
-      val blockSum = Helpers.OneErg * 2
+      val blockSum = Helpers.OneErg * 5
       boxLoader.collectFromLoaded(blockSum).toSeq
     }
   }
