@@ -60,13 +60,15 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
             Some(updateToken)
           ) -> (insertBatches.size + idx)
       }
-
+      logger.info(s"Update tokens: ${updateTokens}")
       val extraUpdate = {
         val difference = holdingBox.getTokens.get(0).getValue - updateTokens
+        logger.info(s"Difference: ${difference}")
         val percentChange = {
-          Math.abs(((BigDecimal(holdingBox.getTokens.get(0).getValue) - updateTokens) / holdingBox.getTokens.get(0).getValue).toDouble)
+          Math.abs(difference.toDouble / holdingBox.getTokens.get(0).getValue.toDouble)
         }
-        if(percentChange > 0.99999 && difference > 0){
+        logger.info(s"Current percent change: ${percentChange}")
+        if(percentChange > 0.009999 && difference > 0){
           logger.info(s"Tokens outside of range for holding box, adding another update box with tokens ${difference}")
           val updateToken = new ErgoToken(state.tokenId, difference)
           Some(
