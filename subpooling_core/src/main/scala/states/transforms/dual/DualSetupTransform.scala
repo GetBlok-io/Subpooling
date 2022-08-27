@@ -29,7 +29,7 @@ case class DualSetupTransform(override val ctx: BlockchainContext, override val 
       val state = inputState.asInstanceOf[DualState]
       val distinctPlasmaMiners = commandState.data.foldLeft(Seq[PlasmaMiner]()){
         (z, b) =>
-          if(!z.exists(p => p.toStateMiner.address.toString != b.toStateMiner.address.toString)){
+          if(!z.exists(p => p.toStateMiner.address.toString == b.toStateMiner.address.toString)){
             z ++ Seq(b)
           }else{
             z

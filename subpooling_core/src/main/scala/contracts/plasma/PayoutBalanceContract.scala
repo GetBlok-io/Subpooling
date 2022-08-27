@@ -50,7 +50,7 @@ object PayoutBalanceContract {
 
     val distinctPayouts = payouts.foldLeft(Seq[StateMiner]()){
       (z, b) =>
-        if(!z.exists(p => p.address.toString != b.address.toString)){
+        if(!z.exists(p => p.address.toString == b.address.toString)){
           z ++ Seq(b)
         }else{
           z
