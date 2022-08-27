@@ -31,8 +31,8 @@ case class TokenPayoutTransform(override val ctx: BlockchainContext, override va
 
       logger.info(s"Paying out a total of ${totalRemoved} to ${currentBalances.length} miners!")
 
-      require(state.box.getValue >= totalRemoved, s"StateBox with value ${state.box.getValue} was not" +
-        s" big enough for payouts totalling in ${totalRemoved} nanoERG ")
+      require(state.box.getTokens.get(1).getValue >= totalRemoved, s"StateBox with tokens ${state.box.getTokens.get(1).getValue} was not" +
+        s" big enough for payouts totalling in ${totalRemoved} tokens ")
       val appliedCommand = PayoutBalanceContract.applyContext(commandState.box, state.balanceState, commandState.data.map(_.toStateMiner), state.zeroed)
 
       logger.info(s"Paying transaction fee of ${commandState.box.getValue} nanoERG")

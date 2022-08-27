@@ -27,12 +27,12 @@ case class TokenUpdateTransform(override val ctx: BlockchainContext, override va
         s" big enough for command state with total added value of ${commandState.data.map(_.amountAdded).sum}")
       require(commandState.box.getTokens.get(0).getId.toString == state.tokenId.toString, "UpdateBox had incorrect token on it!")
       val appliedCommand = UpdateBalanceContract.applySingleContext(commandState.box, state.balanceState, commandState.data.map(_.toUpdateSingleValues))
-
+      logger.info(s"Total amount added: ${commandState.data.map(_.amountAdded).sum}")
       logger.info(s"Update transform is adding ${appliedCommand._2} accumulated balance!")
       logger.info(s"Paying transaction fee of ${appliedCommand._1.getValue}")
-      require(appliedCommand._1.getValue - appliedCommand._2 <= Helpers.OneErg, "A tx fee greater than 1 erg is being paid!")
+      require(appliedCommand._1.getValue - Helpers.MinFee <= Helpers.OneErg, "A tx fee greater than 1 erg is being paid!")
       val inputBoxes = Seq(state.box, appliedCommand._1).asJava
-      val nextStateBox = state.output(ctx, wallet.p2pk, Some(state.box.getValue), Some(new ErgoToken(state.tokenId, appliedCommand._2)))
+      val nextStateBox = state.output(ctx, wallet.p2pk, Some(state.box.getValue), Some(state.addToken(appliedCommand._2)))
       val unsignedTx = ctx.newTxBuilder()
         .boxesToSpend(inputBoxes)
         .outputs(nextStateBox)

@@ -51,7 +51,7 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
               sender ! EmissionResponse(emissionResults, nextPlacements)
             case CycleEmissions(cycle, placements, inputs) =>
               logger.info("Now executing emission cycle")
-              val cycleState = makeCycleState(cycle, inputs)
+              val cycleState = makeCycleState(cycle, inputs, placements)
               val emissionResults = cycle.simulateSwap
               val cycleResults = cycle.cycle(cycleState, emissionResults, AppParameters.sendTxs)
               val nextPlacements = cycle.morphPlacementHolding(
@@ -65,9 +65,9 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
   }
 
 
-  def makeCycleState(cycle: Cycle, inputs: Seq[InputBox]): CycleState = {
+  def makeCycleState(cycle: Cycle, inputs: Seq[InputBox], placements: Seq[PoolPlacement]): CycleState = {
     val emBox = cycle.getEmissionsBox
-    val cycleState = CycleState(emBox, inputs)
+    val cycleState = CycleState(emBox, inputs, placements)
     cycleState
   }
 }

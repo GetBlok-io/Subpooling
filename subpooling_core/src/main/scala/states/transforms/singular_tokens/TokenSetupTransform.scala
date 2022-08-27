@@ -59,7 +59,7 @@ case class TokenSetupTransform(override val ctx: BlockchainContext, override val
           val updateToken = new ErgoToken(state.tokenId, tokensToPayout)
           logger.info(s"Building update box with total balances of ${tokensToPayout} for token id ${state.tokenId}")
           UpdateBalanceContract.buildBox(ctx, state.poolNFT, scriptType,
-            Some(AppParameters.groupFee * 10 ),
+            Some(AppParameters.groupFee * 20 ),
             Some(updateToken)
           ) -> (insertBatches.size + idx)
       }
