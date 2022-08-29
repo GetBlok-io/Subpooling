@@ -58,13 +58,14 @@ object PoolTemplates {
   )
 
   val templates: Array[UninitializedPool] = Array(
+    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, Some(false), ERGOPAD_POOL, isPlasma = true),
 //    UninitializedPool(poolMade = false, None, STANDARD_POOL),
 //    UninitializedPool(poolMade = false, None, SOLO_POOL),
 //    UninitializedPool(poolMade = false, Some(false), COMET_POOL),
-//    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
+
 
     )
 
