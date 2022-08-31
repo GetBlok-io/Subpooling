@@ -120,7 +120,7 @@
       )
     )
 
-    sigmaProp( exitStrategy ) && ( shareOperator || poolOperator )
+    sigmaProp( validExit ) && ( shareOperator || poolOperator )
   }
 
   // Token Emission:

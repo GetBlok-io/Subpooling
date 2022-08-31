@@ -32,7 +32,7 @@ class HybridExchangeCycleSuite extends AnyFunSuite {
       val result = cycle.simulateSwap
 
       logger.info(result.toString)
-      val cycleState = CycleState(box, Seq(buildUserBox(Helpers.OneErg * 50)))
+      val cycleState = CycleState(box, Seq(buildUserBox(Helpers.OneErg * 50)), Seq())
       val cycleResults = cycle.cycle(cycleState, result, false)
 
 

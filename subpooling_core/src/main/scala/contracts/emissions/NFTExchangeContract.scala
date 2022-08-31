@@ -109,7 +109,7 @@ object NFTExchangeContract {
   }
 
   def buildGenesisBox(ctx: BlockchainContext, emissionsContract: NFTExchangeContract, percentChange: Long, poolFee: Long,
-                      proportion: Long, emissionsToken: ErgoId, distributionToken: ErgoToken): OutBox = {
+                      emissionsToken: ErgoId, distributionToken: ErgoToken): OutBox = {
     ctx.newTxBuilder().outBoxBuilder()
       .contract(emissionsContract.asErgoContract)
       .value(Parameters.MinFee)

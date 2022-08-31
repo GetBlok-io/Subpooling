@@ -111,7 +111,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
 
   def getBonusReward(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Long = {
     val nextPlacements = morphPlacementValues(placements, emissionResults)
-    emissionResults.amountEmitted - nextPlacements.map(_.amount).sum
+    nextPlacements.map(_.amount).sum - emissionResults.amountEmitted
   }
 
   def morphPlacementValues(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Seq[PoolPlacement] = {
@@ -125,7 +125,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
       if(optHolder.isDefined) {
         logger.info(s"Found nft holder ${optHolder.get.address} with ${optHolder.get.count} NFTs")
       }
-      ((1 + ((BigDecimal(p.score) / totalScore) * emissionsAfterInit).longValue()) * (1 + (optHolder.map(_.count).getOrElse(0L) * NFT_ADJUSTMENT))).toLong
+      (1 + ((((BigDecimal(p.score) / totalScore) * emissionsAfterInit)) * (1 + (optHolder.map(_.count).getOrElse(0).toDouble * NFT_ADJUSTMENT))).toLong)
 
     }
 
@@ -148,7 +148,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
   }
 
   def cycle(cycleState: CycleState, emissionResults: EmissionResults, sendTxs: Boolean = true): CycleResults = {
-    val reArranged = CycleHelper.reArrange(ctx, wallet, cycleState.inputBoxes, reward, AppParameters.groupFee * 10)
+    val reArranged = CycleHelper.reArrange(ctx, wallet, cycleState.inputBoxes, reward, AppParameters.groupFee * 11)
     val rewardInput = reArranged._1
 
     val inputs = Seq(cycleState.cycleBox) ++ rewardInput
@@ -163,7 +163,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
       .value(cycleState.cycleBox.getValue.toLong)
       .registers(
         (cycleState.cycleBox.getRegisters.asScala.toSeq.slice(0, 2) ++ Seq(
-          ErgoValue.of(cycleState.cycleBox.getRegisters.get(2).getValue.asInstanceOf[ErgoValue[Long]].getValue + 1)
+          ErgoValue.of(cycleState.cycleBox.getRegisters.get(2).getValue.asInstanceOf[Long] + 1L)
         )):_*
       )
       .tokens(
