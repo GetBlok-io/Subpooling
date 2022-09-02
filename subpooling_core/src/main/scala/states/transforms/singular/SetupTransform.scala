@@ -12,7 +12,7 @@ import states.models.{CommandBatch, CommandState, State, StateTransition, Transf
 
 import io.getblok.subpooling_core.plasma.SingleBalance
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
-import org.ergoplatform.appkit.BlockchainContext
+import org.ergoplatform.appkit.{BlockchainContext, OutBox}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
@@ -80,8 +80,8 @@ case class SetupTransform(override val ctx: BlockchainContext, override val wall
       val feeReward: Long = (reward * feePercent).toLong
 
       val feeBox = ctx.newTxBuilder().outBoxBuilder().value(feeReward).contract(AppParameters.getFeeAddress.toErgoContract).build()
-
-      val outputs = indexedOutputs.map(_._1) ++ Seq(feeBox)
+      val feeSeq = if(feeReward != 0L) Seq(feeBox) else Seq.empty[OutBox]
+      val outputs = indexedOutputs.map(_._1) ++ feeSeq
       require(state.boxes.map(_.getValue).sum > outputs.map(_.getValue).sum + txFee, "Input value was not big enough for required outputs!")
 
       val unsignedTx = {
