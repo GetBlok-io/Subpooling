@@ -361,13 +361,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
         val additions = commandBytes.map(_._2).map(b => DualBalance(Longs.fromByteArray(b.slice(0, 8)), Longs.fromByteArray(b.slice(8, 16))))
         val lookup    = balanceState.map.lookUp(keys:_*)
+        val zipped = keys.zip(lookup.response).zip(additions)
+        val updates = zipped.filter(t => t._1._2.tryOp.isSuccess && t._1._2.tryOp.get.isDefined).map{
+          t =>
+            val currBalance = t._1._2.tryOp.get.get
+            val addition = t._2
+            val nextBalance = DualBalance(addition.balance + currBalance.balance, addition.balanceTwo + currBalance.balanceTwo)
 
-        val updates = lookup.response.filter(t => t.tryOp.isSuccess && t.tryOp.get.isDefined).indices.map{
-          idx =>
-            val currBalance = lookup.response(idx).tryOp.get.get
-            val nextBalance = DualBalance(additions(idx).balance + currBalance.balance, additions(idx).balanceTwo + currBalance.balanceTwo)
-
-            val key = keys(idx)
+            val key = t._1._1
 
             key -> nextBalance
         }
