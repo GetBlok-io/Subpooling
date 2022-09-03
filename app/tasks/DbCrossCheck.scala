@@ -108,13 +108,14 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
           }
 
         }else {
-//          logger.info("Regen from chain was enabled, now regenerating ERG only boxes from chain.")
+          logger.info(s"Regen from chain was enabled, now regenerating digest state for pool" +
+            s" f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
 //          Try(execRegen(params.regenType)).recoverWith {
 //            case ex =>
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-           db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 821430L).map(_.status).update(PoolBlock.PRE_PROCESSED))
+          initBackup()
 
         }
     })(contexts.taskContext)
