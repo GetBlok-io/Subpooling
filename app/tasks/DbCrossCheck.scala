@@ -304,6 +304,25 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
 
+
+  def applyDualStep(balanceState: BalanceState[DualBalance], step: StateHistory) = {
+    val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
+    val ext = parseExtension(boxExtension)
+    logger.info("Extension parsed successfully!")
+    logger.info("Now parsing into ErgoValue")
+    val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
+    val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
+    logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
+      s"and expected digest ${step.digest}")
+    val nextDigest = Try(performDualCommand(balanceState, asArr, step.command)).recoverWith{
+      case e: Exception =>
+        logger.error("There was a fatal error performing a command!", e)
+        Failure(e)
+    }
+    logger.info(s"New digest after command: ${nextDigest}")
+    logger.info(s"Expected digest after command ${step.digest}")
+  }
+
   def syncDualState(balanceState: BalanceState[DualBalance], poolTag: String) = {
 
     logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
@@ -324,22 +343,18 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
               step =>
                 logger.info("Now parsing steps")
                 if(step.step != -1) {
-                  val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
-                  val ext = parseExtension(boxExtension)
-                  logger.info("Extension parsed successfully!")
-                  logger.info("Now parsing into ErgoValue")
-                  val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
-                  val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
-                  logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
-                    s"and expected digest ${step.digest}")
-                  val nextDigest = Try(performDualCommand(balanceState, asArr, step.command)).recoverWith{
-                    case e: Exception =>
-                      logger.error("There was a fatal error performing a command!", e)
-                      Failure(e)
-                  }
-                  logger.info(s"New digest after command: ${nextDigest}")
-                  logger.info(s"Expected digest after command ${step.digest}")
-                }else{
+                  applyDualStep(balanceState, step)
+                }else if(step.step == -1 && step.gEpoch == 44){
+                  logger.info("Applying missing INSERT step for gEpoch 44")
+                  val fakeStep = step.copy(
+                    box = "22f0ce7dd345a48703a5de623dd08ce6727dc6bf433389c906c300d4e25d2c35",
+                    tx = "bfe49dc83c75827eea610ab571f6d5ced96e2249bdf9c12a012a139b15c3500f",
+                    commandBox = "43b780e401c4e6b905416455ac9e531ee1fd9db4fc3dcc9b142c020ac2806b83",
+                    command = "INSERT",
+                    digest = "645e1dab64469261fde5441c71dd5d7ed317e0020c17f0db5e40cb16524e2ce409"
+                  )
+                  applyDualStep(balanceState, fakeStep)
+                } else{
                   logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
                 }
             }
