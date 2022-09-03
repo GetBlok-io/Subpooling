@@ -362,7 +362,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         val additions = commandBytes.map(_._2).map(b => DualBalance(Longs.fromByteArray(b.slice(0, 8)), Longs.fromByteArray(b.slice(8, 16))))
         val lookup    = balanceState.map.lookUp(keys:_*)
 
-        val updates = lookup.response.indices.map{
+        val updates = lookup.response.filter(t => t.tryOp.isSuccess && t.tryOp.get.isDefined).indices.map{
           idx =>
             val currBalance = lookup.response(idx).tryOp.get.get
             val nextBalance = DualBalance(additions(idx).balance + currBalance.balance, additions(idx).balanceTwo + currBalance.balanceTwo)
