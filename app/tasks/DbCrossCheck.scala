@@ -342,7 +342,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             historySteps.foreach{
               step =>
                 logger.info("Now parsing steps")
-                if(step.step != -1) {
+                if(step.step != -1 && step.gEpoch != 129) {
                   applyDualStep(balanceState, step)
                 }else if(step.step == -1 && step.gEpoch == 44){
                   logger.info("Applying missing INSERT step for gEpoch 44")
@@ -373,6 +373,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                     digest = "c3ae77a965817e3db01dd5f62862894ff5cdbc820df9ddb297881cdeb5333f7d0a"
                   )
                   applyDualStep(balanceState, fakeStepTwo)
+                }else if(step.gEpoch == 129){
+                  logger.info("Skipping duplicates at gEpoch 120")
                 }else{
                   logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
                 }
