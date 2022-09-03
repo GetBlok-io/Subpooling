@@ -354,7 +354,26 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                     digest = "645e1dab64469261fde5441c71dd5d7ed317e0020c17f0db5e40cb16524e2ce409"
                   )
                   applyDualStep(balanceState, fakeStep)
-                } else{
+                }else if(step.step == -1 && step.gEpoch == 128) {
+                  logger.info("Applying missing UPDATE step for gEpoch 128")
+                  val fakeStep = step.copy(
+                    box = "9a85edf8c4c52cbf2a82d61ca538fab4ca29bf4046a23428d93f650a8036c551",
+                    tx = "73dcefa04f2ea2da6d69164d4bae07525ddd13c72a99eff9f2ebd5f9ccb935a0",
+                    commandBox = "f3a78d5573c7433dc19e26c40e820ee64b620cca77fa4f544cec72229f665074",
+                    command = "UPDATE",
+                    digest = "223d31f9bd18bea120d4a9d2c0dab51779200e4245bff72a73ad7d3c3a2d53a80a"
+                  )
+                  logger.info("Applying missing PAYOUT step for gEpoch 128")
+                  applyDualStep(balanceState, fakeStep)
+                  val fakeStepTwo = step.copy(
+                    box = "34f5509bf09955465698415e491e63906c930a69e035060a0fe8cc8a8113e1d0",
+                    tx = "c50358796d10793c178a0e52af3bc911b0f57f69cd6b36e9fb958e48e835e515",
+                    commandBox = "44dffdbf6b7ab05656684bbaebe52d1517547f5fb38e98b6ac256203a432f361",
+                    command = "PAYOUT",
+                    digest = "c3ae77a965817e3db01dd5f62862894ff5cdbc820df9ddb297881cdeb5333f7d0a"
+                  )
+                  applyDualStep(balanceState, fakeStepTwo)
+                }else{
                   logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
                 }
             }
