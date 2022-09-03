@@ -14,8 +14,8 @@ import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, Transac
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, PoolBlock, PoolInformation, PoolMember, PoolPlacement, PoolState, Share}
-import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
-import io.getblok.subpooling_core.plasma.{BalanceState, PartialStateMiner, SingleBalance, StateBalance}
+import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, dualBalanceConversion}
+import io.getblok.subpooling_core.plasma.{BalanceState, DualBalance, PartialStateMiner, SingleBalance, StateBalance}
 import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock, StateHistory}
 import models.ResponseModels.writesChangeKeys
@@ -109,13 +109,15 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 
         }else {
           logger.info(s"Regen from chain was enabled, now regenerating digest state for pool" +
-            s" f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
+            s" ${params.regenStatePool}")
+
+          chooseBackupType(params.regenStatePool)
 //          Try(execRegen(params.regenType)).recoverWith {
 //            case ex =>
 //              logger.error("There was a critical error while re-generating dbs!", ex)
 //              Failure(ex)
 //          }
-          initBackup()
+
 
         }
     })(contexts.taskContext)
@@ -184,12 +186,24 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
 //        db.run(Tables.Payments ++= payments)
 //    }
   }
+  def chooseBackupType(poolTag: String) = {
+    poolTag match {
+      case "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80" =>
+        initSingleBackup(poolTag)
+      case "11c61b7f33860116201ad58ce1d08117eafd26019045ff373148b32229bc6ac9" =>
+        initSingleBackup(poolTag)
+      case "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0" =>
+        initDualBackup(poolTag)
+      case _ =>
+        logger.error("An invalid pool tag was given for re-syncing!")
+    }
+  }
 
-  def initBackup() = {
+  def initDualBackup(poolTag: String) = {
     new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
-    val balanceState = new BalanceState[SingleBalance]("backup")
+    val balanceState = new BalanceState[DualBalance]("backup")
 
-    syncState(balanceState).map {
+    syncDualState(balanceState, poolTag).map {
       _ =>
         logger.info(s"Old state digest: ${balanceState.map.toString()}")
         balanceState.map.commitChanges()
@@ -197,11 +211,23 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def syncState(balanceState: BalanceState[SingleBalance]) = {
+  def initSingleBackup(poolTag: String) = {
+    new File(AppParameters.plasmaStoragePath + s"/backup").mkdir()
+    val balanceState = new BalanceState[SingleBalance]("backup")
+
+    syncSingleState(balanceState, poolTag).map {
+      _ =>
+        logger.info(s"Old state digest: ${balanceState.map.toString()}")
+        balanceState.map.commitChanges()
+        logger.info(s"New state digest: ${balanceState.map.toString()}")
+    }
+  }
+
+  def syncSingleState(balanceState: BalanceState[SingleBalance], poolTag: String) = {
 
     logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
 
-    val fStateHistory = db.run(Tables.StateHistoryTables.filter(_.poolTag === "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80")
+    val fStateHistory = db.run(Tables.StateHistoryTables.filter(_.poolTag === poolTag)
       .sortBy(_.created).result) // TODO: Make this per pool
     fStateHistory.map{
       stateHistory =>
@@ -225,7 +251,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                   val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
                   logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
                     s"and expected digest ${step.digest}")
-                  val nextDigest = Try(performCommand(balanceState, asArr, step.command)).recoverWith{
+                  val nextDigest = Try(performSingleCommand(balanceState, asArr, step.command)).recoverWith{
                     case e: Exception =>
                       logger.error("There was a fatal error performing a command!", e)
                       Failure(e)
@@ -241,7 +267,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def performCommand(balanceState: BalanceState[SingleBalance], commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
+  def performSingleCommand(balanceState: BalanceState[SingleBalance], commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
     command match{
       case "INSERT" =>
         val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
@@ -276,6 +302,88 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
     balanceState.map.digestStrings._2.get
   }
+
+
+  def syncDualState(balanceState: BalanceState[DualBalance], poolTag: String) = {
+
+    logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
+
+    val fStateHistory = db.run(Tables.StateHistoryTables.filter(_.poolTag === poolTag)
+      .sortBy(_.created).result) // TODO: Make this per pool
+    fStateHistory.map{
+      stateHistory =>
+        balanceState.map.initiate()
+        val historyGrouped = stateHistory.groupBy(_.gEpoch).map(h => h._1 -> h._2.sortBy(sh => sh.step)).toArray.sortBy(_._1)
+
+
+        historyGrouped.foreach{
+          historyPair =>
+            val historySteps = historyPair._2
+            logger.info(s"Checking history steps for gEpoch ${historyPair._1}")
+            historySteps.foreach{
+              step =>
+                logger.info("Now parsing steps")
+                if(step.step != -1) {
+                  val boxExtension = Await.result(db.run(Tables.NodeInputsTable.filter(_.boxId === step.commandBox).map(_.extension).result.head), 1000 seconds)
+                  val ext = parseExtension(boxExtension)
+                  logger.info("Extension parsed successfully!")
+                  logger.info("Now parsing into ErgoValue")
+                  val ergoVal = ErgoValue.fromHex(ext.extZero).getValue.asInstanceOf[Coll[(Coll[Byte], Coll[Byte])]]
+                  val asArr = ergoVal.toArray.map(c => c._1.toArray -> c._2.toArray)
+                  logger.info(s"Now performing step ${step.step} with command ${step.command} for gEpoch ${step.gEpoch}," +
+                    s"and expected digest ${step.digest}")
+                  val nextDigest = Try(performDualCommand(balanceState, asArr, step.command)).recoverWith{
+                    case e: Exception =>
+                      logger.error("There was a fatal error performing a command!", e)
+                      Failure(e)
+                  }
+                  logger.info(s"New digest after command: ${nextDigest}")
+                  logger.info(s"Expected digest after command ${step.digest}")
+                }else{
+                  logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
+                }
+            }
+
+        }
+    }
+  }
+
+  def performDualCommand(balanceState: BalanceState[DualBalance], commandBytes: Array[(Array[Byte], Array[Byte])], command: String) = {
+    command match{
+      case "INSERT" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val updates = keys.map{
+          k =>
+            k -> DualBalance(0L, 0L)
+        }
+        balanceState.map.insert(updates: _*)
+      case "UPDATE" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val additions = commandBytes.map(_._2).map(b => DualBalance(Longs.fromByteArray(b.slice(0, 8)), Longs.fromByteArray(b.slice(8, 16))))
+        val lookup    = balanceState.map.lookUp(keys:_*)
+
+        val updates = lookup.response.indices.map{
+          idx =>
+            val currBalance = lookup.response(idx).tryOp.get.get
+            val nextBalance = DualBalance(additions(idx).balance + currBalance.balance, additions(idx).balanceTwo + currBalance.balanceTwo)
+
+            val key = keys(idx)
+
+            key -> nextBalance
+        }
+        balanceState.map.update(updates: _*)
+
+      case "PAYOUT" =>
+        val keys = commandBytes.map(_._1).map(PartialStateMiner.apply)
+        val updates = keys.map{
+          k =>
+            k -> DualBalance(0L, 0L)
+        }
+        balanceState.map.update(updates: _*)
+    }
+    balanceState.map.digestStrings._2.get
+  }
+
 
 
   def cleanDB = {
