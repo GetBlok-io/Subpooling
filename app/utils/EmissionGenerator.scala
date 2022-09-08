@@ -1,7 +1,7 @@
 package utils
 
 import io.getblok.subpooling_core.contracts.MetadataContract
-import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, HybridExchangeContract, ProportionalEmissionsContract}
+import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, HybridExchangeContract, NFTExchangeContract, ProportionalEmissionsContract}
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.contracts.plasma.{PlasmaHoldingContract, PlasmaScripts}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
@@ -132,6 +132,53 @@ class EmissionGenerator(client: ErgoClient, wallet: NodeWallet, db: PostgresProf
           logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
           val emissionsOutBox = HybridExchangeContract.buildGenesisBox(
             ctx, emissionsContract, template.percent, 3000L, template.proportion, emissionToken.getId,
+            new ErgoToken(template.distToken, template.totalEmissions)
+          )
+          val txB = ctx.newTxBuilder()
+          val unsigned = txB.boxesToSpend((Seq(emTokenMintBox) ++ Seq(tokenInputs.head)).asJava)
+            .outputs(emissionsOutBox)
+            .fee(Helpers.MinFee)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+          logger.info("Signing tx.")
+          val signed = wallet.prover.sign(unsigned)
+          logger.info("Transaction signed. Now sending transaction")
+          val txId = ctx.sendTransaction(signed)
+          logger.info("Transaction sent")
+          val emissionsQuery = for {info <- Tables.PoolInfoTable if info.poolTag === tag} yield info.emissionsId
+          val updateEmissions = emissionsQuery.update(emTokenMintBox.getTokens.get(0).getId.toString)
+          db.run(updateEmissions)
+          logger.info("Finished making NETA Emissions Box")
+      }
+    }.recoverWith{
+      case e: Exception =>
+        logger.error("A fatal exception occurred while making neta pool", e)
+        Failure(e)
+    }
+  }
+
+  def makeAnetaPlasmaEmissions(tag: String, emTokenMintBox: InputBox) = {
+    Try {
+      client.execute {
+        ctx =>
+          //TODO: Use exact box id here if necessary
+          logger.info("Building transactions to create ErgoPad Emissions Box")
+          val template = EmissionTemplates.getNETATemplate(ctx.getNetworkType)
+          val emissionsContract = NFTExchangeContract.generate(
+            ctx, wallet.p2pk, template.swapAddress,
+            PlasmaHoldingContract.generate(ctx, wallet.p2pk, ErgoId.create(tag), PlasmaScripts.SINGLE_TOKEN),
+            template.lpNFT, template.distToken
+          )
+
+          logger.info("Emissions Contract generated")
+          logger.info(s"NFT EXCHANGE address: ${emissionsContract.getAddress}")
+          //Thread.sleep(60000)
+          val tokenInputs = ctx.getBoxesById("fd6bd32e111392ac5b923842ae9399164e97f0dd5b1e3979deaeb51b729245f8")
+          val emissionToken = emTokenMintBox.getTokens.get(0)
+          logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
+          logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
+          val emissionsOutBox = NFTExchangeContract.buildGenesisBox(
+            ctx, emissionsContract, template.initPercent, template.initFee, emissionToken.getId,
             new ErgoToken(template.distToken, template.totalEmissions)
           )
           val txB = ctx.newTxBuilder()

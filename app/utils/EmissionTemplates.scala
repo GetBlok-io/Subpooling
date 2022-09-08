@@ -10,12 +10,12 @@ object EmissionTemplates {
   // TODO: Add swap address
   // 1% shareOp Fee, 10% percent increase
   val NETA_MAINNET = ExchangeTemplate(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T"), AppParameters.getFeeAddress, ErgoId.create("7d2e28431063cbb1e9e14468facc47b984d962532c19b0b14f74d0ce9ed459be"),
-    ErgoId.create("472c3d4ecaa08fb7392ff041ee2e6af75f4a558810a74b28600549d5392810e8"), 3000, 8000, 5000000L*1000000)
+    ErgoId.create("472c3d4ecaa08fb7392ff041ee2e6af75f4a558810a74b28600549d5392810e8"), 3000, 3000, 5000000L*1000000)
 
   // Liquidity Pool Token Id, not LP NFT!
-  // 4eab0718642b680f8bac258aec0c0b7edc5c2dc8bc0e7fac59103fb73947038f
-  val NETA_TESTNET = ExchangeTemplate(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T"), AppParameters.getFeeAddress, ErgoId.create("b8f583d242d6a9dc2b85f8346e1fdc3d512a2f0ae4740bf9d86ba57f5339b9d0"),
-    ErgoId.create("1bad9a2df3c8a8fed18118e8338a50f2e61cb192d7fd868b149e17eef8dc8a62"), 3000, 8000, 5000000L*1000000)
+  // b6a27a74d7bf868026a842871f84b3ee2b02a9e7d61d879ce221c78dc6865f83
+  val NETA_TESTNET = ExchangeTemplate(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T"), AppParameters.getFeeAddress, ErgoId.create("6ae6d30ca34fdbae266324321ea0eff0e9b6867a6f3544d86b21e6265ea9d7a8"),
+    ErgoId.create("1c9dd7d85d162b6b19f88b3bf259f4f0f815b5c19562fd0777a7ff4a2642e4e8"), 3000, 3000, 5000000L*1000000)
 
   def getNETATemplate(networkType: NetworkType): ExchangeTemplate = {
     networkType match {

@@ -3,4 +3,4 @@ package cycles.models
 
 import org.ergoplatform.appkit.Address
 
-case class NFTHolder(address: Address, count: Int)
+case class NFTHolder(address: Address, nfts: Int)

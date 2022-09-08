@@ -10,13 +10,24 @@ import org.ergoplatform.appkit.{Address, ErgoId, ErgoToken}
 import org.scalatest.funsuite.AnyFunSuite
 import plasma_test.NFTExchangeCycleSuite.{netaLPNFT, netaToken, nftHolders, placements}
 import plasma_test.PlasmaHybridExchangeSuite._
+import plasma_utils.payments.NFTUtils
+import play.api.test.WsTestClient
 
 class NFTExchangeCycleSuite extends AnyFunSuite {
+
+
+//  WsTestClient.withClient{
+//    client =>
+//      import scala.concurrent.ExecutionContext.Implicits.global
+//      val holders = NFTUtils.getAnetaNFTHolders(client)
+//
+//      holders.foreach{h => logger.info(h.toString)}
+//  }
 
   val cycleResults = ergoClient.execute{
     ctx =>
 
-      for(holder <- nftHolders) logger.info(s"Holder ${holder.address} with count ${holder.count}")
+      for(holder <- nftHolders) logger.info(s"Holder ${holder.address} with nfts ${holder.nfts}")
 
       val contract = NFTExchangeContract.generate(ctx, creatorAddress, sigmaTrue,
         PlasmaHoldingContract.generate(ctx, dummyWallet.p2pk, dummyTokenId, PlasmaScripts.SINGLE_TOKEN),
@@ -40,8 +51,8 @@ class NFTExchangeCycleSuite extends AnyFunSuite {
       for(p <- nextPlacementValues){
         val optHolder = nftHolders.find(_.address.toString == p.miner)
         if(optHolder.isDefined){
-          logger.info(s"Found nftHolder ${p.miner} with count ${optHolder.get.count}")
-          val placeAmount = getBonusScore(p.score, scoreSum, results.emissionResults.amountEmitted - nextPlacementValues.length, optHolder.get.count)
+          logger.info(s"Found nftHolder ${p.miner} with nfts ${optHolder.get.nfts}")
+          val placeAmount = getBonusScore(p.score, scoreSum, results.emissionResults.amountEmitted - nextPlacementValues.length, optHolder.get.nfts)
           assert(p.amount == placeAmount.toLong)
           logger.info(s"Miner ${p.miner} has amount ${p.amount} with score ${p.score}! [Would be ${getNormScore(p.score, scoreSum, results.emissionResults.amountEmitted - nextPlacementValues.length).toLong} without bonus")
         }else {
@@ -57,7 +68,7 @@ class NFTExchangeCycleSuite extends AnyFunSuite {
   def getBonusScore(score: Long, sumScore: Long, amount: Long, count: Int) = {
     val initAmnt = ((BigDecimal(score) / sumScore) * amount)
 
-    val bonusAmnt = (initAmnt * (1 + (0.03 * count.toDouble)))
+    val bonusAmnt = (initAmnt * (1 + (0.02 * Math.min(count.toDouble, 3.0))))
     bonusAmnt + 1
   }
 
@@ -67,7 +78,7 @@ class NFTExchangeCycleSuite extends AnyFunSuite {
 }
 
 object NFTExchangeCycleSuite {
-  val placements: Seq[PoolPlacement] = MockAddresses.addresses.slice(0, 100).map{
+  val placements: Seq[PoolPlacement] = MockAddresses.addresses.slice(0, 200).map{
     a =>
       val random = Math.random() * 10000L
       PoolPlacement("test", 0L, 0L, "", 0L, a, random.toLong, 0L, 0L, 0L, 0L, 0L)

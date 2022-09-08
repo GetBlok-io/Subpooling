@@ -23,8 +23,8 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
                        nftHolders: Seq[NFTHolder], percent: Long, poolOp: Address, poolNFT: ErgoId,
                        emNFT: ErgoId, distToken: ErgoId, lpNFT: ErgoId, explorerHandler: ExplorerHandler)
                           extends Cycle {
-  private val logger: Logger = LoggerFactory.getLogger("HybridExchangeCycle")
-  final val NFT_ADJUSTMENT = 0.03
+  private val logger: Logger = LoggerFactory.getLogger("NFTExchangeCycle")
+  final val NFT_ADJUSTMENT = 0.02
 
   def getEmissionsBox: InputBox = {
     logger.info(s"Searching for emissions box with NFT ${emNFT}")
@@ -79,6 +79,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
   }
 
   def simulateSwap: EmissionResults = {
+    logger.info("Now simulating swap")
     val lpBox = getLPBox
     logger.info(s"LP Box found with id ${lpBox.getId}")
     val ergAfterFees = reward - ((reward * fee) / PoolFees.POOL_FEE_CONST)
@@ -111,7 +112,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
 
   def getBonusReward(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Long = {
     val nextPlacements = morphPlacementValues(placements, emissionResults)
-    nextPlacements.map(_.amount).sum - emissionResults.amountEmitted
+    Math.max(nextPlacements.map(_.amount).sum - emissionResults.amountEmitted, 0L)
   }
 
   def morphPlacementValues(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Seq[PoolPlacement] = {
@@ -120,12 +121,15 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
     val emissionsAfterInit = emissionResults.amountEmitted - placements.size
     require(emissionsAfterInit > 0)
 
+    def applyBonus(nftCount: Int) = {
+      Math.min(Math.abs(nftCount), 3.0) * NFT_ADJUSTMENT
+    }
     def rewardWithBonus(p: PoolPlacement): Long ={
       val optHolder = nftHolders.find(_.address.toString == p.miner)
       if(optHolder.isDefined) {
-        logger.info(s"Found nft holder ${optHolder.get.address} with ${optHolder.get.count} NFTs")
+        logger.info(s"Found nft holder ${optHolder.get.address} with ${optHolder.get.nfts} NFTs")
       }
-      (1 + ((((BigDecimal(p.score) / totalScore) * emissionsAfterInit)) * (1 + (optHolder.map(_.count).getOrElse(0).toDouble * NFT_ADJUSTMENT))).toLong)
+      (1 + ((((BigDecimal(p.score) / totalScore) * emissionsAfterInit)) * (1 + (applyBonus(optHolder.map(_.nfts).getOrElse(0)) )) ).toLong)
 
     }
 
@@ -148,14 +152,16 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
   }
 
   def cycle(cycleState: CycleState, emissionResults: EmissionResults, sendTxs: Boolean = true): CycleResults = {
+    logger.info("Now cycling emissions")
     val reArranged = CycleHelper.reArrange(ctx, wallet, cycleState.inputBoxes, reward, AppParameters.groupFee * 11)
+    logger.info("Re-arrange created")
     val rewardInput = reArranged._1
 
     val inputs = Seq(cycleState.cycleBox) ++ rewardInput
 
     val holdingContract = PlasmaHoldingContract.generate(ctx, wallet.p2pk, poolNFT, PlasmaScripts.SINGLE_TOKEN)
     val bonusReward = getBonusReward(cycleState.initPlacements, emissionResults)
-
+    logger.info(s"Got bonus reward of ${bonusReward}")
     val amountLeft = cycleState.cycleBox.getTokens.get(1).getValue.toLong - emissionResults.amountEmitted - bonusReward
 
     val nextEmissions = ctx.newTxBuilder().outBoxBuilder()

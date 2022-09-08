@@ -43,4 +43,5 @@ object PlasmaScripts {
 
   // Holding Scripts
   val HOLDING_SCRIPT:       String = makeScript("PlasmaHolding")
+  val TOKEN_HOLDING_SCRIPT: String = makeScript("PlasmaTokenHolding")
 }

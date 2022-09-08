@@ -29,7 +29,7 @@ class NFTExchangePayoutTest extends AnyFunSuite{
   val (holdingBox, nextPlacements) = ergoClient.execute {
     ctx =>
 
-      for (holder <- nftHolders) logger.info(s"Holder ${holder.address} with count ${holder.count}")
+      for (holder <- nftHolders) logger.info(s"Holder ${holder.address} with nfts ${holder.nfts}")
 
       val contract = NFTExchangeContract.generate(ctx, creatorAddress, sigmaTrue,
         PlasmaHoldingContract.generate(ctx, dummyWallet.p2pk, dummyTokenId, PlasmaScripts.SINGLE_TOKEN),
@@ -76,7 +76,7 @@ class NFTExchangePayoutTest extends AnyFunSuite{
       ctx =>
         val initStateBox = toInput(BalanceStateContract.buildBox(ctx, balanceState, dummyTokenId, dummyWallet.p2pk, PlasmaScripts.SINGLE_TOKEN))
         val plasma = nextPlacers.map(toPlasma)
-        payoutGroup = new TokenPayoutGroup(ctx, dummyWallet, plasma, initStateBox, Seq(),
+        payoutGroup = new TokenPayoutGroup(ctx, dummyWallet, plasma, initStateBox, Seq(buildUserBox(Helpers.MinFee * (plasma.length + 2)), buildUserBox(Helpers.OneErg * 2)),
           balanceState, 0, 0, "testpool", holdingBox , netaToken, "NETA")
     }
   }

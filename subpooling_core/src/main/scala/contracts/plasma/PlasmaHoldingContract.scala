@@ -18,7 +18,14 @@ object PlasmaHoldingContract {
       .item("const_hashedUpdateBytes", hashedColl)
       .build()
 
-    val script = PlasmaScripts.HOLDING_SCRIPT
+    val script = {
+      scriptType match{
+       case PlasmaScripts.SINGLE_TOKEN =>
+          PlasmaScripts.TOKEN_HOLDING_SCRIPT
+       case _ =>
+          PlasmaScripts.HOLDING_SCRIPT
+      }
+    }
     ctx.compileContract(constants, script)
   }
 }
