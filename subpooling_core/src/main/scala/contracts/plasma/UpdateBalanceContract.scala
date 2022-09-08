@@ -25,8 +25,9 @@ object UpdateBalanceContract {
 
   def routeScript(scriptType: ScriptType): String = {
     scriptType match {
-      case PlasmaScripts.SINGLE => PlasmaScripts.SINGLE_UPDATE_SCRIPT
-      case PlasmaScripts.DUAL => PlasmaScripts.HYBRID_UPDATE_SCRIPT
+      case PlasmaScripts.SINGLE       => PlasmaScripts.SINGLE_UPDATE_SCRIPT
+      case PlasmaScripts.DUAL         => PlasmaScripts.HYBRID_UPDATE_SCRIPT
+      case PlasmaScripts.SINGLE_TOKEN => PlasmaScripts.TOKEN_UPDATE_SCRIPT
     }
   }
 

@@ -11,12 +11,14 @@ import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, SingleState}
 import io.getblok.subpooling_core.states.transforms.{DeleteTransform, InsertTransform}
 import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
+import okhttp3.OkHttpClient
 import org.ergoplatform.appkit.impl.ErgoTreeContract
 import org.ergoplatform.appkit.{Address, ErgoClient, ErgoContract, ErgoId, ErgoProver, ErgoToken, InputBox, NetworkType, OutBox, RestApiErgoClient}
 import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.{Logger, LoggerFactory}
 import plasma_test.FullStateTransformationSuite._
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ArrayBuffer
 
 class FullStateTransformationSuite extends AnyFunSuite{
@@ -149,7 +151,7 @@ class FullStateTransformationSuite extends AnyFunSuite{
 }
 
 object FullStateTransformationSuite {
-  val NUM_MINERS = 200
+  val NUM_MINERS = 400
   val mockData = {
     MockAddresses.addresses.sortBy(a => BigInt(StateMiner(a).toPartialStateMiner.bytes)).zipWithIndex.map {
       ad =>
@@ -179,8 +181,11 @@ object FullStateTransformationSuite {
   val slicedData = mockData.sliding(NUM_MINERS, NUM_MINERS).toSeq
 
 
-  val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
-
+  val builder = new OkHttpClient().newBuilder()
+    .callTimeout(60, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
+    .connectTimeout(60, TimeUnit.SECONDS)
+  val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder("http://213.239.193.208:9053/",
+    NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl, builder)
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
   val dummyTokenId = ErgoId.create(dummyToken)

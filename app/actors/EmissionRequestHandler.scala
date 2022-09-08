@@ -3,7 +3,7 @@ package actors
 import actors.EmissionRequestHandler.{CalculateEmissions, ConstructCycle, CycleEmissions, CycleResponse, EmissionRequest, EmissionResponse}
 import actors.StateRequestHandler._
 import akka.actor.{Actor, Props}
-import configs.{ExplorerConfig, NodeConfig}
+import configs.{Contexts, ExplorerConfig, NodeConfig}
 import io.getblok.subpooling_core.cycles.models.{Cycle, CycleResults, CycleState, EmissionResults}
 import io.getblok.subpooling_core.explorer.ExplorerHandler
 import io.getblok.subpooling_core.global.AppParameters
@@ -14,13 +14,14 @@ import io.getblok.subpooling_core.states.models.PlasmaMiner
 import org.ergoplatform.appkit._
 import plasma_utils.UntrackedPoolStateException
 import plasma_utils.payments.PaymentRouter
+import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger}
 import utils.ConcurrentBoxLoader.BatchSelection
 
 import javax.inject.Inject
 import scala.util.{Failure, Success, Try}
 
-class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
+class EmissionRequestHandler @Inject()(config: Configuration, ws: WSClient) extends Actor{
 
   private val nodeConfig                  = new NodeConfig(config)
   private val explorerConfig              = new ExplorerConfig(config)
@@ -40,7 +41,7 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
               ergoClient.execute{
                 ctx =>
                   logger.info("Now constructing cycle")
-                  sender ! PaymentRouter.routeCycle(ctx, wallet, reward, batch, explorer)
+                  sender ! PaymentRouter.routeCycle(ctx, wallet, reward, batch, explorer, Some(ws), Some(context.dispatcher))
               }
             case CalculateEmissions(cycle, placements) =>
               logger.info("Now calculating emissions")
@@ -51,9 +52,17 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
               sender ! EmissionResponse(emissionResults, nextPlacements)
             case CycleEmissions(cycle, placements, inputs) =>
               logger.info("Now executing emission cycle")
-              val cycleState = makeCycleState(cycle, inputs)
+              val cycleState = makeCycleState(cycle, inputs, placements)
+              logger.info("Cycle state created!")
               val emissionResults = cycle.simulateSwap
-              val cycleResults = cycle.cycle(cycleState, emissionResults, AppParameters.sendTxs)
+              logger.info("Simulated swap, now cycling!")
+              val cycleResults = Try(cycle.cycle(cycleState, emissionResults, AppParameters.sendTxs))
+                .recoverWith{
+                  case e: Throwable =>
+                    logger.error("Critical error while cycling emissions!", e)
+                    Failure(e)
+                }.get
+              logger.info("Cycle successful, now morphing placements")
               val nextPlacements = cycle.morphPlacementHolding(
                 cycle.morphPlacementValues(placements, emissionResults),
                 cycleResults.nextHoldingBox
@@ -65,9 +74,9 @@ class EmissionRequestHandler @Inject()(config: Configuration) extends Actor{
   }
 
 
-  def makeCycleState(cycle: Cycle, inputs: Seq[InputBox]): CycleState = {
+  def makeCycleState(cycle: Cycle, inputs: Seq[InputBox], placements: Seq[PoolPlacement]): CycleState = {
     val emBox = cycle.getEmissionsBox
-    val cycleState = CycleState(emBox, inputs)
+    val cycleState = CycleState(emBox, inputs, placements)
     cycleState
   }
 }

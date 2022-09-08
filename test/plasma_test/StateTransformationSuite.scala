@@ -21,7 +21,10 @@ import scala.jdk.CollectionConverters.seqAsJavaListConverter
 import io.getblok.getblok_plasma.collections.Manifest
 import io.getblok.subpooling_core.plasma.StateConversions.balanceConversion
 import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, UpdateTransform}
+import okhttp3.OkHttpClient
 import org.bouncycastle.util.encoders.Hex
+
+import java.util.concurrent.TimeUnit
 class StateTransformationSuite extends AnyFunSuite{
   val balanceState = new BalanceState[SingleBalance]("plasmatesting")
   val initBlockReward = Helpers.OneErg * 55
@@ -154,8 +157,11 @@ object StateTransformationSuite {
   val slicedData = mockData.sliding(NUM_MINERS, NUM_MINERS).toSeq
 
 
-  val ergoClient: ErgoClient = RestApiErgoClient.create("http://188.34.207.91:9053/", NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl)
-
+  val builder = new OkHttpClient().newBuilder()
+    .callTimeout(60, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
+    .connectTimeout(60, TimeUnit.SECONDS)
+  val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder("http://213.239.193.208:9053/",
+    NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl, builder)
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
 
   def toInput(outBox: OutBox) = outBox.convertToInputWith(dummyTxId, 0)

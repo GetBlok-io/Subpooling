@@ -10,8 +10,9 @@ object PlasmaScripts {
   val ext = ".ergo"
 
   sealed trait ScriptType
-  case object SINGLE extends ScriptType
-  case object DUAL   extends ScriptType
+  case object SINGLE        extends ScriptType
+  case object DUAL          extends ScriptType
+  case object SINGLE_TOKEN  extends ScriptType
 
   def makeScript(name: String): String = {
     val src = Source.fromFile(AppParameters.scriptBasePath + plasmaBasePath + name + ext)
@@ -25,12 +26,15 @@ object PlasmaScripts {
 
   // Emission Scripts
   val HYBRID_DEX_SCRIPT:    String = makeScript("HybridExchangedEmissions")
-
+  val NFT_DEX_SCRIPT:       String = makeScript("NFTExchangedEmissions")
   // Command Scripts
   val SINGLE_INSERT_SCRIPT: String = makeScript("InsertBalance")
   val SINGLE_UPDATE_SCRIPT: String = makeScript("UpdateBalance")
   val SINGLE_PAYOUT_SCRIPT: String = makeScript("PayoutBalance")
   val SINGLE_DELETE_SCRIPT: String = makeScript("DeleteBalance")
+
+  val TOKEN_PAYOUT_SCRIPT:  String = makeScript("TokenPayoutBalance")
+  val TOKEN_UPDATE_SCRIPT:  String = makeScript("TokenUpdateBalance")
 
   val HYBRID_INSERT_SCRIPT: String = makeScript("DualInsertBalance")
   val HYBRID_UPDATE_SCRIPT: String = makeScript("DualUpdateBalance")
@@ -39,4 +43,5 @@ object PlasmaScripts {
 
   // Holding Scripts
   val HOLDING_SCRIPT:       String = makeScript("PlasmaHolding")
+  val TOKEN_HOLDING_SCRIPT: String = makeScript("PlasmaTokenHolding")
 }

@@ -152,6 +152,7 @@ object PersistenceModels {
     val PAY_PLASMA_PPLNS = "PPLNS_PLASMA"
     val PAY_PLASMA_SOLO  = "SOLO_PLASMA"
     val TokenExchangeEmissions = "Exchange"
+    val NFTExchangeEmissions = "NFTExchange"
     val ProportionalEmissions  = "Proportional"
     val HybridExchangeEmissions  = "HybridExchange"
     val NoEmissions   = "none"

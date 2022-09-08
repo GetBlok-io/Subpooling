@@ -242,8 +242,8 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       case PoolInformation.CURR_TEST_TOKENS =>
         emissionGenerator.makeTestTokenTx(tag)
       case PoolInformation.CURR_NETA =>
-        val emMintBox = makeTokenTx(1L, "Phase 2.999 NETA Emission Box NFT", "Token representing the last extension of the Phase 2 NETA Emission Box", 0, Helpers.MinFee*2)
-        emissionGenerator.makeNetaEmissionTx(tag, emMintBox)
+        val emMintBox = makeTokenTx(1L, "Phase 3 NETA Emission Box NFT", "Token representing the Phase 3 NETA Emission Box", 0, Helpers.MinFee*2)
+        emissionGenerator.makeAnetaPlasmaEmissions(tag, emMintBox)
       case PoolInformation.CURR_ERG_COMET =>
         logger.info("Making emissions for COMET pool")
         val emMintBox = makeTokenTx(1L, "COMET Emission Box NFT", "Token representing the COMET Emission Box", 0, Helpers.MinFee*2)
@@ -260,7 +260,13 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
 
   def performTestnetSetup = {
     if(AppParameters.networkType == NetworkType.TESTNET){
-
+//      makeFakeLPTx(18000 * Helpers.OneErg,
+//        new ErgoToken(ErgoId.create("6ae6d30ca34fdbae266324321ea0eff0e9b6867a6f3544d86b21e6265ea9d7a8"), 1),
+//        new ErgoToken(ErgoId.create("b6a27a74d7bf868026a842871f84b3ee2b02a9e7d61d879ce221c78dc6865f83"), 1000),
+//        new ErgoToken(ErgoId.create("1c9dd7d85d162b6b19f88b3bf259f4f0f815b5c19562fd0777a7ff4a2642e4e8"), 852816873574L),
+//        996,
+//        "c091744a0b9332aaa22d64d5170f4ce6e5dcaab0db04d6ec7a47e7cc5cf35ecc"
+//      )
      /* logger.info("Performing testnet setup...")
       val lpNFT = new ErgoToken(EmissionTemplates.NETA_TESTNET.lpToken, 1L)
       val lpTokens = new ErgoToken(ErgoId.create("4eab0718642b680f8bac258aec0c0b7edc5c2dc8bc0e7fac59103fb73947038f"), 100000)
@@ -368,7 +374,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         logger.info("Making Fake LP Box")
         val tokenSeq = Seq(lpNFT, lpToken, distToken)
         logger.info("Collecting boxes")
-        val inputBoxes     = ctx.getCoveringBoxesFor(wallet.p2pk, 0L, tokenSeq.asJava).getBoxes.asScala.toSeq
+        val inputBoxes     = ctx.getBoxesById("40bf8f991ae878b96df0090288d0cc8316feffbece49d1dd517ed2ad106dd73d")
         logger.info("Compiling contract")
         val sigmaTrueContract = ctx.compileContract(ConstantsBuilder.create().build(), sigmaTrueScript)
         logger.info(s"sigmaTrue: ${sigmaTrueContract.toAddress.toString}")

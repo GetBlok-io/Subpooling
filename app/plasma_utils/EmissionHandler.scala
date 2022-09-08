@@ -96,7 +96,7 @@ class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
         }
         val totalReward = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum)
         val cycle = Await.result((emHandler ? ConstructCycle(batchSelection, totalReward)).mapTo[Cycle], 500 seconds)
-
+        logger.info(s"Now executing emission cycle for pool ${placements.head.subpool}")
         val cycleResponse = (emHandler ? CycleEmissions(cycle, withMinpay, boxes)).mapTo[CycleResponse]
         cycleResponse
       }

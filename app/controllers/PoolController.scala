@@ -75,7 +75,7 @@ class PoolController @Inject()(@Named("quick-db-reader") quickQuery: ActorRef, @
     for{
       states <- fPoolStates.mapTo[Seq[PoolState]]
       members <- fPoolMembers.mapTo[Seq[PoolMember]]
-    } yield slowWrite ! UpdatePoolInfo(tag, states.head.g_epoch, states.maxBy(s => s.block).block, members.count(m => m.g_epoch == states.head.g_epoch),
+    } yield slowWrite ! UpdatePoolInfo(tag, states.head.g_epoch, states.maxBy(s => s.block).block, members.nfts(m => m.g_epoch == states.head.g_epoch),
       states.map(s => s.stored_val).sum, members.map(m => m.paid).sum)
 
     Ok(s"Pool Information for pool ${tag} was updated")

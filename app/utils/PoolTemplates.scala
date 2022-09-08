@@ -25,7 +25,7 @@ object PoolTemplates {
     "GetBlok.io Token Test Pool",
     "GetBlok.io Test Token Pool identification token")
 
-  val NETA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0, 100, PaymentType.PPLNS_WINDOW,
+  val OLD_NETA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
     "anetaBTC Smart Pool",
     "anetaBTC Smart Pool identification token",
@@ -48,7 +48,12 @@ object PoolTemplates {
     Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")),
     Some(PlasmaScripts.SINGLE)
   )
-
+  val NETA_PLASMA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
+    PoolInformation.NFTExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
+    "anetaBTC Smart Pool",
+    "anetaBTC Smart Pool identification token",
+    Some(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T")),
+    Some(PlasmaScripts.SINGLE_TOKEN))
 
   val ERGOPAD_POOL: PoolTemplate = PoolTemplate("Ergopad Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
     PoolInformation.HybridExchangeEmissions, PoolInformation.CURR_ERG_ERGOPAD, 10L, 1000L,
@@ -58,14 +63,15 @@ object PoolTemplates {
   )
 
   val templates: Array[UninitializedPool] = Array(
-    UninitializedPool(poolMade = false, Some(false), NETA_POOL),
+    UninitializedPool(poolMade = false, Some(false), NETA_PLASMA_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, Some(false), ERGOPAD_POOL, isPlasma = true),
+
 //    UninitializedPool(poolMade = false, None, STANDARD_POOL),
 //    UninitializedPool(poolMade = false, None, SOLO_POOL),
 //    UninitializedPool(poolMade = false, Some(false), COMET_POOL),
-
+//    UninitializedPool(poolMade = false, Some(false), OLD_NETA_POOL),
 
     )
 

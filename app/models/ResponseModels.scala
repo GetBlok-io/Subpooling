@@ -1,11 +1,13 @@
 package models
 
 import actors.GroupRequestHandler.DistributionResponse
+import io.getblok.subpooling_core.cycles.models.NFTHolder
 import io.getblok.subpooling_core.global.Helpers
 import play.api.libs.json.{JsObject, JsResult, JsSuccess, JsValue, Json, Reads, Writes}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import io.getblok.subpooling_core.registers.PoolFees
 import models.DatabaseModels.{BalanceChange, ChangeKeys, Payment, SPoolBlock}
+import org.ergoplatform.appkit.Address
 
 import java.time.LocalDateTime
 object ResponseModels {
@@ -281,6 +283,13 @@ object ResponseModels {
     }
   }
 
+  implicit val readsNFTHolder: Reads[NFTHolder] = new Reads[NFTHolder] {
+    override def reads(json: JsValue): JsResult[NFTHolder] = {
+      val address = (json \ "address").as[String]
+      val nfts = (json \ "nfts").as[Int]
+      JsSuccess(NFTHolder(Address.create(address), nfts))
+    }
+  }
 
   object Paginate {
     def apply[T](writeable: Seq[T], pageSize: Option[Int])(implicit write: Writes[T]): PagedResponse ={
