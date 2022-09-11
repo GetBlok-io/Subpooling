@@ -15,8 +15,8 @@ object EmissionTemplates {
     ErgoId.create("7d2e28431063cbb1e9e14468facc47b984d962532c19b0b14f74d0ce9ed459be"),
     ErgoId.create("472c3d4ecaa08fb7392ff041ee2e6af75f4a558810a74b28600549d5392810e8"),
     3000,
-    8000,
-    750000L*1000000)
+    3000,
+    10000000L*1000000)
 
   // Liquidity Pool Token Id, not LP NFT!
   // b6a27a74d7bf868026a842871f84b3ee2b02a9e7d61d879ce221c78dc6865f83

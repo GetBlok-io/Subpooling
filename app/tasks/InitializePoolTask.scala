@@ -242,8 +242,8 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
       case PoolInformation.CURR_TEST_TOKENS =>
         emissionGenerator.makeTestTokenTx(tag)
       case PoolInformation.CURR_NETA =>
-        val emMintBox = makeTokenTx(1L, "Phase 2.9999999999999999999999999 NETA Emission Box NFT", "Token representing a NETA Emission Box. This is the last one, I promise :)", 0, Helpers.MinFee*2)
-        emissionGenerator.makeNetaEmissionTx(tag, emMintBox)
+        val emMintBox = makeTokenTx(1L, "Phase 3 NETA Emission Box NFT", "Token representing the Phase 3 NETA Emission Box", 0, Helpers.MinFee*2)
+        emissionGenerator.makeAnetaPlasmaEmissions(tag, emMintBox)
       case PoolInformation.CURR_ERG_COMET =>
         logger.info("Making emissions for COMET pool")
         val emMintBox = makeTokenTx(1L, "COMET Emission Box NFT", "Token representing the COMET Emission Box", 0, Helpers.MinFee*2)

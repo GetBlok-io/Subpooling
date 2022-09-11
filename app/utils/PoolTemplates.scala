@@ -25,11 +25,11 @@ object PoolTemplates {
     "GetBlok.io Token Test Pool",
     "GetBlok.io Test Token Pool identification token")
 
-  val OLD_NETA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0, 100, PaymentType.PPLNS_WINDOW,
-    PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
-    "anetaBTC Smart Pool",
-    "anetaBTC Smart Pool identification token",
-    Some(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T")))
+//  val OLD_NETA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0, 100, PaymentType.PPLNS_WINDOW,
+//    PoolInformation.TokenExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
+//    "anetaBTC Smart Pool",
+//    "anetaBTC Smart Pool identification token",
+//    Some(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T")))
   val COMET_POOL: PoolTemplate = PoolTemplate("COMET Smart Pool", 0.01, 100, PaymentType.PPLNS_WINDOW,
     PoolInformation.ProportionalEmissions, PoolInformation.CURR_ERG_COMET, 5L, 10L,
     "COMET Smart Pool",
@@ -48,9 +48,9 @@ object PoolTemplates {
     Some(Address.create("9fMLVMsG8U1PHqHZ8JDQ4Yn6q5wPdruVn2ctwqaqCXVLfWxfc3Q")),
     Some(PlasmaScripts.SINGLE)
   )
-  val NETA_PLASMA_POOL: PoolTemplate = PoolTemplate("anetaBTC Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
+  val NETA_PLASMA_POOL: PoolTemplate = PoolTemplate("anetaBTC Phase 3 Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
     PoolInformation.NFTExchangeEmissions, PoolInformation.CURR_NETA, 5L, 10L,
-    "anetaBTC Smart Pool",
+    "anetaBTC Phase 3 Smart Pool",
     "anetaBTC Smart Pool identification token",
     Some(Address.create("9gdLf3Zg1QHgH3BYjFrMA2DSm19CqPNKi9vTCeCT5NSmNZfV29T")),
     Some(PlasmaScripts.SINGLE_TOKEN))
@@ -63,8 +63,8 @@ object PoolTemplates {
   )
 
   val templates: Array[UninitializedPool] = Array(
-    //UninitializedPool(poolMade = false, Some(false), NETA_PLASMA_POOL, isPlasma = true),
-    UninitializedPool(poolMade = false, Some(false), OLD_NETA_POOL),
+    UninitializedPool(poolMade = false, Some(false), NETA_PLASMA_POOL, isPlasma = true),
+    //UninitializedPool(poolMade = false, Some(false), OLD_NETA_POOL),
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, Some(false), ERGOPAD_POOL, isPlasma = true),
