@@ -172,8 +172,8 @@ class EmissionGenerator(client: ErgoClient, wallet: NodeWallet, db: PostgresProf
 
           logger.info("Emissions Contract generated")
           logger.info(s"NFT EXCHANGE address: ${emissionsContract.getAddress}")
-          //Thread.sleep(60000)
-          val tokenInputs = ctx.getBoxesById("fd6bd32e111392ac5b923842ae9399164e97f0dd5b1e3979deaeb51b729245f8")
+          Thread.sleep(15000)
+          val tokenInputs = ctx.getBoxesById("8883c875e031cc42f0853f5a6f69d33f39f30290103df498d72825d43b1da434")
           val emissionToken = emTokenMintBox.getTokens.get(0)
           logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
           logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
