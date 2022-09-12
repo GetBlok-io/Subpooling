@@ -146,7 +146,7 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   }
 }
 object ConcurrentBoxLoader {
-  final val BLOCK_BATCH_SIZE = 5
+  final val BLOCK_BATCH_SIZE = 1
   final val PLASMA_BATCH_SIZE = 1
 
   case class PartialBlockSelection(block: SPoolBlock, poolTag: String)

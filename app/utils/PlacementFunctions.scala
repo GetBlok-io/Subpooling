@@ -114,7 +114,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
             .filter(_.gEpoch >= response.batchSelection.blocks.head.gEpoch)
             .filter(_.gEpoch <= response.batchSelection.blocks.last.gEpoch)
             .map(b => b.status -> b.updated)
-            .update(PoolBlock.PROCESSING -> LocalDateTime.now())))
+            .update(PoolBlock.PROCESSED -> LocalDateTime.now())))
 
           val placeDeletes = {
             db.run(Tables.PoolPlacementsTable
@@ -159,16 +159,27 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       logger.info(s"Now querying shares, pool states, and miner settings for block ${block.blockheight}" +
         s" and pool ${block.poolTag}")
 
-      val currentPlacements = (db.run(Tables.PoolPlacementsTable.filter(_.block === block.blockheight).result)).mapTo[Seq[PoolPlacement]]
+     // val currentPlacements = (db.run(Tables.PoolPlacementsTable.filter(_.block === block.blockheight).result)).mapTo[Seq[PoolPlacement]]
+      val members = Await.result(
+        db.run(Tables.SubPoolMembers
+          .filter(_.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7")
+          .filter(_.g_epoch === 1321L)
+          .result
+        )
+        , 300 seconds)
 
+      val memberPlacements = members.map{
+        m =>
+          PoolPlacement(m.subpool, m.subpool_id, m.block, "none", 0, m.miner, m.share_score, Helpers.MinFee / 10, 0, 0, m.epoch, m.g_epoch)
+      }
       val poolStateResp = (db.run(Tables.PoolStatesTable.filter(_.subpool === poolTag).result)).mapTo[Seq[PoolState]]
       val poolMinersResp = (db.run(Tables.PoolSharesTable.queryPoolMiners(poolTag, params.defaultPoolTag))).mapTo[Seq[SMinerSettings]]
 
       val holdingComponents = for {
         poolStates <- poolStateResp
         minerSettings <- poolMinersResp
-        placements <- currentPlacements
-      } yield modifyHoldingData(poolStates, minerSettings, placements, batchSelection)
+
+      } yield modifyHoldingData(poolStates, minerSettings, memberPlacements, batchSelection)
       holdingComponents.flatten
     }
     collectedComponents
@@ -208,9 +219,9 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       m =>
         // Double wrap option to account for null values
         val minPay = Option(minerSettings.find(s => s.address == m.address.toString).map(_.paymentthreshold).getOrElse(0.01))
-        if(batch.info.payment_type == PoolInformation.PAY_SOLO || (batch.info.poolTag == "4342b4a582c18a0e77218f1aa2de464ae1b46ad66c30abc6328e349e624e9047")){
+        if(batch.info.payment_type == PoolInformation.PAY_SOLO || (batch.info.poolTag == "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7")){
           m.copy(
-            memberInfo = m.memberInfo.withMinPay((0.001 * BigDecimal(Helpers.OneErg)).longValue())
+            memberInfo = m.memberInfo.withMinPay((0.0001 * BigDecimal(Helpers.OneErg)).longValue())
           )
         }else{
           m.copy(memberInfo =

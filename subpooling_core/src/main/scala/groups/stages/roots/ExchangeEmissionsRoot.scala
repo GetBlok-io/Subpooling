@@ -99,16 +99,16 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         logger.info(inputBoxes.map(_.map(_.getValue.toLong).sum).toString)
         var outputMap = Map.empty[Subpool, (OutBox, Int)]
         var outputIndex: Int = 2
-        val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox,
-          interBox.getValue - totalOutputErg - (emissionsBox.poolFee.value * interBox.getValue.toLong) / PoolFees.POOL_FEE_CONST,
-          lpBoxId
-        )
-        logger.info(s"Total output tokens: ${emissionCycle.tokensForHolding}")
-        totalTokensDistributed = emissionCycle.tokensForHolding
+//        val emissionCycle = emissionsBox.contract.cycleEmissions(ctx, emissionsBox,
+//          interBox.getValue - totalOutputErg - (emissionsBox.poolFee.value * interBox.getValue.toLong) / PoolFees.POOL_FEE_CONST,
+//          lpBoxId
+//        )
+//        logger.info(s"Total output tokens: ${emissionCycle.tokensForHolding}")
+//        totalTokensDistributed = emissionCycle.tokensForHolding
         for (subPool <- pool.subPools) {
 
           val outB = ctx.newTxBuilder().outBoxBuilder()
-          val amntDistToken = ((subPool.nextHoldingShare * BigInt(emissionCycle.tokensForHolding)) / totalHoldingShare).toLong
+          val amntDistToken = 20
           subPool.nextHoldingValue = amntDistToken
           val outBox = outB
             .contract(holdingContract.asErgoContract)
@@ -137,13 +137,12 @@ class ExchangeEmissionsRoot(pool: Pool, ctx: BlockchainContext, wallet: NodeWall
         val txB = ctx.newTxBuilder()
         val outputBoxes = outputMap.values.toSeq.sortBy(o => o._2).map(o => o._1)
         outputBoxes.foreach(o => logger.info(s"Output value: ${o.getValue}"))
-
+        val fakeEmission = ctx.getBoxesById("27bfac8abc7e255d3e677dc596cda7209565bc175b6aab83a640eb985d728240").head
         val unsignedTx = txB
-          .boxesToSpend((Seq(emissionsBox.asInput, interBox).asJava))
+          .boxesToSpend((Seq(fakeEmission, interBox).asJava))
           .fee(primaryTxFees + Parameters.OneErg / 3)
-          .outputs((emissionCycle.outputs ++ outputBoxes): _*)
-          .withDataInputs(Seq(emissionCycle.lpBox).asJava)
-          .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
+          .outputs((outputBoxes): _*)
+          .sendChangeTo(wallet.p2pk.getErgoAddress)
           .build()
 
         transaction = Try(wallet.prover.sign(unsignedTx))
