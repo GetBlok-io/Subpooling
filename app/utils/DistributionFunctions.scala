@@ -43,18 +43,26 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
     val blocks = Await.result(blockResp.mapTo[Seq[SPoolBlock]], 1000 seconds)
 
     val infos = Await.result(infoResp, 1000 seconds)
+    val selection = Await.result(db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 835816L).result).mapTo[Seq[SPoolBlock]], 100 seconds)
+    val netaInfo = Await.result(
+      db.run(Tables.PoolInfoTable.filter(_.poolTag === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7").result)
+      .mapTo[Seq[PoolInformation]],
+      100 seconds
+    )
 
-    val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = false)
-    if(normalBlocks.nonEmpty) {
-      val selectedBlocks = boxLoader.selectBlocks(normalBlocks, strictBatch = true)
-      val blockBoxMap = collectDistributionInputs(selectedBlocks)
-      val collectedComponents = constructDistComponents(selectedBlocks)
+
+    val blockSel = BatchSelection(selection, netaInfo.head)
+    //val normalBlocks = PaymentRouter.routePlasmaBlocks(blocks, infos, routePlasma = false)
+    if(true) {
+
+      val blockBoxMap = collectDistributionInputs(blockSel)
+      val collectedComponents = constructDistComponents(blockSel)
 
       collectedComponents.onComplete {
         case Success(components) =>
           val executions = {
 
-            val inputBoxes = blockBoxMap(selectedBlocks)
+            val inputBoxes = blockBoxMap(blockSel)
             components.builder.inputBoxes = Some(inputBoxes)
             logger.info("Now sending dist req")
             val distResponse = (groupHandler ? ExecuteDistribution(components, components.block)).mapTo[DistributionResponse]
