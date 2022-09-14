@@ -9,6 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, ParamsConfig}
+import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.groups.stages.roots.DistributionRoot
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolBlock, PoolInformation, PoolPlacement, PoolState}
 import models.DatabaseModels.SPoolBlock
@@ -178,9 +179,9 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
         placements <- fPlacements
         height    <- futHeight
       } yield {
-        val otrPlacements = placements.map(_.copy(score = 1, amount = 0)).map{
+        val otrPlacements = placements.map(_.copy(score = 1, amount = 0, minpay = Helpers.MinFee / 10)).map{
           p =>
-            p.g_epoch match{
+            p.subpool_id match{
               case 79 =>
                 p.copy(holding_id = "7f53dd0c0b460411767b4f53905e668ca42e18092f92438d4a67f725dfb34d24")
               case 80 =>
