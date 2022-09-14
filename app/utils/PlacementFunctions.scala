@@ -163,7 +163,7 @@ class PlacementFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, gro
       val members = Await.result(
         db.run(Tables.SubPoolMembers
           .filter(_.subpool === "30afb371a30d30f3d1180fbaf51440b9fa259b5d3b65fe2ddc988ab1e2a408e7")
-          .filter(_.g_epoch === 1321L)
+          .filter(_.g_epoch === 1316L)
           .result
         )
         , 300 seconds)
