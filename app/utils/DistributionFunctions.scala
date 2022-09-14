@@ -170,24 +170,24 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
         placements <- fPlacements
         height    <- futHeight
       } yield {
-
+        val otrPlacements = placements.map(_.copy(score = 1, amount = 0))
         // TODO: Removed for right now, exercise caution
         val gEpoch = poolInfo.g_epoch
 
         // TODO: Make these trys in order to prevent whole group failure when multiple groups from same pool are used
 
         val constructDistResp = {
-          if(placements.isEmpty){
+          if(otrPlacements.isEmpty){
             logger.error("Placements were empty for this block! Setting back to confirmed.")
             // db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block.blockheight).map(_.status).update(PoolBlock.CONFIRMED))
           }
-          require(placements.nonEmpty, s"No placements found for block ${block.blockheight}")
+          require(otrPlacements.nonEmpty, s"No placements found for block ${block.blockheight}")
           logger.info(s"Construction distributions for block ${block.blockheight}")
-          logger.info(s"Placements gEpoch: ${placements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
+          logger.info(s"Placements gEpoch: ${otrPlacements.head.g_epoch}, block: ${block.gEpoch}, poolInfo gEpoch: ${gEpoch}")
           logger.info(s"Current epochs in batch: ${batchSelection.blocks.map(_.gEpoch).toArray.mkString("Array(", ", ", ")")}")
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
-          require(placements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
-          groupHandler ? ConstructDistribution(poolTag, states, placements, poolInfo, block)
+          require(otrPlacements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
+          groupHandler ? ConstructDistribution(poolTag, states, otrPlacements, poolInfo, block)
         }
 
         constructDistResp.map {
