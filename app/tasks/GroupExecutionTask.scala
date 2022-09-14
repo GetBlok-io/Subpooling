@@ -144,8 +144,8 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
               placementFunctions.executePlacement()
             }
             val tryDist = Try {
-              logger.info("Sleeping for 30 seconds before starting dists")
-              Thread.sleep(30000)
+              //logger.info("Sleeping for 30 seconds before starting dists")
+
               distributionFunctions.executeDistribution()
             }
 

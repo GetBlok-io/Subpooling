@@ -178,7 +178,17 @@ class DistributionFunctions(query: ActorRef, write: ActorRef, expReq: ActorRef, 
         placements <- fPlacements
         height    <- futHeight
       } yield {
-        val otrPlacements = placements.map(_.copy(score = 1, amount = 0))
+        val otrPlacements = placements.map(_.copy(score = 1, amount = 0)).map{
+          p =>
+            p.g_epoch match{
+              case 79 =>
+                p.copy(holding_id = "7f53dd0c0b460411767b4f53905e668ca42e18092f92438d4a67f725dfb34d24")
+              case 80 =>
+                p.copy(holding_id = "e1daa1e8cc0bd2c03031bb81db4a7f5f648715149b1d563623d4f8b6127d87c9")
+              case _ =>
+                p
+            }
+        }
         // TODO: Removed for right now, exercise caution
         val gEpoch = poolInfo.g_epoch
 
