@@ -22,7 +22,9 @@ class LoadingSelector(placements: Array[PoolPlacement]) extends GroupSelector {
       val subpoolPlacements = placements.filter(p => p.subpool_id == subpool.id)
       val logger: Logger = LoggerFactory.getLogger("LoadingSelector")
       //logger.info(s"Now loading placements for subpool ${subpool.id} in pool ${subpool.token.toString}")
-      if(subpoolPlacements.nonEmpty) {
+      if(subpoolPlacements.nonEmpty && subpool.box.shareDistribution.dist.exists(_._2.getStored > 0))
+      {
+        logger.info("FOUND SUBPOOLS WITH STORED VALUES")
         val filteredPlacements = subpoolPlacements.filter(sp => sp.amount > 0 || (sp.amount == 0 &&
           (subpool.box.shareDistribution.dist
           .exists(p => p._1.address.toString == sp.miner && p._2.getStored > 0) || sp.score > 0)))
@@ -30,7 +32,10 @@ class LoadingSelector(placements: Array[PoolPlacement]) extends GroupSelector {
         val dist = new ShareDistribution(filteredPlacements.map(p => PropBytes.ofAddress(Address.create(p.miner))(AppParameters.networkType) ->
           new MemberInfo(Array(p.score, p.minpay, 0L, p.epochs_mined, 0L))).toMap)
         subpool.nextDist = dist
+      }else{
+        logger.info("DID NOT FIND SUBPOOLS WITH STORED VALUES")
       }
+
     }
     this
   }
