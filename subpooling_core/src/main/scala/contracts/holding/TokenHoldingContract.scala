@@ -31,9 +31,13 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
 
     val holdingBoxes = commandTx.holdingInputs
 
-    val currentDistribution = commandTx.cOB.metadataRegisters.shareDist
-    val lastDistribution = metadataBox.shareDistribution
 
+    val lastDistribution = metadataBox.shareDistribution
+    val currentDistribution = commandTx.cOB.metadataRegisters.shareDist.filter{
+      p =>
+        val inLast = lastDistribution.dist.find(_._1.address.toString == p._1.address.toString)
+        inLast.get._2.getStored > 0
+    }
     val holdingBoxTokens = holdingBoxes.foldLeft(0L){
       (accum: Long, box: InputBox) =>
         accum + box.getTokens.get(0).getValue
@@ -45,7 +49,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val totalOwedPayouts =
       lastDistribution.filter(c => c._2.getStored < c._2.getMinPay).dist.map(c => c._2.getStored).sum
     // Removed 7 tokens to help with change, should find better solution later
-    val totalRewards = holdingBoxTokens - totalOwedPayouts - 13
+    val totalRewards = holdingBoxTokens - totalOwedPayouts
     val feeList = currentPoolFees.fees.map{
       // Pool fee is defined as x/100000 of total inputs value.
       poolFee =>
