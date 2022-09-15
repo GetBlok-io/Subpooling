@@ -36,7 +36,7 @@ class TokenHoldingContract(holdingContract: ErgoContract) extends HoldingContrac
     val currentDistribution = commandTx.cOB.metadataRegisters.shareDist.filter{
       p =>
         val inLast = lastDistribution.dist.find(_._1.address.toString == p._1.address.toString)
-        inLast.get._2.getStored > 0
+        inLast.isDefined && inLast.get._2.getStored > 0
     }
     val holdingBoxTokens = holdingBoxes.foldLeft(0L){
       (accum: Long, box: InputBox) =>
