@@ -6,7 +6,7 @@ import configs.{Contexts, SubpoolActorConfig}
 import play.api.{Configuration, Environment}
 import play.api.inject.Binding
 import play.api.libs.concurrent.AkkaGuiceSupport
-import tasks.{BlockStatusCheck, DbCrossCheck, GroupExecutionTask, InitializePoolTask, PlasmaPlacementTask, PoolBlockListener}
+import tasks.{BlockStatusCheck, DbCrossCheck, EffortCalculations, GroupExecutionTask, InitializePoolTask, PlasmaPlacementTask, PoolBlockListener}
 class Module(environment: Environment, configuration: Configuration) extends AbstractModule with AkkaGuiceSupport{
   @Override
   override def configure(): Unit = {
@@ -26,6 +26,7 @@ class Module(environment: Environment, configuration: Configuration) extends Abs
       .withRouter(new RoundRobinPool(subpoolActorConfig.numBlockingUpdateWriters)))
     bindActor[PushMessageNotifier]("push-msg-notifier", p => p.withDispatcher("subpool-contexts.quick-query-dispatcher"))
     bind[BlockStatusCheck](classOf[BlockStatusCheck]).asEagerSingleton()
+    bind[EffortCalculations](classOf[EffortCalculations]).asEagerSingleton()
     bind[GroupExecutionTask](classOf[GroupExecutionTask]).asEagerSingleton()
     bind[PlasmaPlacementTask](classOf[PlasmaPlacementTask]).asEagerSingleton()
     bind[PoolBlockListener](classOf[PoolBlockListener]).asEagerSingleton()

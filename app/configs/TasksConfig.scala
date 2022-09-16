@@ -6,6 +6,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 class TasksConfig(config: Configuration){
   val blockCheckConfig:   TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "block-status-check")
+  val effortCalcConfig:   TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "effort-calcs")
   val groupExecConfig:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "group-execution")
   val plasmaPlacement:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "plasma-placement")
   val poolBlockConfig:    TasksConfig.TaskConfiguration = TasksConfig.TaskConfiguration.fromConfig(config, "pool-block-listener")

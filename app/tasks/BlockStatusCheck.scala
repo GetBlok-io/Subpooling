@@ -54,12 +54,10 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
             logger.info("New block evaluation finished successfully")
             logger.info("Now initiating evaluation of confirming blocks")
             evalConfirmingBlocks()
-            evalNullEffortBlocks
           case Failure(exception) =>
             logger.error("There was an error thrown during block evaluation", exception)
             logger.info("Now initiating evaluation of confirming blocks")
             evalConfirmingBlocks()
-            evalNullEffortBlocks
         }(contexts.taskContext)
 
 
@@ -126,61 +124,6 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def evalNullEffortBlocks = {
-    logger.info("Now evaluating blocks with null effort")
-    implicit val ec: ExecutionContext = contexts.taskContext
-    implicit val timeout: Timeout = Timeout(70 seconds)
-    val allBlocks = (query ? QueryBlocks(None)).mapTo[Seq[PoolBlock]]
-    allBlocks.map{
-      blocks =>
-        updateBlockEffort(blocks)
-    }
-  }
-
-  def updateBlockEffort(allBlocks: Seq[PoolBlock]) = {
-    implicit val ec: ExecutionContext = contexts.taskContext
-    implicit val timeout: Timeout = Timeout(70 seconds)
-    val blocksGrouped = allBlocks.groupBy(_.poolTag)
-    var blocksUpdated = 0
-    logger.info("Evaluating effort for blocks!")
-    blocksGrouped.foreach{
-      bg =>
-        val ordered = bg._2.filter(_.gEpoch != -1).sortBy(_.gEpoch)
-        val orderedNoEffort = ordered.filter(_.effort.isEmpty)
-        logger.info(s"Pool ${bg._1} has ${orderedNoEffort.length} blocks with null effort values!")
-        orderedNoEffort.take(2).foreach{
-          block =>
-            if(block.gEpoch != 1){
-              val lastBlock = ordered( ordered.indexWhere(b => b.poolTag == block.poolTag && b.blockheight == block.blockheight) - 1)
-              val start = lastBlock.created
-              val end = block.created
-              logger.info(s"Querying miners for pool ${block.poolTag}")
-              val fMiners = db.run(Tables.PoolSharesTable.queryMinerPools)
-              val fInfo   = db.run(Tables.PoolInfoTable.filter(_.poolTag === block.poolTag).result.head)
-              for{
-                info <- fInfo
-                miners <- fMiners
-              }
-              yield {
-
-                logger.info(s"A total of ${miners.size} miners ")
-                logger.info(s"Querying shares between last block ${lastBlock.blockheight} and current block ${block.blockheight}")
-                val accumDiff = calculateEffort(start, end, block, miners.toMap, info)
-                logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
-                writeEffortForBlock(block, accumDiff)
-              }
-            }else{
-              logger.info(s"gEpoch is 1 for block ${block.blockheight}, Not writing effort for block")
-//              val date = block.created
-//              val sharesBefore = db.run(Tables.PoolSharesTable.filter(_.created <= date).result)
-//              logger.info(s"Finished share query, now writing block effort for ${block.blockheight}")
-//              sharesBefore.map(s => writeEffortForBlock(block, s))
-            }
-        }
-        blocksUpdated = blocksUpdated + orderedNoEffort.length
-    }
-    logger.info(s"Finished evaluating null effort blocks! A total $blocksUpdated blocks were updated")
-  }
 
   def updateBlockEpochs(orderedBlocks: Seq[PoolBlock], poolInfo: PoolInformation) = {
 
@@ -314,82 +257,4 @@ class BlockStatusCheck @Inject()(system: ActorSystem, config: Configuration,
     }(contexts.taskContext)
   }
 
-  def calculateEffort(startDate: LocalDateTime, endDate: LocalDateTime, block: PoolBlock, miners: Map[String, Option[String]], info: PoolInformation) = {
-    var offset = 0
-    var limit = 75000
-    var accumDiff = BigDecimal(0)
-    logger.info(s"Querying shares for effort between ${startDate} and ${endDate}")
-    info.payment_type match {
-      case PoolInformation.PAY_SOLO =>
-        logger.info("Using SOLO effort calcs")
-
-        while(offset != -1 && offset < 7500000){
-          logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
-          val shares = Await.result(db.run(Tables.PoolSharesTable.queryMinerSharesBetweenDate(startDate, endDate, block.miner, offset, limit)), 1000 seconds)
-          accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
-          logger.info(s"Current accumulated difficulty: ${accumDiff}")
-          if(shares.nonEmpty)
-            offset = offset + limit
-          else
-            offset = -1
-          if((accumDiff / block.netDiff) * 100 > 500){
-            offset = -1
-          }
-        }
-        logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
-        accumDiff
-      case PoolInformation.PAY_PLASMA_SOLO =>
-        logger.info("Using SOLO effort calcs")
-
-        while(offset != -1){
-          logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
-          val shares = Await.result(db.run(Tables.PoolSharesTable.queryMinerSharesBetweenDate(startDate, endDate, block.miner, offset, limit)), 1000 seconds)
-          accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
-          logger.info(s"Current accumulated difficulty: ${accumDiff}")
-          if(shares.nonEmpty)
-            offset = offset + limit
-          else
-            offset = -1
-          if((accumDiff / block.netDiff) * 100 > 500){
-            offset = -1
-          }
-        }
-        logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
-        accumDiff
-      case _ =>
-        logger.info("Using PPLNS effort calcs")
-        while(offset != -1){
-          logger.info(s"Now querying ${limit} shares at offset ${offset} between dates")
-          val shares = Await.result(db.run(Tables.PoolSharesTable.queryBetweenDate(startDate, endDate, offset, limit)), 1000 seconds)
-            .filter{
-              s =>
-                miners.get(s.miner).flatten.getOrElse(params.defaultPoolTag) == block.poolTag
-            }
-          accumDiff = accumDiff + ((shares.map(s => BigDecimal(s.difficulty)).sum) * AppParameters.shareConst)
-          logger.info(s"Current accumulated difficulty: ${accumDiff}")
-          if(shares.nonEmpty)
-            offset = offset + limit
-          else
-            offset = -1
-
-          if((accumDiff / block.netDiff) * 100 > 500){
-            offset = -1
-          }
-        }
-        logger.info(s"Finished querying shares. Final accumDiff: ${accumDiff}")
-        accumDiff
-    }
-
-  }
-
-
-  def writeEffortForBlock(currentBlock: PoolBlock, accumDiff: BigDecimal): Unit = {
-    logger.info(s"Writing effort for current block ${currentBlock.blockheight}")
-
-    logger.info(s"Accumulated effort calculated: ${accumDiff}")
-    val totalEffort = accumDiff / currentBlock.netDiff
-    logger.info(s"Now updating block effort for block ${currentBlock} and poolTag ${currentBlock}")
-    logger.info(s"Effort: ${(totalEffort * 100).toDouble}% ")
-    write ! UpdateBlockEffort(currentBlock.poolTag, totalEffort.toDouble, currentBlock.blockheight)
-  }
 }
