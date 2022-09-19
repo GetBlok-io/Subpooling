@@ -110,8 +110,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }else {
           logger.info(s"Regen from chain was enabled, now regenerating digest state for pool" +
             s" ${params.regenStatePool}")
-
-          chooseBackupType(params.regenStatePool)
+          regenHistory()
+          //chooseBackupType(params.regenStatePool)
 //          Try(execRegen(params.regenType)).recoverWith {
 //            case ex =>
 //              logger.error("There was a critical error while re-generating dbs!", ex)
@@ -129,38 +129,33 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
 
+
+
   def regenHistory() = {
     val poolTag = "f0f3581ea3aacf37c819f0f18a47585866aaf4c273d0c3c189d79b7d5fc71e80"
-    val gEpoch = 37L
+    val gEpoch = 284L
     val success = "success"
     val time = LocalDateTime.now()
     val none = "none"
-    val block = 803331L
+    val block = 842388L
     val history = Seq(
-      StateHistory(poolTag, gEpoch, "d9580c4d8c94790b782f224e558f518d7b465529bf70f9cae1116e3d69250b8c",
-        "ab31c9df88501a76156285bb749c5d92104cd05267c40d8ba22a75ad715a3d9f", "ffc9632a90e36963e5cb3338a31cad60d6eb4f11887821cbb8fdc751fed6c138",
-        "INSERT", success, 0, "3a551cbcc3a229c6f007434926909d688762394bf636afd62b9dbc330ef0162609", none, none, none, none, none,
+      StateHistory(poolTag, gEpoch, "e4b81bfd8ed3b53fd13c369f76790c03cbbb2e4a9e7169a9294cd58a9036a548",
+        "f8c66ca8f431e490dfb99d0380b0b25cf97b58666d6964171bd9545415602f33", "140bfa64407ba783b076be3678595d9bc2b70f91ad11375cf547f1459fb1507c",
+        "INSERT", success, 0, "2c46bcea2860dcb3dcd5814be7e5ce2d443092f8ef883a95db823b4d36223a410c", none, none, none, none, none,
         block, time, time),
-      StateHistory(poolTag, gEpoch, "80f9b748afe1d8926801f50b7593e4d1a45013096bff4f88b329d2545da04467",
-        "7615a34880073adae46bc111154bd285f404b2d876115f6e026f4a45854b9e27", "04e053f2039294f8081cebbb87cba6bf2868628121cf056cf2cf2e53b9972497",
-        "UPDATE", success, 1, "27da180e562f49c5576cdc5e1a917000ffe9651551142243b87bb85c4e84b87809", none, none, none, none, none,
+      StateHistory(poolTag, gEpoch, "896e534ea39dbd124f98410acb4a362a34f8e8b00af3fcb4031162b04a99eac4",
+        "4390726a0b46a7994f7d873d29509a5315afab9ed080103613f8479d2b89f2eb", "8ee179db997fc1f04a46bc6c0a3df6e1afe6b27308785e9e40aa2eec65a218de",
+        "UPDATE", success, 1, "697e188b2fa43e71759a469f96e33e5694a646a5d402e7279b68034accd5be000c", none, none, none, none, none,
         block, time, time),
-      StateHistory(poolTag, gEpoch, "9698d8aadaa5464ab27361928cff74b95808962d1b50659dfcb7cfc0e7f8af2c",
-        "b9f132b6dc91cb4b72cb118d4033ee8b22e8df77eaea9fee248de066b4e18f78", "9f9415777a293e2633f3e71abcd69fd7a6090cbcba80ae7d83bfe71b9b6471ba",
-        "PAYOUT", success, 2, "5c45146ae3d80a446e64d54d6c3d0e906c53731889198112a85e36af6562fb9109", none, none, none, none, none,
+      StateHistory(poolTag, gEpoch, "e0cc324c73a899d59971f71c28afc841d70502b02bd0bcf5810c64bfba2e01ba",
+        "c4d722d9984f96f94375914a1383b5c0940d464ef51c4c30867d30e2d02265c3", "4e6010f9d78401e54aa5248ca67cb5aa1914569058ed8b8bb4cc51927ff11fc6",
+        "UPDATE", success, 2, "925e02504edbd073790800e9ccde8f301aec8682cf2d553408e542f4e8d0c2490c", none, none, none, none, none,
         block, time, time),
-      StateHistory(poolTag, gEpoch + 1, "3a2138994a1bbf9c045818b3985a4c1d076c5cd8757c98ae0562cc1a7a8a03ae",
-        "1a08d2a7f33624ab6e0a7ac72182da108ba1959a0edc73eace967f775a884360", "ef70ff2a2e409d7132e8d82bdb259bc9624faaaecdff7ba5e87f644b0f461c94",
-        "INSERT", success, 0, "2d16bf07475df901beee28de82c5cd9baf974dc7bd405aa3e99489446194de8709", none, none, none, none, none,
-        803400L, time, time),
-      StateHistory(poolTag, gEpoch + 1, "6a9df9399317ef213bd079bc927d44255f93416233b4e09433a4d8ba58d0cb9a",
-        "25cc0e884e66e5fdeafddf674e61028c7a502a8300ae6e31ead317ecd9050499", "38df58c5633c66368aa5f4f5098cbdc052df7def92d4c69369fce8ec06de9636",
-        "UPDATE", success, 1, "507c31a19deed123209e124b43be4b684df719c5123b0a0e3cc8bcf962903bda09", none, none, none, none, none,
-        803400L, time, time),
-      StateHistory(poolTag, gEpoch + 1, "edc78f7124b169c86a73c89039d89947e1a6649b2ee26a2294ae1899a13baa13",
-        "169c517d7efb0541d67b8c8b57ef1bcd03eec5f6842373fea3fda1205f98f22e", "e08c8ed9eb23f74d69cdf614a2f73b86e99ccad6a11654f71fd4015f735ed241",
-        "PAYOUT", success, 2, "072bb53167d02f4b6d1c3fa0f917102dc01cb6ae7f19a7b1d8ecdd63f42c4ad409", none, none, none, none, none,
-        803400L, time, time)
+      StateHistory(poolTag, gEpoch, "a19a734e3c6b26e101a82a14767ac7f9687ea7301817384d59b240cda41405dd",
+        "30959a8883249d372dd13dca45d5086e0bcc819422dd7733bc62d3d4a81eb120", "e513f5c31523392e4b130531b05fc2972a6352398beb1df9b8bc5f8cb4cc754c",
+        "PAYOUT", success, 3, "3bc573feef6bf91e7947eda65954b2a9b69aa22caa2c86d8e2f53d576ec588bd0c", none, none, none, none, none,
+        block, time, time),
+
     )
     db.run(Tables.StateHistoryTables ++= history)
 //    db.run(Tables.PoolBlocksTable.filter(_.blockHeight === block).map(_.status).update(PoolBlock.PAID))
