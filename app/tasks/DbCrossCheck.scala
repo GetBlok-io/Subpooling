@@ -110,8 +110,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         }else {
           logger.info(s"Regen from chain was enabled, now regenerating digest state for pool" +
             s" ${params.regenStatePool}")
-          //regenHistory()
-          chooseBackupType(params.regenStatePool)
+          regenHistory()
+          //chooseBackupType(params.regenStatePool)
 //          Try(execRegen(params.regenType)).recoverWith {
 //            case ex =>
 //              logger.error("There was a critical error while re-generating dbs!", ex)
