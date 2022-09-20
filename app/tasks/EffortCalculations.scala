@@ -33,7 +33,7 @@ class EffortCalculations @Inject()(system: ActorSystem, config: Configuration,
                                     extends HasDatabaseConfigProvider[PostgresProfile]{
   import dbConfig.profile.api._
   val logger: Logger = Logger("EffortCalculations")
-  val taskConfig: TaskConfiguration = new TasksConfig(config).blockCheckConfig
+  val taskConfig: TaskConfiguration = new TasksConfig(config).effortCalcConfig
   val nodeConfig: NodeConfig        = new NodeConfig(config)
 
 
