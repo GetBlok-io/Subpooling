@@ -187,6 +187,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
         initSingleBackup(poolTag)
       case "11c61b7f33860116201ad58ce1d08117eafd26019045ff373148b32229bc6ac9" =>
         initSingleBackup(poolTag)
+      case "3bfc08ec8f536039ae2e19afb5cbaf6329f12b4bf84cdd0a8de5f7a023ad1f43" =>
+        initSingleBackup(poolTag)
       case "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0" =>
         initDualBackup(poolTag)
       case _ =>
