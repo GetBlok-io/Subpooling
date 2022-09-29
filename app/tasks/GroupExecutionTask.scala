@@ -20,7 +20,7 @@ import io.getblok.subpooling_core.persistence.models.PersistenceModels.{Block, M
 import org.ergoplatform.appkit.{BoxOperations, ErgoClient, ErgoId, InputBox, Parameters}
 import org.ergoplatform.wallet.boxes.BoxSelector
 import persistence.shares.ShareCollector
-import plasma_utils.{EmissionHandler, PaymentDistributor, PrePlacer}
+import plasma_utils.{EmissionHandler, PaymentDistributor, PrePlacer, VoteCollector}
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.{Configuration, Logger}
 import slick.jdbc.PostgresProfile
@@ -63,6 +63,8 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
 
       logger.info("GroupExecution has begun")
         val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts, wallet)
+        val voteCollector = new VoteCollector(ergoClient, wallet)
+        voteCollector.collect()
         if(params.singularGroups) {
           if(params.groupStart == 2) {
             val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)

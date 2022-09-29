@@ -12,6 +12,7 @@ import io.getblok.subpooling_core.contracts.MetadataContract
 import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, ProportionalEmissionsContract}
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.contracts.plasma.BalanceStateContract
+import io.getblok.subpooling_core.contracts.voting.{ProxyBallotContract, RecordingContract}
 import io.getblok.subpooling_core.explorer.Models.{Output, TransactionData}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
@@ -80,6 +81,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
     system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
         performTestnetSetup
+        createRecordingBox
         val incompleteTemps = Try {
           findIncompletePools
         }
@@ -97,7 +99,43 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         }
     })(contexts.taskContext)
   }
+  def createRecordingBox = {
+    client.execute{
+      ctx =>
+        val tokenBox = makeTokenTx(1, "EIP-37 Recording Box NFT",
+          "NFT representing the EIP-37 PoV Recording Box", 0, Helpers.MinFee * 2)
 
+        val recordingToken = tokenBox.getTokens.get(0).getId
+        val voteTokenId = ErgoId.create("60a3b2e917fe6772d65c5d253eb6e4936f1a2174d62b3569ad193a2bf6989298")
+        val yesContract = ProxyBallotContract.generateContract(ctx, voteTokenId, true, recordingToken)
+        val noContract = ProxyBallotContract.generateContract(ctx, voteTokenId, false, recordingToken)
+
+        logger.info(s"Yes contract: ${yesContract.toAddress}")
+        logger.info(s"No contract: ${noContract.toAddress}")
+
+
+        val voteEndHeight: Int = 844625
+        val recordingContract = RecordingContract.generateContract(ctx, voteTokenId, yesContract.toAddress, noContract.toAddress, voteEndHeight)
+
+        logger.info(s"Recording contract: ${recordingContract.toAddress}")
+
+        val recordingOutBox = RecordingContract.buildNewRecordingBox(ctx, recordingToken, recordingContract, Helpers.MinFee)
+
+        val uTx = ctx.newTxBuilder()
+          .boxesToSpend(Seq(tokenBox).asJava)
+          .outputs(recordingOutBox)
+          .fee(Helpers.MinFee)
+          .sendChangeTo(wallet.p2pk.getErgoAddress)
+          .build()
+
+        val sTx = wallet.prover.sign(uTx)
+
+        logger.info(s"Now sending tx with id ${sTx.getId}")
+        ctx.sendTransaction(sTx)
+
+        Thread.sleep(100000)
+    }
+  }
   def createNextPool(incomplete: ArrayBuffer[UninitializedPool]) = {
     if(incomplete.nonEmpty) {
       val nextEmissions = incomplete.filter(i => i.poolMade && i.emissionsMade.isDefined && !i.emissionsMade.get)
