@@ -102,8 +102,11 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
   def createRecordingBox = {
     client.execute{
       ctx =>
-        val tokenBox = makeTokenTx(1, "EIP-37 Recording Box NFT",
-          "NFT representing the EIP-37 PoV Recording Box", 0, Helpers.MinFee * 2)
+        val tokenBox = ctx.getDataSource.getUnconfirmedUnspentBoxesFor(
+        wallet.p2pk,
+        0,
+        500
+      ).asScala.toSeq.filter(_.getId.toString == "124d29bb50d73f6e35e6a2155bb11bbe4fcfc065898592a9605aba806e6370ab").head
 
         val recordingToken = tokenBox.getTokens.get(0).getId
         val voteTokenId = ErgoId.create("60a3b2e917fe6772d65c5d253eb6e4936f1a2174d62b3569ad193a2bf6989298")

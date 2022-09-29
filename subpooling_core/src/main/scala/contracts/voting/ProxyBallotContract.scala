@@ -3,6 +3,7 @@ package contracts.voting
 
 import org.ergoplatform.appkit._
 import sigmastate.Values
+import sigmastate.eval.Colls
 
 
 object ProxyBallotContract{
@@ -35,7 +36,7 @@ object ProxyBallotContract{
   def generateContract(ctx: BlockchainContext, voteTokenId: ErgoId, voteYes: Boolean, recordingNFT: ErgoId): ErgoContract = {
 
     val voteTokenBytes = ErgoValue.of(voteTokenId.getBytes)
-    val recordingBytes = ErgoValue.of(recordingNFT.getBytes)
+    val recordingBytes = Colls.fromArray(recordingNFT.getBytes)
     val constants = ConstantsBuilder.create()
       .item("const_recordingNFT", recordingBytes)
       .build()
