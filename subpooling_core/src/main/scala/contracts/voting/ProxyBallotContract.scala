@@ -37,7 +37,6 @@ object ProxyBallotContract{
     val voteTokenBytes = ErgoValue.of(voteTokenId.getBytes)
     val recordingBytes = ErgoValue.of(recordingNFT.getBytes)
     val constants = ConstantsBuilder.create()
-      .item("const_voteTokenId", voteTokenBytes)
       .item("const_recordingNFT", recordingBytes)
       .build()
     val contract: ErgoContract = ctx.compileContract(constants, script(voteYes))
