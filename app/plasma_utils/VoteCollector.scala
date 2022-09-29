@@ -18,7 +18,7 @@ class VoteCollector(client: ErgoClient, wallet: NodeWallet) {
   val logger: Logger = LoggerFactory.getLogger("VoteCollector")
 
   final val voteTokenId: ErgoId = ErgoId.create("60a3b2e917fe6772d65c5d253eb6e4936f1a2174d62b3569ad193a2bf6989298")
-  final val recordingTokenId: ErgoId = ErgoId.create("60a3b2e917fe6772d65c5d253eb6e4936f1a2174d62b3569ad193a2bf6989298")
+  final val recordingTokenId: ErgoId = ErgoId.create("2ab5e5c8cfd63571ad2c49db2b0aa1ea54e0f2536ad0e78a19cbb1eb38bb9813")
   final val voteEndHeight: Int = 844625
   def voteYesContract: ErgoContract = client.execute(ctx => ProxyBallotContract.generateContract(ctx, voteTokenId, true, recordingTokenId))
   def voteNoContract: ErgoContract = client.execute(ctx => ProxyBallotContract.generateContract(ctx, voteTokenId, false, recordingTokenId))
