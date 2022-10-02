@@ -136,8 +136,8 @@ object RecordingContract {
       .sum
 
 
-    val updatedYesVotes = ErgoValue.of(recordingBox.getRegisters.get(0).getValue.asInstanceOf[ErgoValue[Long]].getValue + newYesVotes)
-    val updatedNoVotes = ErgoValue.of(recordingBox.getRegisters.get(1).getValue.asInstanceOf[ErgoValue[Long]].getValue + newNoVotes)
+    val updatedYesVotes = ErgoValue.of(recordingBox.getRegisters.get(0).getValue.asInstanceOf[Long] + newYesVotes)
+    val updatedNoVotes = ErgoValue.of(recordingBox.getRegisters.get(1).getValue.asInstanceOf[Long] + newNoVotes)
 
 
     val asOutBox = outB
