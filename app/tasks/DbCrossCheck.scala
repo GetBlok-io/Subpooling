@@ -20,7 +20,7 @@ import io.getblok.subpooling_core.registers.PropBytes
 import models.DatabaseModels.{Balance, BalanceChange, ChangeKeys, Payment, SPoolBlock, StateHistory}
 import models.ResponseModels.writesChangeKeys
 import org.bouncycastle.util.encoders.Hex
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, NetworkType}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoValue, InputBox, NetworkType}
 import persistence.Tables
 import plasma_utils.{EmissionValidator, TransformValidator}
 import plasma_utils.payments.PaymentRouter
@@ -28,12 +28,14 @@ import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.{JsResult, JsValue, Json, Reads}
 import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
+import play.libs.mailer.MailerClient
 import scorex.crypto.authds.{ADKey, ADValue}
 import scorex.crypto.authds.avltree.batch.Insert
 import sigmastate.BoolToSigmaProp
 import slick.jdbc.{JdbcProfile, PostgresProfile}
 import slick.lifted.ExtensionMethods
 import special.collection.Coll
+import special.sigma.AvlTree
 import utils.ConcurrentBoxLoader
 
 import java.io.File
@@ -50,6 +52,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
                                     @Named("quick-db-reader") query: ActorRef,
                                     @Named("blocking-db-writer") write: ActorRef,
                                     @Named("explorer-req-bus") expReq: ActorRef,
+                                    mailerClient: MailerClient,
                                     protected val dbConfigProvider: DatabaseConfigProvider)
                                     extends HasDatabaseConfigProvider[PostgresProfile]{
 
@@ -128,6 +131,39 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     ContextExtension(json.split(":")(1).split("\"")(1))
   }
 
+
+//  def grabBox(boxId: String): Try[InputBox] = {
+//    Try {
+//      ergoClient.execute {
+//        ctx =>
+//          ctx.getBoxesById(boxId).head
+//      }
+//    }
+//  }
+//
+//  def performSyncCheck() = {
+//    val plasmaPayers = Seq(PoolInformation.PAY_PLASMA_SOLO, PoolInformation.PAY_PLASMA_PPLNS)
+//    val pools = Await.result(db.run(Tables.PoolInfoTable.result), 20 seconds)
+//    val poolStates = Await.result(db.run(Tables.PoolStatesTable.result), 20 seconds)
+//    val plasmaInfos = pools.filter(i => plasmaPayers.contains(i.payment_type))
+//
+//    for(info <- plasmaInfos){
+//      val balState = PaymentRouter.routeBalanceState(info)
+//      val poolState = poolStates.filter(ps => ps.subpool == info.poolTag).head
+//
+//      if(poolState.status != PoolState.SUCCESS){
+//        val box = grabBox(poolState.box)
+//
+//        box match {
+//          case Success(poolBox) =>
+//            val digestString = Hex.toHexString(poolBox.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)
+//
+//
+//        }
+//      }
+//
+//    }
+//  }
 
 
 
