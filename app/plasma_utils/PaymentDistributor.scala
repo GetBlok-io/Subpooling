@@ -265,10 +265,10 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
   // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
   def collectInputs(batchSelection: BatchSelection): Seq[InputBox] = {
     if(batchSelection.info.currency == PoolInformation.CURR_ERG) {
-      val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 3)
+      val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
       boxLoader.collectFromLoaded(blockSum).toSeq
     }else{
-      val blockSum = Helpers.OneErg * 5
+      val blockSum = Helpers.OneErg * 3
       boxLoader.collectFromLoaded(blockSum).toSeq
     }
   }
