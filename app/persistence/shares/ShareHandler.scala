@@ -25,9 +25,9 @@ class ShareHandler(paymentType: PaymentType, blockMiner: String, db: PostgresPro
     logger.info(s"Share handler querying to window for block ${block.blockheight} with creation date ${block.created}")
     var offset = 0
     val miners = Await.result(db.run(Tables.PoolSharesTable.queryMinerPools), 100 seconds).toMap
-
-    while(collector.totalScore < AppParameters.pplnsWindow && offset != -1){
-
+    var count = 0
+    while(collector.totalScore < AppParameters.pplnsWindow && offset != -1 && count < 3){
+      count = count + 1
       val fShares = db.run(Tables.PoolSharesTable.queryBeforeDate( block.created, offset, SHARE_LIMIT))
       val shares = Await.result(fShares, 400 seconds).filter{
         sh =>
