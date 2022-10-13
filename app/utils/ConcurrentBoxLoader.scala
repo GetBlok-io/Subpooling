@@ -144,6 +144,35 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 
     boxesCollected
   }
+  def consolidateTx(boxSet: Seq[InputBox]) = {
+    ergoClient.execute {
+      ctx =>
+        val totalSum = boxSet.map(_.getValue.toLong).sum
+        val outBox = ctx.newTxBuilder().outBoxBuilder()
+          .value((boxSet.map(_.getValue.toLong).sum - (Helpers.MinFee * 2)) / 2)
+          .contract(wallet.contract)
+          .build()
+        val uTx = ctx.newTxBuilder()
+          .boxesToSpend(boxSet.toSeq.asJava)
+          .fee(Helpers.MinFee * 2)
+          .outputs(outBox)
+          .sendChangeTo(wallet.p2pk.getErgoAddress)
+          .build()
+
+        val sTx = wallet.prover.sign(uTx)
+        logger.info(s"Now sending consolidation transaction with id ${sTx.getId} for ${boxSet.size} and total of ${Helpers.nanoErgToErg(totalSum)} ERG.")
+
+        ctx.sendTransaction(sTx)
+        logger.info("Successfully sent consolidation transaction!")
+    }
+  }
+  def consolidateBoxes(numBoxes: Int) = {
+    require(loadedBoxes.size() > numBoxes + 10, s"Cannot consolidate ${numBoxes} when only ${loadedBoxes.size()} boxes are loaded!")
+    val lastBoxess = loadedBoxes.toArray.asInstanceOf[Array[InputBox]].reverse.take(Math.min(numBoxes, 300)).toSeq
+    val boxGroups = lastBoxess.sliding(100, 100)
+
+    boxGroups.foreach(consolidateTx)
+  }
 }
 object ConcurrentBoxLoader {
   final val BLOCK_BATCH_SIZE = 5

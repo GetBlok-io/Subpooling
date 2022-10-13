@@ -26,6 +26,7 @@ import plasma_utils.{EmissionValidator, TransformValidator}
 import plasma_utils.payments.PaymentRouter
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import play.api.libs.json.{JsResult, JsValue, Json, Reads}
+import play.api.libs.mailer.Email
 import play.api.{Configuration, Logger}
 import play.db.NamedDatabase
 import play.libs.mailer.MailerClient
@@ -132,38 +133,58 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   }
 
 
-//  def grabBox(boxId: String): Try[InputBox] = {
-//    Try {
-//      ergoClient.execute {
-//        ctx =>
-//          ctx.getBoxesById(boxId).head
-//      }
-//    }
-//  }
-//
-//  def performSyncCheck() = {
-//    val plasmaPayers = Seq(PoolInformation.PAY_PLASMA_SOLO, PoolInformation.PAY_PLASMA_PPLNS)
-//    val pools = Await.result(db.run(Tables.PoolInfoTable.result), 20 seconds)
-//    val poolStates = Await.result(db.run(Tables.PoolStatesTable.result), 20 seconds)
-//    val plasmaInfos = pools.filter(i => plasmaPayers.contains(i.payment_type))
-//
-//    for(info <- plasmaInfos){
-//      val balState = PaymentRouter.routeBalanceState(info)
-//      val poolState = poolStates.filter(ps => ps.subpool == info.poolTag).head
-//
-//      if(poolState.status != PoolState.SUCCESS){
-//        val box = grabBox(poolState.box)
-//
-//        box match {
-//          case Success(poolBox) =>
-//            val digestString = Hex.toHexString(poolBox.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)
-//
-//
-//        }
-//      }
-//
-//    }
-//  }
+  def grabBox(boxId: String): Try[InputBox] = {
+    Try {
+      ergoClient.execute {
+        ctx =>
+          ctx.getBoxesById(boxId).head
+      }
+    }
+  }
+
+  def emailSyncError(receivers: Seq[String], poolTag: String, realDigest: String, localDigest: String): Email = {
+    Email(
+      "CRITICAL Error While Checking Pool Syncing!",
+      "subpooling@getblok.io",
+      receivers,
+      Some(s"Pool ${poolTag} has become unsynced!" +
+        s" \n The on-chain digest was ${realDigest} but the local digest was $localDigest"
+      )
+    )
+  }
+
+  def performSyncCheck() = {
+    val plasmaPayers = Seq(PoolInformation.PAY_PLASMA_SOLO, PoolInformation.PAY_PLASMA_PPLNS)
+    val pools = Await.result(db.run(Tables.PoolInfoTable.result), 20 seconds)
+    val poolStates = Await.result(db.run(Tables.PoolStatesTable.result), 20 seconds)
+    val plasmaInfos = pools.filter(i => plasmaPayers.contains(i.payment_type))
+
+    for(info <- plasmaInfos){
+      val balState = PaymentRouter.routeBalanceState(info)
+      val poolState = poolStates.filter(ps => ps.subpool == info.poolTag).head
+
+      if(poolState.status != PoolState.SUCCESS){
+        val box = grabBox(poolState.box)
+
+        box match {
+          case Success(poolBox) =>
+            val digestString = Hex.toHexString(poolBox.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)
+            val localDigest = balState.map.toString()
+
+            if(localDigest != digestString) {
+              logger.warn(s"Pool ${poolState.subpool} is unsynced with local digest ${localDigest} and on-chain digest ${digestString}")
+
+            } else
+              logger.info("")
+
+          case Failure(e: Throwable) =>
+            logger.error(s"Subpool state box for pool ${poolState.subpool} is unsynced!")
+
+        }
+      }
+
+    }
+  }
 
 
 

@@ -64,106 +64,147 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
       logger.info("GroupExecution has begun")
         val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts, wallet)
 
-
-
         val tryPreCollection = Try {
           boxLoader.preLoadInputBoxes(params.amountToPreCollect)
         }
         if(tryPreCollection.isSuccess) {
-          val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
-          val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
+          standardExecutor(boxLoader)
 
-          val distributor = new PaymentDistributor(expReq, stateHandler, contexts, params, taskConfig, boxLoader, db)
-          val emissions   = new EmissionHandler(expReq, emHandler, contexts, params, taskConfig, boxLoader, db)
-          if (params.singularGroups) {
-            if (currentRun == 0) {
-              val tryPlacement = Try {
-                placementFunctions.executePlacement()
-              }
-              tryPlacement match {
-                case Success(value) =>
-                  logger.info("Synchronous placement functions executed successfully!")
-                  currentRun = currentRun + 1
-                case Failure(exception) =>
-                  logger.error("There was a fatal error thrown during synchronous placement execution", exception)
-                  currentRun = currentRun + 1
-              }
-            } else if(currentRun == 1) {
-              val tryDist = Try {
-                distributionFunctions.executeDistribution()
-              }
-              tryDist match {
-                case Success(value) =>
-                  logger.info("Synchronous distribution functions executed successfully!")
-                  currentRun = currentRun + 1
-                case Failure(exception) =>
-                  logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
-                  currentRun = currentRun + 1
-              }
+          // consolidate boxes after execution
+          Thread.sleep(5000)
+          logger.info("Now consolidating the last 300 boxes!")
 
-            }
-          }else{
-
-            val tryDistributor = Try {
-              distributor.executeDistribution()
-            }
-            val tryEmissionHandler = Try {
-              emissions.startEmissions()
-            }
-
-
-            val tryPlacement = Try {
-              placementFunctions.executePlacement()
-            }
-            val tryDist = Try {
-              logger.info("Sleeping for 30 seconds before starting dists")
-              Thread.sleep(30000)
-              distributionFunctions.executeDistribution()
-            }
-
-            tryDistributor match {
-              case Success(value) =>
-                logger.info("Synchronous Distributor functions executed successfully!")
-                currentRun = currentRun + 1
-              case Failure(exception) =>
-                logger.error("There was a fatal error thrown during synchronous Distributor execution", exception)
-                currentRun = currentRun + 1
-            }
-
-            tryEmissionHandler match {
-              case Success(value) =>
-                logger.info("Synchronous emission functions executed successfully!")
-                currentRun = currentRun + 1
-              case Failure(exception) =>
-                logger.error("There was a fatal error thrown during synchronous emission execution", exception)
-                currentRun = currentRun + 1
-            }
-
-            tryPlacement match {
-              case Success(value) =>
-                logger.info("Synchronous placement functions executed successfully!")
-                currentRun = currentRun + 1
-              case Failure(exception) =>
-                logger.error("There was a fatal error thrown during synchronous placement execution", exception)
-                currentRun = currentRun + 1
-            }
-
-            tryDist match {
-              case Success(value) =>
-                logger.info("Synchronous distribution functions executed successfully!")
-                currentRun = currentRun + 1
-              case Failure(exception) =>
-                logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
-                currentRun = currentRun + 1
-            }
-
-
-          }
+          boxLoader.consolidateBoxes(300)
         } else {
           logger.error("There was an error thrown while trying to pre-collect inputs!", tryPreCollection.failed.get)
         }
     })(contexts.taskContext)
   }else{
     logger.info("GroupExecution Task was not enabled")
+  }
+
+
+  def standardExecutor(boxLoader: ConcurrentBoxLoader) = {
+    val distributor = new PaymentDistributor(expReq, stateHandler, contexts, params, taskConfig, boxLoader, db)
+    val emissions   = new EmissionHandler(expReq, emHandler, contexts, params, taskConfig, boxLoader, db)
+
+    val tryDistributor = Try {
+      distributor.executeDistribution()
+    }
+    val tryEmissionHandler = Try {
+      emissions.startEmissions()
+    }
+    tryDistributor match {
+      case Success(value) =>
+        logger.info("Synchronous Distributor functions executed successfully!")
+        currentRun = currentRun + 1
+      case Failure(exception) =>
+        logger.error("There was a fatal error thrown during synchronous Distributor execution", exception)
+        currentRun = currentRun + 1
+    }
+
+    tryEmissionHandler match {
+      case Success(value) =>
+        logger.info("Synchronous emission functions executed successfully!")
+        currentRun = currentRun + 1
+      case Failure(exception) =>
+        logger.error("There was a fatal error thrown during synchronous emission execution", exception)
+        currentRun = currentRun + 1
+    }
+  }
+
+
+
+
+  @deprecated
+  def legacyExecutor(boxLoader: ConcurrentBoxLoader) = {
+    val distributionFunctions = new DistributionFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
+    val placementFunctions = new PlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, boxLoader, db)
+    val distributor = new PaymentDistributor(expReq, stateHandler, contexts, params, taskConfig, boxLoader, db)
+    val emissions   = new EmissionHandler(expReq, emHandler, contexts, params, taskConfig, boxLoader, db)
+    if (params.singularGroups) {
+      if (currentRun == 0) {
+        val tryPlacement = Try {
+          placementFunctions.executePlacement()
+        }
+        tryPlacement match {
+          case Success(value) =>
+            logger.info("Synchronous placement functions executed successfully!")
+            currentRun = currentRun + 1
+          case Failure(exception) =>
+            logger.error("There was a fatal error thrown during synchronous placement execution", exception)
+            currentRun = currentRun + 1
+        }
+      } else if(currentRun == 1) {
+        val tryDist = Try {
+          distributionFunctions.executeDistribution()
+        }
+        tryDist match {
+          case Success(value) =>
+            logger.info("Synchronous distribution functions executed successfully!")
+            currentRun = currentRun + 1
+          case Failure(exception) =>
+            logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
+            currentRun = currentRun + 1
+        }
+
+      }
+    }else{
+
+      val tryDistributor = Try {
+        distributor.executeDistribution()
+      }
+      val tryEmissionHandler = Try {
+        emissions.startEmissions()
+      }
+
+
+      val tryPlacement = Try {
+        placementFunctions.executePlacement()
+      }
+      val tryDist = Try {
+        logger.info("Sleeping for 30 seconds before starting dists")
+        Thread.sleep(30000)
+        distributionFunctions.executeDistribution()
+      }
+
+      tryDistributor match {
+        case Success(value) =>
+          logger.info("Synchronous Distributor functions executed successfully!")
+          currentRun = currentRun + 1
+        case Failure(exception) =>
+          logger.error("There was a fatal error thrown during synchronous Distributor execution", exception)
+          currentRun = currentRun + 1
+      }
+
+      tryEmissionHandler match {
+        case Success(value) =>
+          logger.info("Synchronous emission functions executed successfully!")
+          currentRun = currentRun + 1
+        case Failure(exception) =>
+          logger.error("There was a fatal error thrown during synchronous emission execution", exception)
+          currentRun = currentRun + 1
+      }
+
+      tryPlacement match {
+        case Success(value) =>
+          logger.info("Synchronous placement functions executed successfully!")
+          currentRun = currentRun + 1
+        case Failure(exception) =>
+          logger.error("There was a fatal error thrown during synchronous placement execution", exception)
+          currentRun = currentRun + 1
+      }
+
+      tryDist match {
+        case Success(value) =>
+          logger.info("Synchronous distribution functions executed successfully!")
+          currentRun = currentRun + 1
+        case Failure(exception) =>
+          logger.error("There was a fatal error thrown during synchronous distribution execution", exception)
+          currentRun = currentRun + 1
+      }
+
+
+    }
   }
 }

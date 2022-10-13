@@ -109,7 +109,7 @@ class EmissionHandler(expReq: ActorRef, emHandler: ActorRef,
 
   // TODO: Currently vertically scaled, consider horizontal scaling with Seq[BatchSelections]
   def collectInputs(batchSelection: BatchSelection): Seq[InputBox] = {
-    val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 2)
+    val blockSum = Helpers.ergToNanoErg(batchSelection.blocks.map(_.reward).sum) + (Helpers.OneErg * 1)
     boxLoader.collectFromLoaded(blockSum).toSeq
   }
 
