@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="sbt: org.ergoplatform:ergo-appkit_2.12:ac116c85-SNAPSHOT:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/AppData/Local/Coursier/cache/v1/https/oss.sonatype.org/content/groups/public/org/ergoplatform/ergo-appkit_2.12/ac116c85-SNAPSHOT/ergo-appkit_2.12-ac116c85-SNAPSHOT.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/AppData/Local/Coursier/cache/v1/https/oss.sonatype.org/content/groups/public/org/ergoplatform/ergo-appkit_2.12/ac116c85-SNAPSHOT/ergo-appkit_2.12-ac116c85-SNAPSHOT-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/AppData/Local/Coursier/cache/v1/https/oss.sonatype.org/content/groups/public/org/ergoplatform/ergo-appkit_2.12/ac116c85-SNAPSHOT/ergo-appkit_2.12-ac116c85-SNAPSHOT-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
