@@ -4,7 +4,7 @@ package states.groups
 import global.AppParameters.NodeWallet
 import persistence.models.PersistenceModels.PoolMember
 import plasma.{BalanceState, DualBalance, PoolBalanceState, SingleBalance}
-import states.StateTransformer
+import states.{DesyncedPlasmaException, StateTransformer}
 import states.groups.PayoutGroup.GroupInfo
 import states.models.CommandTypes.{DELETE, INSERT, PAYOUT, UPDATE}
 import states.models._
@@ -113,8 +113,12 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
   override def setup(): Unit = {
     logger.info("Now setting up dual payout group")
     logger.info(s"Current digest: ${balanceState.map.toString}")
-    require(Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
-      s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
+    val realDigest = Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)
+    if(realDigest == balanceState.map.toString()) {
+      logger.error(s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
+      logger.error(s"Plasma is desynced for pool ${currentState.poolTag}!")
+      throw DesyncedPlasmaException(currentState.poolTag, balanceState.map.toString(), realDigest)
+    }
     balanceState.map.initiate()
     logger.info("Balance state initiated!")
 

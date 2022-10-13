@@ -83,9 +83,9 @@ object Tables {
       val commandBox = t.commandState.box.getId.toString
       val command = t.command.toString
       val step = t.step
-      val digest = t.manifest.map(_.digestString).getOrElse("none")
-      val manifest = t.manifest.map(_.manifestString).getOrElse("none")
-      val subTrees = t.manifest.map(_.subtreeStrings).getOrElse(Seq("none", "none", "none", "none"))
+      val digest = "none"
+      val manifest = ""
+      val subTrees = Seq("none", "none", "none", "none")
 
       StateHistory(poolTag, gEpoch, box, tx, commandBox, command, PoolState.SUCCESS, step, digest, manifest,
         subTrees.applyOrElse(0, (a: Int) => "none"), subTrees.applyOrElse(1, (a: Int) => "none"),

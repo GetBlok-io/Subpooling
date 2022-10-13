@@ -18,12 +18,14 @@ import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmi
 import io.getblok.subpooling_core.groups.{DistributionGroup, GroupManager, HoldingGroup}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState, SingleBalance, StateBalance}
+import io.getblok.subpooling_core.states.DesyncedPlasmaException
 import io.getblok.subpooling_core.states.groups.StateGroup
 import io.getblok.subpooling_core.states.models.{PlasmaMiner, TransformResult}
 import models.DatabaseModels.SPoolBlock
 import org.ergoplatform.appkit._
-import plasma_utils.UntrackedPoolStateException
+import plasma_utils.{MailGenerator, UntrackedPoolStateException}
 import plasma_utils.payments.PaymentRouter
+import play.api.libs.mailer.MailerClient
 import play.api.{Configuration, Logger}
 import utils.ConcurrentBoxLoader.BatchSelection
 import utils.EmissionTemplates
@@ -33,7 +35,7 @@ import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqA
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
-class StateRequestHandler @Inject()(config: Configuration) extends Actor{
+class StateRequestHandler @Inject()(config: Configuration, mailerClient: MailerClient) extends Actor{
 
   private val nodeConfig             = new NodeConfig(config)
   private val ergoClient: ErgoClient = nodeConfig.getClient
@@ -59,6 +61,7 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
               }.recoverWith{
                 case untrackedPoolStateException: UntrackedPoolStateException =>
                   logger.error("An untracked pool state was found!", untrackedPoolStateException)
+                  mailerClient.send(MailGenerator.emailStateError(untrackedPoolStateException.poolTag, untrackedPoolStateException.box))
                   sender ! StateFailure(untrackedPoolStateException)
                   Failure(untrackedPoolStateException)
                 case ex: Exception =>
@@ -69,7 +72,17 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
             case ExecuteDist(constDist, sendTxs) =>
               val stateGroup = constDist.stateGroup
               logger.info("Now setting up StateGroup")
-              stateGroup.setup()
+
+              Try(stateGroup.setup()).recoverWith{
+                case desync: DesyncedPlasmaException =>
+                  logger.error(s"Plasma was desynced for pool ${desync.poolTag}!")
+                  mailerClient.send(MailGenerator.emailSyncError(desync.poolTag, desync.realDigest, desync.localDigest))
+                  Failure(desync)
+                case e: Throwable =>
+                  logger.error("An unknown error occurred while setting up the pool!", e)
+                  Failure(e)
+              }
+
 
               logger.info("Now applying transformations!")
               val tryTransform = stateGroup.applyTransformations()
@@ -109,7 +122,7 @@ class StateRequestHandler @Inject()(config: Configuration) extends Actor{
     val poolTag = poolState.subpool
     val box = Try{ctx.getBoxesById(poolState.box).head}
 
-    PoolBox(box.getOrElse(throw new UntrackedPoolStateException(poolState.box, poolTag)), balanceState)
+    PoolBox(box.getOrElse(throw UntrackedPoolStateException(poolState.box, poolTag)), balanceState)
   }
 
   def morphToPlasma[T <: StateBalance](placements: Seq[PoolPlacement], balanceState: BalanceState[T],

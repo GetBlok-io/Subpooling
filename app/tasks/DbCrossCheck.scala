@@ -142,16 +142,6 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     }
   }
 
-  def emailSyncError(receivers: Seq[String], poolTag: String, realDigest: String, localDigest: String): Email = {
-    Email(
-      "CRITICAL Error While Checking Pool Syncing!",
-      "subpooling@getblok.io",
-      receivers,
-      Some(s"Pool ${poolTag} has become unsynced!" +
-        s" \n The on-chain digest was ${realDigest} but the local digest was $localDigest"
-      )
-    )
-  }
 
   def performSyncCheck() = {
     val plasmaPayers = Seq(PoolInformation.PAY_PLASMA_SOLO, PoolInformation.PAY_PLASMA_PPLNS)

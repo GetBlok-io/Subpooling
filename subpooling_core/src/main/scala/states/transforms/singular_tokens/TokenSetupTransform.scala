@@ -33,14 +33,14 @@ case class TokenSetupTransform(override val ctx: BlockchainContext, override val
       )
 
       val newMiners = minerLookupResults.filter(_._2.tryOp.get.isEmpty).map(_._1)
-      require(commandState.data.forall(_.amountAdded > 0L), "Not all miners made a contribution!")
+      //require(commandState.data.forall(_.amountAdded > 0L), "Not all miners made a contribution!")
       require(newMiners.forall(_.balance == 0L), "Not all new miners had a balance of 0!")
 
       val minersToPayout = minerLookupResults.filter(m => m._1.balance + m._1.amountAdded >= m._1.minPay).map(_._1)
-
+      val minersToUpdate = commandState.data.filter(_.amountAdded > 0)
       val insertBatches = newMiners.sliding(minerBatchSize, minerBatchSize).toSeq
       val payoutBatches = minersToPayout.sliding(minerBatchSize, minerBatchSize).toSeq
-      val updateBatches = commandState.data.sliding(minerBatchSize, minerBatchSize).toSeq
+      val updateBatches = minersToUpdate.sliding(minerBatchSize, minerBatchSize).toSeq
 
       logger.info("Batch summary:")
       logger.info(s"Insert Batches: ${insertBatches.size}")

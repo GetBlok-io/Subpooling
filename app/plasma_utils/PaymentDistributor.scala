@@ -200,7 +200,10 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           logger.info(s"Current blocks in batch: ${batchSelection.blocks.map(_.blockheight).toArray.mkString("Array(", ", ", ")")}")
           require(modifiedPlacements.head.g_epoch == block.gEpoch, "gEpoch was incorrect for these placements, maybe this is a future placement?")
           val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
-          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, modifiedPlacements)
+
+          val oldMiners = distinctMembers(poolTag, modifiedPlacements).map(makeLostPlacement(modifiedPlacements.head, _))
+
+          stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, modifiedPlacements++oldMiners)
         }
 
         constructDistResp.map {
@@ -218,6 +221,15 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
       distComponents.flatten
     }
     collectedComponents
+  }
+
+  def makeLostPlacement(samplePlacement: PoolPlacement, member: String): PoolPlacement = {
+    samplePlacement.copy(miner = member, score = 0, minpay = Helpers.MinFee, epochs_mined = 0, amount = 0, amountTwo = Some(0))
+  }
+  def distinctMembers(poolTag: String, placements: Seq[PoolPlacement]): Seq[String] = {
+    val allMembers = Await.result(db.run(Tables.SubPoolMembers.filter(_.subpool === poolTag).map(_.miner).distinct.result), 200 seconds)
+
+    allMembers.filter(m => !placements.exists(_.miner == m))
   }
 
   def modifyPlacements(placements: Seq[PoolPlacement]): Seq[PoolPlacement] = {

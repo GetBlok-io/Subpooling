@@ -55,6 +55,9 @@ object AppParameters {
   var sendTxs = true
   var plasmaStoragePath = ""
   var enableEIP27 = false
+
+  var emailReceivers: Seq[String] = Seq.empty[String]
+
   def getFeeAddress: Address = Address.create(feeAddress)
   def getBaseFees(blockReward: Long): Map[Address, Long] = baseFeePerc.map(f => f._1 -> BoxHelpers.removeDust((BigDecimal(blockReward) * (f._2 / 100)).longValue()))
 }

@@ -181,7 +181,7 @@ object PaymentRouter {
         }
           .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
         plasmaMiners
-          .filter(_.amountAdded > 0) // Ensure all miners made a contribution
+          .filter(pm => pm.amountAdded > 0 || pm.balance > 0) // Ensure all miners made a contribution
       case PoolInformation.CURR_NETA =>
         logger.info("Routing Plasma Miners through Single Token Balance State")
 
@@ -197,7 +197,7 @@ object PaymentRouter {
         }
           .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
         plasmaMiners
-          .filter(_.amountAdded > 0) // Ensure all miners made a contribution
+          .filter(pm => pm.amountAdded > 0 || pm.balance > 0) // Ensure all miners made a contribution
 
     }
   }

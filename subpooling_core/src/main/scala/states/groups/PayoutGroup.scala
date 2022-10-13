@@ -5,14 +5,13 @@ import io.getblok.subpooling_core.global.AppParameters.NodeWallet
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.{PoolMember, PoolPlacement}
 import io.getblok.subpooling_core.plasma.StateConversions.{balanceConversion, minerConversion}
 import io.getblok.subpooling_core.plasma.{BalanceState, PoolBalanceState, SingleBalance}
-import io.getblok.subpooling_core.states.StateTransformer
+import io.getblok.subpooling_core.states.{DesyncedPlasmaException, StateTransformer}
 import io.getblok.subpooling_core.states.groups.PayoutGroup.GroupInfo
 import io.getblok.subpooling_core.states.models.CommandTypes.{Command, INSERT, PAYOUT, UPDATE}
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, PlasmaMiner, SingleState, TransformResult}
 import io.getblok.subpooling_core.states.transforms.InsertTransform
 import io.getblok.subpooling_core.states.transforms.singular.{PayoutTransform, SetupTransform, UpdateTransform}
 import io.getblok.subpooling_core.states.models.{CommandBatch, CommandState, CommandTypes, PlasmaMiner, State, TransformResult}
-
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.{BlockchainContext, InputBox}
 import org.slf4j.{Logger, LoggerFactory}
@@ -102,8 +101,12 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
   override def setup(): Unit = {
     logger.info("Now setting up payout group")
     logger.info(s"Current digest: ${balanceState.map.toString}")
-    require(Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray) == balanceState.map.toString(),
-    s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
+    val realDigest = Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)
+    if(realDigest == balanceState.map.toString()) {
+      logger.error(s"${Hex.toHexString(currentState.box.getRegisters.get(0).getValue.asInstanceOf[AvlTree].digest.toArray)} != ${balanceState.map.toString()}")
+      logger.error(s"Plasma is desynced for pool ${currentState.poolTag}!")
+      throw DesyncedPlasmaException(currentState.poolTag, balanceState.map.toString(), realDigest)
+    }
     balanceState.map.initiate()
     logger.info("Balance state initiated!")
 
