@@ -16,7 +16,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-slick-evolutions" % "5.0.0",
   "com.typesafe.slick" %% "slick" % "3.3.3",
   "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3",
-  "io.github.getblok-io" %% "getblok_plasma" % "1.0.0"
+  "io.github.getblok-io" %% "getblok_plasma" % "1.0.0",
+  "com.typesafe.play" %% "play-mailer" % "8.0.1",
+  "com.typesafe.play" %% "play-mailer-guice" % "8.0.1"
 )
 lazy val core = Project(id = "subpooling_core", base = file("subpooling_core"))
 lazy val root = Project(id = "subpooling_service", base = file(".")).enablePlugins(PlayScala).dependsOn(core)

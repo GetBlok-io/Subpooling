@@ -63,37 +63,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
 
       logger.info("GroupExecution has begun")
         val boxLoader: ConcurrentBoxLoader = new ConcurrentBoxLoader(query, ergoClient, params, contexts, wallet)
-        val voteCollector = new VoteCollector(ergoClient, wallet)
-        voteCollector.collect()
-        if(params.singularGroups) {
-          if(params.groupStart == 2) {
-            val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)
-            val tryPrePlacements = Try {
-              prePlacementFunctions.executePrePlacement()
-            }
 
-            tryPrePlacements match {
-              case Success(value) =>
-                logger.info("Synchronous PrePlacement functions executed successfully!")
-                currentRun = 0
-              case Failure(exception) =>
-                logger.error("There was a fatal error while executing pre-placements!")
-                currentRun = 0
-            }
-          }
-        }else{
-          val prePlacementFunctions = new PrePlacementFunctions(query, write, expReq, groupHandler, contexts, params, taskConfig, nodeConfig, boxLoader, db)
-          val tryPrePlacements = Try {
-            prePlacementFunctions.executePrePlacement()
-          }
-
-          tryPrePlacements match {
-            case Success(value) =>
-              logger.info("Synchronous PrePlacement functions executed successfully!")
-            case Failure(exception) =>
-              logger.error("There was a fatal error while executing pre-placements!")
-          }
-        }
 
 
         val tryPreCollection = Try {

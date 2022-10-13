@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module external.linked.project.id="subpooling_service [file:/C:/Users/Kirat/IdeaProjects/subpooling/]" external.linked.project.path="$MODULE_DIR$/../.." external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
+<module external.linked.project.id="subpooling_service [file:/C:/Users/kirat/Subpooling/]" external.linked.project.path="$MODULE_DIR$/../.." external.root.project.path="$MODULE_DIR$/../.." external.system.id="SBT" type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
     <output url="file://$MODULE_DIR$/../../target/scala-2.12/classes" />
     <output-test url="file://$MODULE_DIR$/../../target/scala-2.12/test-classes" />
@@ -53,6 +53,7 @@
     <orderEntry type="library" name="sbt: com.squareup.retrofit2:converter-gson:2.6.2:jar" level="project" />
     <orderEntry type="library" name="sbt: com.squareup.retrofit2:converter-scalars:2.6.2:jar" level="project" />
     <orderEntry type="library" name="sbt: com.squareup.retrofit2:retrofit:2.6.2:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.sun.mail:javax.mail:1.5.6:jar" level="project" />
     <orderEntry type="library" name="sbt: com.thoughtworks.paranamer:paranamer:2.8:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.akka:akka-actor-typed_2.12:2.6.19:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.akka:akka-actor_2.12:2.6.19:jar" level="project" />
@@ -75,6 +76,8 @@
     <orderEntry type="library" name="sbt: com.typesafe.play:play-jdbc-evolutions_2.12:2.8.0:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-json_2.12:2.8.2:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-logback_2.12:2.8.15:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.play:play-mailer-guice_2.12:8.0.1:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.play:play-mailer_2.12:8.0.1:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-server_2.12:2.8.15:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-slick-evolutions_2.12:5.0.0:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-slick_2.12:5.0.0:jar" level="project" />
@@ -120,6 +123,7 @@
     <orderEntry type="library" name="sbt: jakarta.activation:jakarta.activation-api:1.2.2:jar" level="project" />
     <orderEntry type="library" name="sbt: jakarta.transaction:jakarta.transaction-api:1.3.3:jar" level="project" />
     <orderEntry type="library" name="sbt: jakarta.xml.bind:jakarta.xml.bind-api:2.3.3:jar" level="project" />
+    <orderEntry type="library" name="sbt: javax.activation:activation:1.1:jar" level="project" />
     <orderEntry type="library" name="sbt: javax.activation:javax.activation-api:1.2.0:jar" level="project" />
     <orderEntry type="library" name="sbt: javax.cache:cache-api:1.1.1:jar" level="project" />
     <orderEntry type="library" name="sbt: javax.inject:javax.inject:1:jar" level="project" />
@@ -132,6 +136,7 @@
     <orderEntry type="library" scope="TEST" name="sbt: net.sourceforge.htmlunit:htmlunit-cssparser:1.5.0:jar" level="project" />
     <orderEntry type="library" scope="TEST" name="sbt: net.sourceforge.htmlunit:htmlunit:2.36.0:jar" level="project" />
     <orderEntry type="library" scope="TEST" name="sbt: net.sourceforge.htmlunit:neko-htmlunit:2.36.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.apache.commons:commons-email:1.5:jar" level="project" />
     <orderEntry type="library" scope="TEST" name="sbt: org.apache.commons:commons-exec:1.3:jar" level="project" />
     <orderEntry type="library" scope="TEST" name="sbt: org.apache.commons:commons-lang3:3.9:jar" level="project" />
     <orderEntry type="library" name="sbt: org.apache.commons:commons-math3:3.2:jar" level="project" />

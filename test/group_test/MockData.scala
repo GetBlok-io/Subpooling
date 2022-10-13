@@ -35,8 +35,8 @@ object MockData {
   val builder = new OkHttpClient().newBuilder()
     .callTimeout(60, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
     .connectTimeout(60, TimeUnit.SECONDS)
-  val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder("http://213.239.193.208:9053/",
-    NetworkType.MAINNET, "", RestApiErgoClient.defaultMainnetExplorerUrl, builder)
+  val ergoClient: ErgoClient = RestApiErgoClient.createWithHttpClientBuilder("http://213.239.193.208:9052/",
+    NetworkType.TESTNET, "", RestApiErgoClient.defaultTestnetExplorerUrl, builder)
   val creatorAddress: Address = Address.create("4MQyML64GnzMxZgm")
   val dummyTxId = "ce552663312afc2379a91f803c93e2b10b424f176fbc930055c10def2fd88a5d"
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
