@@ -1,5 +1,5 @@
 {
-  // Hybrid Exchanged Emissions - Kirat Singh
+  // Hybrid Normal Emissions - Kirat Singh
   // This contract takes a PORTION of the block reward (in INPUTS(1)), removes a fee from it, and
   // then performs a simulated swap and adjusts the output using the given percentage value.
   // This output value represents the tokens taken from the emission box, and represents the
@@ -8,7 +8,7 @@
   // Constants
   val shareOperator: SigmaProp  = const_shareOpPK
   val poolOperator:  SigmaProp  = const_poolOpPK
-
+  val exitHeight:    Int        = const_exitHeight
   val distToken:     Coll[Byte] = const_distTokenId
   val holdingBytes:  Coll[Byte] = const_holdingBytesHashed
   val decimals:      Long       = const_decimals // 1 * 10^8 = 1 Flux token
@@ -75,7 +75,9 @@
     ))
   }
 
-  sigmaProp(hasNextEmissions && holdingValid && outputSwapped && feeOutputExists) && shareOperator
+  val validSpend   = sigmaProp(hasNextEmissions && holdingValid && outputSwapped && feeOutputExists) && shareOperator
+  val exitStrategy = sigmaProp(HEIGHT < exitHeight) && shareOperator
 
+  validSpend || exitStrategy
 
 }
