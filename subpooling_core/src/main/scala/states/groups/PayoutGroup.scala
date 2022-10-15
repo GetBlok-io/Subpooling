@@ -173,7 +173,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
         val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
         val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
 
-        morphPoolBalanceState(m, payoutTransform.getOrElse(updateTransform))
+        morphPoolBalanceState(m, payoutTransform.getOrElse(updateTransform.get))
     }
 
   }
