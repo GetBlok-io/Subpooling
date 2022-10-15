@@ -131,22 +131,20 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
         else
           m._1.copy(balance = m._2.tryOp.get.get.balance)
     }
+    var memberList: Seq[PoolMember] = Seq.empty[PoolMember]
 
-    updatedBalances.map{
-      m =>
-        val minerTransforms = transformResults.filter(_.get.data.exists(d => d.miner == m.miner)).map(_.get)
+    for(m <- updatedBalances){
+      val minerTransforms = transformResults.filter(_.get.data.exists(d => d.miner == m.miner)).map(_.get)
 
-        val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
-        val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
+      val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
+      val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
 
-        val transform = {
-          payoutTransform match {
-            case Some(value) => value
-            case None => updateTransform.get
-          }
-        }
-        morphMember(m, payoutTransform.getOrElse(transform))
+      if(payoutTransform.isDefined)
+        memberList = memberList ++ Seq(morphMember(m, payoutTransform.get))
+      else if(updateTransform.isDefined)
+        memberList = memberList ++ Seq(morphMember(m, updateTransform.get))
     }
+    memberList
 
   }
 
@@ -173,7 +171,7 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
         val minerTransforms = transformResults.filter(_.get.data.exists(d => d.miner == m.miner)).map(_.get)
 
         val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
-        val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE).get
+        val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
 
         morphPoolBalanceState(m, payoutTransform.getOrElse(updateTransform))
     }
