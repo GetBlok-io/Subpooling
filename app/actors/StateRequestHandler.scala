@@ -107,7 +107,7 @@ class StateRequestHandler @Inject()(config: Configuration, mailerClient: MailerC
               logger.info("Making group members!")
 
               val members = stateGroup.getMembers
-              val poolBalanceStates = stateGroup.getPoolBalanceStates
+              val poolBalanceStates = Seq.empty[PoolBalanceState]
               logger.info("Now sending DistResponse to sender!")
               sender ! DistResponse(transforms, members, poolBalanceStates, constDist.poolState)
           }

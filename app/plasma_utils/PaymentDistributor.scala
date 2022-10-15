@@ -153,7 +153,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           db.run(Tables.StateHistoryTables ++= Tables.StateHistoryTables.fromTransforms(transforms, gEpoch, members.head.block))
           logger.info("Finished writing transforms to StateHistory Table!")
 
-          StatsRecorder.writePoolBalances(poolTag, dr.poolBalanceStates, db)
+          //StatsRecorder.writePoolBalances(poolTag, dr.poolBalanceStates, db)
 
           logger.info(s"Finished all updates for distribution of pool ${poolTag}")
         }

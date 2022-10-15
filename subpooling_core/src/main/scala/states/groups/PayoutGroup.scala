@@ -137,9 +137,15 @@ class PayoutGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[Plasma
         val minerTransforms = transformResults.filter(_.get.data.exists(d => d.miner == m.miner)).map(_.get)
 
         val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
-        val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE).get
+        val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
 
-        morphMember(m, payoutTransform.getOrElse(updateTransform))
+        val transform = {
+          payoutTransform match {
+            case Some(value) => value
+            case None => updateTransform.get
+          }
+        }
+        morphMember(m, payoutTransform.getOrElse(transform))
     }
 
   }
