@@ -74,7 +74,11 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           Thread.sleep(5000)
           logger.info("Now consolidating the last 300 boxes!")
 
-          boxLoader.consolidateBoxes(300)
+          Try(boxLoader.consolidateBoxes(300)).recoverWith{
+            case e: Throwable =>
+              logger.error("Error while consolidating boxes!", e)
+              Failure(e)
+          }
         } else {
           logger.error("There was an error thrown while trying to pre-collect inputs!", tryPreCollection.failed.get)
         }
