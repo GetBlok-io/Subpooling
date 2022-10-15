@@ -4,7 +4,7 @@ import actors.StateRequestHandler.PoolBox
 import akka.actor.ActorRef
 import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts
 import io.getblok.subpooling_core.contracts.plasma.PlasmaScripts.ScriptType
-import io.getblok.subpooling_core.cycles.{HybridExchangeCycle, NFTExchangeCycle}
+import io.getblok.subpooling_core.cycles.{HybridExchangeCycle, HybridNormalExchangeCycle, NFTExchangeCycle}
 import io.getblok.subpooling_core.cycles.models.{Cycle, NFTHolder}
 import io.getblok.subpooling_core.explorer.ExplorerHandler
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
@@ -37,6 +37,8 @@ object PaymentRouter {
         StandardProcessor(settings, collector, batch, reward, info.fees)
       case PoolInformation.CURR_ERG_ERGOPAD =>
         HybridExchangeProcessor(settings, collector, batch, reward, info.fees, emReq)
+      case PoolInformation.CURR_ERG_FLUX =>
+        HybridNormalExchangeProcessor(settings, collector, batch, reward, info.fees, emReq)
       case PoolInformation.CURR_NETA =>
         NFTExchangeProcessor(settings, collector, batch, reward, info.fees, emReq)
       case _ =>
@@ -56,6 +58,19 @@ object PaymentRouter {
           template.proportion, template.percent, template.swapAddress,
           ErgoId.create(batchSelection.info.poolTag), ErgoId.create(batchSelection.info.emissions_id),
           template.distToken, template.lpNFT, explorerHandler
+        )
+      case PoolInformation.CURR_ERG_FLUX =>
+        val template = EmissionTemplates.getFluxTemplate(ctx.getNetworkType)
+        logger.info("Creating Flux cycle")
+
+        logger.info("Now grabbing Erg->Flux exchange rate")
+        val exRate = ExRateUtils.getExRate(optWs.get)(optEc.get)
+        logger.info(s"Current Erg->Flux: ${exRate}")
+        new HybridNormalExchangeCycle(
+          ctx, wallet, reward, batchSelection.info.fees,
+          template.proportion, template.swapAddress,
+          ErgoId.create(batchSelection.info.poolTag), ErgoId.create(batchSelection.info.emissions_id),
+          template.distToken, exRate, template.decimals, explorerHandler
         )
       case PoolInformation.CURR_NETA =>
         logger.info("Creating NETA NFT cycle")
@@ -108,6 +123,14 @@ object PaymentRouter {
           ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState.asInstanceOf[BalanceState[SingleBalance]],
           batch.blocks.head.gEpoch, batch.blocks.head.blockheight, batch.info.poolTag, holdingBox.get, template.distToken, "NETA"
         )
+      case PoolInformation.CURR_ERG_FLUX =>
+        require(holdingBox.isDefined, "Holding box was not defined!")
+        val template = EmissionTemplates.getFluxTemplate(ctx.getNetworkType)
+        new DualGroup(
+          ctx, wallet, miners, poolBox.box, inputBoxes, poolBox.balanceState.asInstanceOf[BalanceState[DualBalance]],
+          batch.blocks.head.gEpoch, batch.blocks.head.blockheight, batch.info.poolTag, holdingBox.get, template.distToken,
+          "Flux"
+        )
       case _ =>
         throw new Exception("Unsupported currency found during StateGroup routing!")
     }
@@ -121,6 +144,8 @@ object PaymentRouter {
         new BalanceState[DualBalance](info.poolTag)
       case PoolInformation.CURR_NETA =>
         new BalanceState[SingleBalance](info.poolTag)
+      case PoolInformation.CURR_ERG_FLUX =>
+        new BalanceState[DualBalance](info.poolTag)
     }
   }
 
@@ -198,7 +223,23 @@ object PaymentRouter {
           .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
         plasmaMiners
           .filter(pm => pm.amountAdded > 0 || pm.balance > 0) // Ensure all miners made a contribution
+      case PoolInformation.CURR_ERG_FLUX =>
+        logger.info("Routing Plasma Miners through Dual Balance State")
 
+        val dualMap = balanceState.asInstanceOf[BalanceState[DualBalance]]
+        dualMap.map.initiate()
+        val balances = partialPlasmaMiners zip dualMap.map.lookUp(partialPlasmaMiners.map(_.toStateMiner.toPartialStateMiner):_*).response
+        dualMap.map.dropChanges()
+        val plasmaMiners = balances.map{
+          b =>
+            b._1.copy(
+              balance = b._2.tryOp.get.map(_.balance).getOrElse(0L),
+              balanceTwo = b._2.tryOp.get.map(_.balanceTwo).getOrElse(0L)
+            )
+        }
+          .sortBy(m => BigInt(m.toStateMiner.toPartialStateMiner.bytes))
+        plasmaMiners
+          .filter(pm => pm.amountAdded > 0 || pm.balance > 0) // Ensure all miners made a contribution
     }
   }
 }

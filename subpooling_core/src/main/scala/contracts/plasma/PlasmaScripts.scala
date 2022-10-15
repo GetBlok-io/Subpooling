@@ -27,6 +27,7 @@ object PlasmaScripts {
   // Emission Scripts
   val HYBRID_DEX_SCRIPT:    String = makeScript("HybridExchangedEmissions")
   val NFT_DEX_SCRIPT:       String = makeScript("NFTExchangedEmissions")
+  val HYBRID_NORM_SCRIPT:   String = makeScript("HybridNormalEmissions")
   // Command Scripts
   val SINGLE_INSERT_SCRIPT: String = makeScript("InsertBalance")
   val SINGLE_UPDATE_SCRIPT: String = makeScript("UpdateBalance")

@@ -107,7 +107,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
 
     val emissionRate: Double = ((adjustedOutput.toDouble) / (amountToSwap.toDouble / Helpers.OneErg))
 
-    EmissionResults(lpBox, adjustedOutput, amountToSwap, 0L, feeTaken, emissionRate, Some(rate))
+    EmissionResults(Some(lpBox), adjustedOutput, amountToSwap, 0L, feeTaken, emissionRate, Some(rate))
   }
 
   def getBonusReward(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Long = {
@@ -198,7 +198,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
     val uTx = ctx.newTxBuilder()
       .boxesToSpend(inputs.asJava)
       .outputs(nextEmissions, nextHoldingBox, nextExchange, nextPoolFee)
-      .withDataInputs(Seq(emissionResults.lpBox).asJava)
+      .withDataInputs(Seq(emissionResults.lpBox.get).asJava)
       .fee(AppParameters.groupFee * 10)
       .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
       .build()

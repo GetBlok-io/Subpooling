@@ -8,19 +8,18 @@
   // Constants
   val shareOperator: SigmaProp  = const_shareOpPK
   val poolOperator:  SigmaProp  = const_poolOpPK
-  val exitHeight:    Int        = const_exitHeight
   val distToken:     Coll[Byte] = const_distTokenId
   val holdingBytes:  Coll[Byte] = const_holdingBytesHashed
   val decimals:      Long       = const_decimals // 1 * 10^8 = 1 Flux token
 
-  val standardDenom:  Long       = 100000L          // Standard denominator used
+  val standardDenom: Long       = 100000L          // Standard denominator used
   // SELF Assets & Registers
   val emToken:       Coll[Byte]  = SELF.tokens(0)._1 // emission NFT
   val distTokenAmnt: Coll[Byte]  = SELF.tokens(1)._2
 
   val poolFee:       Long        = SELF.R4[Long].get
   val proportion:    Long        = SELF.R5[Long].get
-
+  val exitHeight:    Long        = SELF.R6[Long].get
 
   // Other Assets & Registers
   val holdingBox: Box               = OUTPUTS(1)
@@ -60,7 +59,8 @@
       OUTPUTS(0).value         == SELF.value,
       OUTPUTS(0).R4[Long].get  <= 3000, // Share operator may take max fee of 3000 / 100000 or 3%, and may change every emission cycle
       OUTPUTS(0).R4[Long].get  >= 0,
-      OUTPUTS(0).R5[Long].get  == proportion
+      OUTPUTS(0).R5[Long].get  == proportion,
+      OUTPUTS(0).R6[Long].get  == exitHeight
     ))
   }
 
@@ -76,7 +76,7 @@
   }
 
   val validSpend   = sigmaProp(hasNextEmissions && holdingValid && outputSwapped && feeOutputExists) && shareOperator
-  val exitStrategy = sigmaProp(HEIGHT < exitHeight) && shareOperator
+  val exitStrategy = sigmaProp(HEIGHT < exitHeight && exRate == -1) && shareOperator
 
   validSpend || exitStrategy
 

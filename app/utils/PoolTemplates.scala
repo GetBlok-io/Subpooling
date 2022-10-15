@@ -62,13 +62,20 @@ object PoolTemplates {
     Some(PlasmaScripts.DUAL)
   )
 
+  val FLUX_POOL: PoolTemplate = PoolTemplate("Flux Smart Pool", 0.03, 1, PaymentType.PLASMA_PPLNS_WINDOW,
+    PoolInformation.HybridNormalExchangeEmissions, PoolInformation.CURR_ERG_FLUX, 10L, 10000L,
+    "Flux Smart Pool", "This token represents the Flux Smart Pool on GetBlok.io",
+    Some(Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh")),
+    Some(PlasmaScripts.DUAL)
+  )
+
   val templates: Array[UninitializedPool] = Array(
     UninitializedPool(poolMade = false, Some(false), NETA_PLASMA_POOL, isPlasma = true),
     //UninitializedPool(poolMade = false, Some(false), OLD_NETA_POOL),
     UninitializedPool(poolMade = false, None, PLASMA_STD_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, None, SOLO_PLASMA_POOL, isPlasma = true),
     UninitializedPool(poolMade = false, Some(false), ERGOPAD_POOL, isPlasma = true),
-
+    UninitializedPool(poolMade = false, Some(false), FLUX_POOL, isPlasma = true),
 //    UninitializedPool(poolMade = false, None, STANDARD_POOL),
 //    UninitializedPool(poolMade = false, None, SOLO_POOL),
 //    UninitializedPool(poolMade = false, Some(false), COMET_POOL),

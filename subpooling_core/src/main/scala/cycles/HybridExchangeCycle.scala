@@ -109,7 +109,7 @@ class HybridExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Lo
 
     val emissionRate: Double = ((adjustedOutput.toDouble) / (amountToSwap.toDouble / Helpers.OneErg))
 
-    EmissionResults(lpBox, adjustedOutput, amountToSwap, amountInErg, feeTaken, emissionRate, Some(rate))
+    EmissionResults(Some(lpBox), adjustedOutput, amountToSwap, amountInErg, feeTaken, emissionRate, Some(rate))
   }
 
   def morphPlacementValues(placements: Seq[PoolPlacement], emissionResults: EmissionResults): Seq[PoolPlacement] = {
@@ -174,7 +174,7 @@ class HybridExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Lo
     val uTx = ctx.newTxBuilder()
       .boxesToSpend(inputs.asJava)
       .outputs(nextEmissions, nextHoldingBox, nextExchange, nextPoolFee)
-      .withDataInputs(Seq(emissionResults.lpBox).asJava)
+      .withDataInputs(Seq(emissionResults.lpBox.get).asJava)
       .fee(AppParameters.groupFee * 10)
       .sendChangeTo(AppParameters.getFeeAddress.getErgoAddress)
       .build()

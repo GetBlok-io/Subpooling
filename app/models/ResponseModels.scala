@@ -290,6 +290,34 @@ object ResponseModels {
       JsSuccess(NFTHolder(Address.create(address), nfts))
     }
   }
+  case class ExRate(ergRate: Double)
+  case class RateData(currency: String, exRate: ExRate)
+  case class ExchangeRateHolder(success: Boolean, rateData: RateData)
+
+
+  implicit val readsExRateHolder: Reads[ExRate] = new Reads[ExRate] {
+    override def reads(json: JsValue): JsResult[ExRate] = {
+      val erg = (json \ "ERG").as[String]
+
+      JsSuccess(ExRate(erg.toDouble))
+    }
+  }
+
+  implicit val readsRateDataHolder: Reads[RateData] = new Reads[RateData] {
+    override def reads(json: JsValue): JsResult[RateData] = {
+      val curr = (json \ "currency").as[String]
+      val rate = (json \ "rate").as[ExRate]
+      JsSuccess(RateData(curr, rate))
+    }
+  }
+
+  implicit val readsExchangeRateHolder: Reads[ExchangeRateHolder] = new Reads[ExchangeRateHolder] {
+    override def reads(json: JsValue): JsResult[ExchangeRateHolder] = {
+      val success = (json \ "success").as[String]
+      val data = (json \ "data").as[RateData]
+      JsSuccess(ExchangeRateHolder(success.toBoolean, data))
+    }
+  }
 
   object Paginate {
     def apply[T](writeable: Seq[T], pageSize: Option[Int])(implicit write: Writes[T]): PagedResponse ={

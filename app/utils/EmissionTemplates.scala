@@ -1,6 +1,6 @@
 package utils
 
-import io.getblok.subpooling_core.global.AppParameters
+import io.getblok.subpooling_core.global.{AppParameters, Helpers}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolInformation
 import org.ergoplatform.appkit.{Address, ErgoId, NetworkType}
 
@@ -74,6 +74,33 @@ object EmissionTemplates {
     networkType match {
       case NetworkType.MAINNET => ERGOPAD_MAINNET
       case NetworkType.TESTNET => ERGOPAD_TESTNET // TODO: CHANGE LATER
+    }
+  }
+
+
+  case class HybridNormalTemplate(swapAddress: Address, distToken: ErgoId, decimals: Long, proportion: Long,
+                            totalEmissions: Long)
+
+  val FLUX_MAINNET: HybridNormalTemplate = HybridNormalTemplate(
+    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    ErgoId.create("e8b20745ee9d18817305f32eb21015831a48f02d40980de6e849f886dca7f807"),
+    Helpers.OneErg / 10,
+    25000L,
+    10000L * (Helpers.OneErg / 10)
+  )
+
+  val FLUX_TESTNET: HybridNormalTemplate = HybridNormalTemplate(
+    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    ErgoId.create("e8b20745ee9d18817305f32eb21015831a48f02d40980de6e849f886dca7f807"),
+    Helpers.OneErg / 10,
+    25000L,
+    10000L * (Helpers.OneErg / 10)
+  )
+
+  def getFluxTemplate(networkType: NetworkType): HybridNormalTemplate = {
+    networkType match {
+      case NetworkType.MAINNET => FLUX_MAINNET
+      case NetworkType.TESTNET => FLUX_TESTNET // TODO: CHANGE LATER
     }
   }
 

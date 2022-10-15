@@ -294,6 +294,11 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
         val emMintBox = makeTokenTx(1L, "ErgoPad Emission Box NFT", "Token representing the ErgoPad Emission Box", 0, Helpers.MinFee * 5)
         logger.info("Token made, now creating emissions")
         emissionGenerator.makeErgoPadEmissions(tag, emMintBox)
+      case PoolInformation.CURR_ERG_FLUX =>
+        logger.info("Making emission for Flux Pool")
+        val emMintBox = makeTokenTx(1L, "Flux Emission Box NFT", "Token representing the Flux Emission Box", 0, Helpers.MinFee * 5)
+        logger.info("Token made, now creating emissions")
+        emissionGenerator.makeFluxEmissions(tag, emMintBox)
        // makeTokenTx(1000000000000L, "tCOMET", "Testnet Comet", 0, Helpers.MinFee * 2)
     }
   }

@@ -1,7 +1,7 @@
 package utils
 
 import io.getblok.subpooling_core.contracts.MetadataContract
-import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, HybridExchangeContract, NFTExchangeContract, ProportionalEmissionsContract}
+import io.getblok.subpooling_core.contracts.emissions.{EmissionsContract, ExchangeContract, HybridExchangeContract, HybridNormalContract, NFTExchangeContract, ProportionalEmissionsContract}
 import io.getblok.subpooling_core.contracts.holding.{AdditiveHoldingContract, TokenHoldingContract}
 import io.getblok.subpooling_core.contracts.plasma.{PlasmaHoldingContract, PlasmaScripts}
 import io.getblok.subpooling_core.global.AppParameters.NodeWallet
@@ -149,6 +149,58 @@ class EmissionGenerator(client: ErgoClient, wallet: NodeWallet, db: PostgresProf
           val updateEmissions = emissionsQuery.update(emTokenMintBox.getTokens.get(0).getId.toString)
           db.run(updateEmissions)
           logger.info("Finished making NETA Emissions Box")
+      }
+    }.recoverWith{
+      case e: Exception =>
+        logger.error("A fatal exception occurred while making neta pool", e)
+        Failure(e)
+    }
+  }
+
+
+  def makeFluxEmissions(tag: String, emTokenMintBox: InputBox) = {
+    Try {
+      client.execute {
+        ctx =>
+          //TODO: Use exact box id here if necessary
+          logger.info("Building transactions to create Flux Emissions Box")
+          val template = EmissionTemplates.getFluxTemplate(ctx.getNetworkType)
+          val emissionsContract = HybridNormalContract.generate(ctx, wallet.p2pk, template.swapAddress,
+            PlasmaHoldingContract.generate(ctx, wallet.p2pk, ErgoId.create(tag), PlasmaScripts.DUAL),
+            template.distToken, template.decimals
+          )
+
+          logger.info("Emissions Contract generated")
+          logger.info(s"HyNormExEm address: ${emissionsContract.getAddress}")
+
+          // TODO: FIX ADDRESS ON BOTH POOL_TEMPLATE AND EMIT_TEMPLATE
+
+          Thread.sleep(60000)
+          val tokenInputs = ctx.getBoxesById("d2ebcfde059685db32fdfece7a4938f6bc7adf3fcf8b16f15b9e375973be1d67")
+
+
+          val emissionToken = emTokenMintBox.getTokens.get(0)
+          logger.info(s"Token input boxes grabbed from chain. Num boxes: ${tokenInputs.length}")
+          logger.info(s"Token inputs head: ${tokenInputs.head.toJson(true)}")
+          val emissionsOutBox = HybridNormalContract.buildGenesisBox(
+            ctx, emissionsContract, 3000L, template.proportion, ctx.getHeight, emissionToken.getId,
+            new ErgoToken(template.distToken, template.totalEmissions)
+          )
+          val txB = ctx.newTxBuilder()
+          val unsigned = txB.boxesToSpend((Seq(emTokenMintBox) ++ Seq(tokenInputs.head)).asJava)
+            .outputs(emissionsOutBox)
+            .fee(Helpers.MinFee)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+          logger.info("Signing tx.")
+          val signed = wallet.prover.sign(unsigned)
+          logger.info("Transaction signed. Now sending transaction")
+          val txId = ctx.sendTransaction(signed)
+          logger.info("Transaction sent")
+          val emissionsQuery = for {info <- Tables.PoolInfoTable if info.poolTag === tag} yield info.emissionsId
+          val updateEmissions = emissionsQuery.update(emTokenMintBox.getTokens.get(0).getId.toString)
+          db.run(updateEmissions)
+          logger.info("Finished making Flux Emissions Box")
       }
     }.recoverWith{
       case e: Exception =>
