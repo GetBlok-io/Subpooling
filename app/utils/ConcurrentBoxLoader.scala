@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
+import scala.util.{Failure, Try}
 
 /**
  * Box loader allowing for parallelized box selection from a single-preloaded ConcurrentLinkedQueue
@@ -144,30 +145,53 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
 
     boxesCollected
   }
+
   def consolidateTx(boxSet: Seq[InputBox]) = {
-    ergoClient.execute {
-      ctx =>
-        val totalSum = boxSet.map(_.getValue.toLong).sum
-        val outBox = ctx.newTxBuilder().outBoxBuilder()
-          .value((boxSet.map(_.getValue.toLong).sum - (Helpers.MinFee * 2)) / 2)
-          .contract(wallet.contract)
-          .build()
-        val uTx = ctx.newTxBuilder()
-          .boxesToSpend(boxSet.toSeq.asJava)
-          .fee(Helpers.MinFee * 2)
-          .outputs(outBox)
-          .sendChangeTo(wallet.p2pk.getErgoAddress)
-          .build()
+    Try {
 
-        val sTx = wallet.prover.sign(uTx)
-        logger.info(s"Now sending consolidation transaction with id ${sTx.getId} for ${boxSet.size} and total of ${Helpers.nanoErgToErg(totalSum)} ERG.")
+      var tokenSet = Seq[ErgoToken]()
 
-        ctx.sendTransaction(sTx)
-        logger.info("Successfully sent consolidation transaction!")
+      for(box <- boxSet){
+          for(t <- box.getTokens.asScala.toSeq){
+            val currIdx = tokenSet.indexWhere(_.getId.toString == t.getId.toString)
+
+            if(currIdx == -1)
+              tokenSet = tokenSet ++ Seq(t)
+            else{
+              tokenSet = tokenSet.updated(currIdx, Helpers.addTokens(tokenSet(currIdx), t.getValue))
+            }
+          }
+      }
+
+      ergoClient.execute {
+        ctx =>
+          val totalSum = boxSet.map(_.getValue.toLong).sum
+          val outBox = ctx.newTxBuilder().outBoxBuilder()
+            .value(totalSum - (Helpers.MinFee * 2))
+            .contract(wallet.contract)
+            .tokens(tokenSet: _*)
+            .build()
+          val uTx = ctx.newTxBuilder()
+            .boxesToSpend(boxSet.toSeq.asJava)
+            .fee(Helpers.MinFee * 2)
+            .outputs(outBox)
+            .sendChangeTo(wallet.p2pk.getErgoAddress)
+            .build()
+
+          val sTx = wallet.prover.sign(uTx)
+          logger.info(s"Now sending consolidation transaction with id ${sTx.getId} for ${boxSet.size} and total of ${Helpers.nanoErgToErg(totalSum)} ERG.")
+
+          ctx.sendTransaction(sTx)
+          logger.info("Successfully sent consolidation transaction!")
+      }
+    }.recoverWith{
+      case e: Throwable =>
+        logger.error("There was a fatal error while consolidating boxes!", e)
+        Failure(e)
     }
   }
   def consolidateBoxes(numBoxes: Int) = {
-    require(loadedBoxes.size() > numBoxes + 10, s"Cannot consolidate ${numBoxes} when only ${loadedBoxes.size()} boxes are loaded!")
+    require(loadedBoxes.size() > numBoxes + 100, s"Cannot consolidate ${numBoxes} when only ${loadedBoxes.size()} boxes are loaded!")
     val lastBoxes = loadedBoxes.asScala.toSeq.reverse.take(Math.min(numBoxes, 300)).toSeq
     val boxGroups = lastBoxes.sliding(100, 100)
 
