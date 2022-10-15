@@ -144,22 +144,20 @@ class DualGroup(ctx: BlockchainContext, wallet: NodeWallet, miners: Seq[PlasmaMi
           m._1.copy(balance = m._2.tryOp.get.get.balance, balanceTwo = m._2.tryOp.get.get.balanceTwo)
     }
 
-    updatedBalances.map{
-      m =>
-        val minerTransforms = transformResults.filter(_.get.data.exists(d => d.miner == m.miner)).map(_.get)
+    var memberList: Seq[PoolMember] = Seq.empty[PoolMember]
 
-        val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
-        val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
+    for(m <- updatedBalances){
+      val minerTransforms = transformResults.filter(_.get.data.exists(d => d.miner == m.miner)).map(_.get)
 
-        val transform = {
-          payoutTransform match {
-            case Some(value) => value
-            case None => updateTransform.get
-          }
-        }
+      val payoutTransform = minerTransforms.find(_.command == CommandTypes.PAYOUT)
+      val updateTransform = minerTransforms.find(_.command == CommandTypes.UPDATE)
 
-        morphMember(m, payoutTransform.getOrElse(transform))
+      if(payoutTransform.isDefined)
+        memberList = memberList ++ Seq(morphMember(m, payoutTransform.get))
+      else if(updateTransform.isDefined)
+        memberList = memberList ++ Seq(morphMember(m, updateTransform.get))
     }
+    memberList
 
   }
 
