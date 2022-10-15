@@ -70,6 +70,10 @@ class EmissionRequestHandler @Inject()(config: Configuration, ws: WSClient) exte
 
               sender ! CycleResponse(cycleResults, nextPlacements)
           }
+        }.recoverWith{
+          case e: Throwable =>
+            logger.error("There was a fatal error in the Emission Request Handler!", e)
+            Failure(e)
         }
   }
 

@@ -1,7 +1,7 @@
 {
   // Hybrid Normal Emissions - Kirat Singh
   // This contract takes a PORTION of the block reward (in INPUTS(1)), removes a fee from it, and
-  // then performs a simulated swap and adjusts the output using the given percentage value.
+  // then performs a simulated swap.
   // This output value represents the tokens taken from the emission box, and represents the
   // tokens in the miner's payout.
 
