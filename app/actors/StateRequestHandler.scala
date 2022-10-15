@@ -77,6 +77,7 @@ class StateRequestHandler @Inject()(config: Configuration, mailerClient: MailerC
                 case desync: DesyncedPlasmaException =>
                   logger.error(s"Plasma was desynced for pool ${desync.poolTag}!")
                   mailerClient.send(MailGenerator.emailSyncError(desync.poolTag, desync.realDigest, desync.localDigest))
+                  sender ! StateFailure(desync)
                   Failure(desync)
                 case e: Throwable =>
                   logger.error("An unknown error occurred while setting up the pool!", e)

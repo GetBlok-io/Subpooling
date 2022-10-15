@@ -168,8 +168,8 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   }
   def consolidateBoxes(numBoxes: Int) = {
     require(loadedBoxes.size() > numBoxes + 10, s"Cannot consolidate ${numBoxes} when only ${loadedBoxes.size()} boxes are loaded!")
-    val lastBoxess = loadedBoxes.toArray.asInstanceOf[Array[InputBox]].reverse.take(Math.min(numBoxes, 300)).toSeq
-    val boxGroups = lastBoxess.sliding(100, 100)
+    val lastBoxes = loadedBoxes.asScala.toSeq.reverse.take(Math.min(numBoxes, 300)).toSeq
+    val boxGroups = lastBoxes.sliding(100, 100)
 
     boxGroups.foreach(consolidateTx)
   }
