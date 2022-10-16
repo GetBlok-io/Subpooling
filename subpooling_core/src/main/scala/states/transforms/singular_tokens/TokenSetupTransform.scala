@@ -67,7 +67,7 @@ case class TokenSetupTransform(override val ctx: BlockchainContext, override val
       val payoutOutBoxes = payoutBatches.indices.map {
         idx =>
           PayoutBalanceContract.buildBox(ctx, state.poolNFT, scriptType,
-            Some(AppParameters.groupFee * 20 + (updateBatches(idx).length * Helpers.MinFee))
+            Some(AppParameters.groupFee * 20 + (payoutBatches(idx).length * Helpers.MinFee))
           ) -> (insertBatches.size + updateBatches.size + idx)
       }
 
