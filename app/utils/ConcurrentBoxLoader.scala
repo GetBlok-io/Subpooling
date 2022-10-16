@@ -166,11 +166,20 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
       ergoClient.execute {
         ctx =>
           val totalSum = boxSet.map(_.getValue.toLong).sum
-          val outBox = ctx.newTxBuilder().outBoxBuilder()
+          val outBoxB = ctx.newTxBuilder().outBoxBuilder()
             .value(totalSum - (Helpers.MinFee * 2))
             .contract(wallet.contract)
-            .tokens(tokenSet: _*)
-            .build()
+
+          val outBox = {
+            if(tokenSet.nonEmpty) {
+              outBoxB
+                .tokens(tokenSet: _*)
+                .build()
+            }else
+              outBoxB.build()
+          }
+
+
           val uTx = ctx.newTxBuilder()
             .boxesToSpend(boxSet.toSeq.asJava)
             .fee(Helpers.MinFee * 2)
