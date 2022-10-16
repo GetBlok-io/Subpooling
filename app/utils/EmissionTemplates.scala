@@ -82,7 +82,7 @@ object EmissionTemplates {
                             totalEmissions: Long)
 
   val FLUX_MAINNET: HybridNormalTemplate = HybridNormalTemplate(
-    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    Address.create("9hEBMTma7z8Uqah6KbBVUZqU4J8bEZwr7RphxrreWDw2JNjqNxH"),
     ErgoId.create("e8b20745ee9d18817305f32eb21015831a48f02d40980de6e849f886dca7f807"),
     Helpers.OneErg / 10,
     25000L,
@@ -90,7 +90,7 @@ object EmissionTemplates {
   )
 
   val FLUX_TESTNET: HybridNormalTemplate = HybridNormalTemplate(
-    Address.create("9frZjRM66Dn9eCbTfxKMT228M3j62QvFCpaXXWdfmmdmoV9Jdzh"),
+    Address.create("9hEBMTma7z8Uqah6KbBVUZqU4J8bEZwr7RphxrreWDw2JNjqNxH"),
     ErgoId.create("e8b20745ee9d18817305f32eb21015831a48f02d40980de6e849f886dca7f807"),
     Helpers.OneErg / 10,
     25000L,
