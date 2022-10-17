@@ -81,7 +81,7 @@ class InitializePoolTask @Inject()(system: ActorSystem, config: Configuration,
     system.scheduler.scheduleWithFixedDelay(initialDelay = taskConfig.startup, delay = taskConfig.interval)({
       () =>
         performTestnetSetup
-        createRecordingBox
+
         val incompleteTemps = Try {
           findIncompletePools
         }

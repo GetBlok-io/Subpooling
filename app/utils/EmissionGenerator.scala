@@ -173,10 +173,10 @@ class EmissionGenerator(client: ErgoClient, wallet: NodeWallet, db: PostgresProf
           logger.info("Emissions Contract generated")
           logger.info(s"HyNormExEm address: ${emissionsContract.getAddress}")
 
-          // TODO: FIX ADDRESS ON BOTH POOL_TEMPLATE AND EMIT_TEMPLATE
 
-          Thread.sleep(60000)
-          val tokenInputs = ctx.getBoxesById("d2ebcfde059685db32fdfece7a4938f6bc7adf3fcf8b16f15b9e375973be1d67")
+
+          Thread.sleep(5000)
+          val tokenInputs = ctx.getBoxesById("edf90b7c9bc07d51f93cf8cb1f21625e95a4cc48bf423076b3cc86bd63bf0ae3")
 
 
           val emissionToken = emTokenMintBox.getTokens.get(0)
