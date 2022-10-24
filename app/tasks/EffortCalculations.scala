@@ -70,7 +70,7 @@ class EffortCalculations @Inject()(system: ActorSystem, config: Configuration,
 
   def updateBlockEffort(allBlocks: Seq[PoolBlock]) = {
     implicit val ec: ExecutionContext = contexts.taskContext
-    implicit val timeout: Timeout = Timeout(70 seconds)
+    implicit val timeout: Timeout = Timeout(700 seconds)
     val blocksGrouped = allBlocks.groupBy(_.poolTag)
     var blocksUpdated = 0
     logger.info("Evaluating effort for blocks!")
@@ -150,7 +150,7 @@ class EffortCalculations @Inject()(system: ActorSystem, config: Configuration,
             offset = offset + limit
           else
             offset = -1
-          if((accumDiff / block.netDiff) * 100 > 500){
+          if((accumDiff / block.netDiff) * 100 > 300){
             offset = -1
           }
         }
