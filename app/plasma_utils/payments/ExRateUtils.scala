@@ -10,7 +10,7 @@ import scala.concurrent.{Await, ExecutionContext}
 object ExRateUtils {
 
   def getExRate(ws: WSClient)(implicit ec: ExecutionContext): Double = {
-    Await.result(ws.url("https://fluxnodeservice.com/api/fluxrate").get().map{
+    Await.result(ws.url("https://rates.runonflux.io/api/fluxrate").get().map{
       resp =>
 
         (resp.json).validate[ExchangeRateHolder]
