@@ -1,6 +1,6 @@
 package plasma_test
 
-import group_test.MockData.ergoClient
+import group_test.MockData.{dummyTokenId, dummyWallet, ergoClient, toInput}
 import io.getblok.subpooling_core.contracts.plasma._
 import io.getblok.subpooling_core.global.Helpers
 import io.getblok.subpooling_core.plasma.{BalanceState, SingleBalance}
@@ -9,16 +9,17 @@ import io.getblok.subpooling_core.states.StateTransformer
 import io.getblok.subpooling_core.states.groups.PayoutGroup
 import io.getblok.subpooling_core.states.models.CommandTypes.SETUP
 import io.getblok.subpooling_core.states.models.{CommandState, CommandTypes, SingleState}
-
 import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.InputBox
 import org.scalatest.funsuite.AnyFunSuite
-import plasma_test.FullStateTransformationSuite._
+import org.slf4j.{Logger, LoggerFactory}
+import plasma_test.FullStateTransformationSuite.{buildUserBox, mockData}
 
 import scala.collection.mutable.ArrayBuffer
 
 class PayoutGroupSuite extends AnyFunSuite{
-  val balanceState = new BalanceState[SingleBalance]("test/payout_group_pool_test6")
+  private val logger: Logger = LoggerFactory.getLogger("PayoutGroupSuite")
+  val balanceState = new BalanceState[SingleBalance]("test/payout_group_pool_test10")
   val initBlockReward = Helpers.OneErg * 55
   var stateBox: InputBox = _
   var transformer: StateTransformer[SingleBalance] = _

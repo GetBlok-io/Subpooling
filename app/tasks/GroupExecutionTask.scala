@@ -74,7 +74,7 @@ class GroupExecutionTask @Inject()(system: ActorSystem, config: Configuration,
           Thread.sleep(5000)
           logger.info("Now consolidating the last 300 boxes!")
 
-          Try(boxLoader.consolidateBoxes(300)).recoverWith{
+          Try(boxLoader.consolidateBoxes(100)).recoverWith{
             case e: Throwable =>
               logger.error("Error while consolidating boxes!", e)
               Failure(e)

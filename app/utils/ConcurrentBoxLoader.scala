@@ -35,6 +35,20 @@ class ConcurrentBoxLoader(query: ActorRef, ergoClient: ErgoClient, params: Param
   val loadedBoxes: ConcurrentLinkedQueue[InputBox] = new ConcurrentLinkedQueue[InputBox]()
 
 
+  def selectParallelPlasmaBlocks(blocks: Seq[SPoolBlock]): Seq[BatchSelection] = {
+    implicit val timeout: Timeout = Timeout(20 seconds)
+    implicit val taskContext: ExecutionContext = contexts.taskContext
+    val blockSet = blocks.groupBy(_.poolTag).map(b => b._1 -> b._2.sortBy(_.blockheight).take(PLASMA_BATCH_SIZE)).toSeq
+    blockSet.map{
+      bs =>
+        BatchSelection(
+          bs._2,
+          Await.result((query ? QueryPoolInfo(bs._1)).mapTo[PoolInformation], timeout.duration)
+        )
+    }
+
+  }
+
   def selectBlocks(blocks: Seq[SPoolBlock], strictBatch: Boolean, isPlasma: Boolean = false): BatchSelection = {
     implicit val timeout: Timeout = Timeout(20 seconds)
     implicit val taskContext: ExecutionContext = contexts.taskContext

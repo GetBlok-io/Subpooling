@@ -9,7 +9,8 @@ import io.getblok.subpooling_core.groups.entities.{Member, Pool}
 import io.getblok.subpooling_core.persistence.models.PersistenceModels.PoolPlacement
 import io.getblok.subpooling_core.registers.MemberInfo
 import okhttp3.OkHttpClient
-import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, InputBox, NetworkType, Parameters, RestApiErgoClient}
+import org.ergoplatform.appkit.{Address, ErgoClient, ErgoId, ErgoProver, InputBox, NetworkType, OutBox, Parameters, RestApiErgoClient}
+import plasma_test.FullStateTransformationSuite.dummyTxId
 
 import java.util.concurrent.TimeUnit
 
@@ -42,7 +43,7 @@ object MockData {
   val dummyToken = "f5cc03963b64d3542b8cea49d5436666a97f6a2d098b7d3b2220e824b5a91819"
   val dummyDistributionToken = "472c3d4ecaa08fb7392ff041ee2e6af75f4a558810a74b28600549d5392810e8"
   val dummyEmissionsToken = "88cbad09a5b05389c97df4261fa7a1a6aeb6a4eff5bd6942697cb2925a16d0b1"
-  val dummyWallet: NodeWallet = NodeWallet(PK(creatorAddress), dummyProver)
+  val dummyWallet: NodeWallet = NodeWallet(PK(dummyProver.getAddress), dummyProver)
   val dummyTokenId: ErgoId = ErgoId.create(dummyToken)
 
   val commandContract: CommandContract = new PKContract(dummyWallet.p2pk)
@@ -98,8 +99,18 @@ object MockData {
     val initValueAfterFees: Long = holdingValue - (holdingValue / 100)
 
   }
+  def toInput(outBox: OutBox) = outBox.convertToInputWith(dummyTxId, 0)
 
+  def dummyProver: ErgoProver = {
+    ergoClient.execute {
+      ctx =>
+        val prover = ctx.newProverBuilder()
+          .withDLogSecret(BigInt.apply(0).bigInteger)
+          .build()
 
+        return prover
+    }
+  }
   object LoadedPoolData {
     // Init Mock data
     val holdingValue: Long = Parameters.OneErg * 66

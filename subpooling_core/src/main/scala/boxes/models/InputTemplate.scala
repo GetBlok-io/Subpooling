@@ -8,6 +8,7 @@ import org.ergoplatform.appkit._
 import org.ergoplatform.appkit.impl.ErgoTreeContract
 import sigmastate.Values
 import special.collection.Coll
+import special.sigma.Box
 
 import java.{lang, util}
 
@@ -76,5 +77,9 @@ abstract class InputTemplate(inputBox: InputBox) extends InputBox{
   // box can change)
   def getMetadataRegisters: MetadataRegisters = {
     metadataRegisters.copy()
+  }
+
+  override def toErgoValue: ErgoValue[Box] = {
+    asInput.toErgoValue
   }
 }

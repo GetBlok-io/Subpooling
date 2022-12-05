@@ -6,7 +6,7 @@ maintainer := "ksingh@getblok.io"
 scalaVersion := "2.12.10"
 
 libraryDependencies ++= Seq(
-  "org.ergoplatform" %% "ergo-appkit" % "4.0.10",
+  "org.ergoplatform" %% "ergo-appkit" % "5.0.0",
   "org.postgresql" % "postgresql" % "42.3.4",
   "org.scalatest" %% "scalatest" % "3.2.11" % "test",
   "io.swagger" % "swagger-annotations" % "1.6.5",
@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-slick-evolutions" % "5.0.0",
   "com.typesafe.slick" %% "slick" % "3.3.3",
   "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3",
-  "io.github.getblok-io" %% "getblok_plasma" % "1.0.0",
+  "io.github.getblok-io" %% "getblok_plasma" % "1.0.1",
   "com.typesafe.play" %% "play-mailer" % "8.0.1",
   "com.typesafe.play" %% "play-mailer-guice" % "8.0.1"
 )

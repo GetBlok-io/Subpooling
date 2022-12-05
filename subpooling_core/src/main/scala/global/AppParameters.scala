@@ -23,12 +23,12 @@ object AppParameters {
       val boxes = response.body().asScala.toSeq
       val asInputs: Seq[InputBox] = boxes.map(b => new InputBoxImpl(b.getBox))
 
-      val boxList = BoxSelectorsJavaHelpers.selectBoxes(asInputs.asJava, amount, Seq().asJava)
+      InputBoxesValidatorJavaHelper.validateBoxes(asInputs.asJava, amount, Seq().asJava)
 
-      if(boxList.isEmpty)
+      if(asInputs.isEmpty)
         None
       else
-        Some(boxList)
+        Some(asInputs.asJava)
     }
   }
 
