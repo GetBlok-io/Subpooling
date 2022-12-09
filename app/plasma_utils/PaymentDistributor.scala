@@ -202,6 +202,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
           val balanceState = PaymentRouter.routeBalanceState(batchSelection.info)
 
           val oldMiners = distinctMembers(poolTag, modifiedPlacements).map(makeLostPlacement(modifiedPlacements.head, _))
+            .map(_.copy(minpay = Helpers.MinFee))
 
           stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, modifiedPlacements++oldMiners)
         }
