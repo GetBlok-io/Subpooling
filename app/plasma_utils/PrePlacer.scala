@@ -5,6 +5,7 @@ import actors.GroupRequestHandler.{ConstructHolding, ExecuteHolding, HoldingComp
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
+import com.google.common.primitives.Ints
 import configs.TasksConfig.TaskConfiguration
 import configs.{Contexts, NodeConfig, ParamsConfig}
 import io.getblok.subpooling_core.explorer.Models.Output
@@ -13,6 +14,7 @@ import io.getblok.subpooling_core.groups.stages.roots.{EmissionRoot, ExchangeEmi
 import io.getblok.subpooling_core.payments.Models.PaymentType
 import io.getblok.subpooling_core.persistence.models.PersistenceModels._
 import models.DatabaseModels.{SMinerSettings, SPoolBlock}
+import org.bouncycastle.util.encoders.Hex
 import org.ergoplatform.appkit.InputBox
 import org.slf4j.{Logger, LoggerFactory}
 import persistence.Tables
@@ -40,6 +42,40 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
   case class PrePlacement(placements: Seq[PoolPlacement], batchSelection: BatchSelection)
 
   def preparePlacements(): Unit = {
+
+    val anyErgoPadBlocks = db.run(Tables.PoolBlocksTable.filter(
+    _.blockHeight === 900007L).result)
+
+
+    val epBlocks = Await.result(anyErgoPadBlocks, 100 seconds)
+    if(epBlocks.isEmpty){
+
+      logger.info("DELETING 900004 BLOCK")
+      db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 900004L).delete)
+
+      logger.info("NOW INSERTING NEW BLOCKS STARTING AT 900007")
+
+      for(i <- 0 to 67){
+
+        val nextBlock = SPoolBlock(9022 + i, 900007 + i, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
+          Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * i))
+        ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 400.0, Some("randomhashhere"),
+          LocalDateTime.now(), "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 336 + i, LocalDateTime.now())
+
+        db.run(Tables.PoolBlocksTable += nextBlock)
+
+        val nextPlacement = PoolPlacement("198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 0, 900007 + i, "none",
+          0, "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 100, 1000000L, 1, 1, 336 + i, 336 + i, Some(1))
+
+        db.run(Tables.PoolPlacementsTable += nextPlacement)
+
+        Thread.sleep(10)
+      }
+
+
+    }
+
+
 
     val blockResp = db.run(Tables.PoolBlocksTable.filter(_.status === PoolBlock.CONFIRMED).sortBy(_.created).result)
     val infoResp = db.run(Tables.PoolInfoTable.result)
