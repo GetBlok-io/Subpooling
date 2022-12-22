@@ -48,6 +48,7 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
 
 
     val epBlocks = Await.result(anyErgoPadBlocks, 100 seconds)
+    logger.info("CHECKING IF BLOCK 900007 EXISTS")
     if(epBlocks.isEmpty){
 
       logger.info("NOT DELETING 900004 BLOCK")
