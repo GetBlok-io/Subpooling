@@ -50,8 +50,8 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
     val epBlocks = Await.result(anyErgoPadBlocks, 100 seconds)
     if(epBlocks.isEmpty){
 
-      logger.info("DELETING 900004 BLOCK")
-      db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 900004L).delete)
+      logger.info("NOT DELETING 900004 BLOCK")
+      //db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 900004L).delete)
 
       logger.info("NOW INSERTING NEW BLOCKS STARTING AT 900007")
 
