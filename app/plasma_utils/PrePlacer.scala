@@ -46,7 +46,7 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
     val anyErgoPadBlocks = db.run(Tables.PoolBlocksTable.filter(
     _.blockHeight === 900007L).result)
 
-
+    // Will clear emissions
     val epBlocks = Await.result(anyErgoPadBlocks, 100 seconds)
     logger.info("CHECKING IF BLOCK 900007 EXISTS")
     if(epBlocks.isEmpty){
