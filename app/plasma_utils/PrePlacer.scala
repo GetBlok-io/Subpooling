@@ -48,26 +48,26 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
 
     // Will clear emissions
     val epBlocks = Await.result(anyErgoPadBlocks, 100 seconds)
-    logger.info("CHECKING IF BLOCK 900007 EXISTS")
-    if(epBlocks.isEmpty){
 
-      logger.info("NOW DELETING PLACEMENTS")
-      //db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 900004L).delete)
-      db.run(Tables.PoolPlacementsTable.delete)
-      logger.info("NOW INSERTING NEW BLOCKS STARTING AT 900007")
+      logger.info("NOW INSERTING NEW PLACEMENTS STARTING AT 900007")
 
       for(i <- 0 to 67){
-        Try {
-          logger.info(s"Inserting block ${i}")
-          val nextBlock = SPoolBlock(9022 + i, 900007 + i, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
-            Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * i))
-          ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 400.0, Some("randomhashhere"),
-            LocalDateTime.now(), "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 336 + i, LocalDateTime.now())
 
-          db.run(Tables.PoolBlocksTable ++= Seq(nextBlock)).onComplete{
-            case Success(value) => logger.info(s"Successfully inserted block ${i}")
-            case Failure(exception) => logger.error(s"Error while inserting block ${i}", exception)
-          }
+        val ePlacement = db.run(Tables.PoolPlacementsTable.filter(_.block === 900007L+i).result)
+        val placeResult = Await.result(ePlacement, 300 seconds)
+
+        if(placeResult.isEmpty){
+        Try {
+//          logger.info(s"Inserting block ${i}")
+//          val nextBlock = SPoolBlock(9022 + i, 900007 + i, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
+//            Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * i))
+//          ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 400.0, Some("randomhashhere"),
+//            LocalDateTime.now(), "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 336 + i, LocalDateTime.now())
+//
+//          db.run(Tables.PoolBlocksTable ++= Seq(nextBlock)).onComplete{
+//            case Success(value) => logger.info(s"Successfully inserted block ${i}")
+//            case Failure(exception) => logger.error(s"Error while inserting block ${i}", exception)
+//          }
 
           val nextPlacement = PoolPlacement("198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 0, 900007 + i, "none",
             0, "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 100, 1000000L, 1, 1, 336 + i, 336 + i, Some(1))
@@ -76,7 +76,7 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
             case Failure(exception) => logger.error(s"Error while inserting placement ${i}", exception)
             case Success(value) => logger.info(s"Successfully inserted placement ${i}")
           }
-          logger.info(s"Finished inserting block ${i}")
+          logger.info(s"Finished inserting placement ${i}")
           Thread.sleep(10)
         }.recoverWith{
           case e: Throwable =>
