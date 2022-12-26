@@ -51,9 +51,9 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
     logger.info("CHECKING IF BLOCK 900007 EXISTS")
     if(epBlocks.isEmpty){
 
-      logger.info("NOT DELETING 900004 BLOCK")
+      logger.info("NOW DELETING PLACEMENTS")
       //db.run(Tables.PoolBlocksTable.filter(_.blockHeight === 900004L).delete)
-
+      db.run(Tables.PoolPlacementsTable.delete)
       logger.info("NOW INSERTING NEW BLOCKS STARTING AT 900007")
 
       for(i <- 0 to 67){

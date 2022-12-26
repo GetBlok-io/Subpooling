@@ -25,7 +25,7 @@ object DatabaseModels {
   case class SMinerSettings(poolId: String, address: String, paymentthreshold: Double, created: LocalDateTime, updated: LocalDateTime,
                            subpool: Option[String])
   case class SPoolBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: Option[String],
-                       miner: String, reward: Double, hash: Option[String], created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime){
+                       miner: String, reward: Double, hash: Option[String], created: LocalDateTime, poolTag: String, gEpoch: Long, updated: LocalDateTime, poolid: String = "ergo1"){
     def getNanoErgReward: Long = (BigDecimal(reward) * Parameters.OneErg).longValue()
   }
   case class SBlock(id: Long, blockheight: Long, netDiff: Double, status: String, confirmation: Double, effort: Option[Double], txConfirmation: Option[String],

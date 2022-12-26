@@ -23,8 +23,9 @@ class PoolBlocksTable(tag: Tag) extends Table[SPoolBlock](tag, "pool_blocks") {
   def updated           = column[LocalDateTime]("updated")
   def poolTag           = column[String]("pool_tag")
   def gEpoch            = column[Long]("g_epoch")
+
   def *                 = (id, blockHeight, netDiff, status, confirmation, effort, nonce, miner,
-                           reward, hash, created, poolTag, gEpoch, updated) <> (SPoolBlock.tupled, SPoolBlock.unapply)
+                           reward, hash, created, poolTag, gEpoch, updated, poolId) <> (SPoolBlock.tupled, SPoolBlock.unapply)
 }
 
 
