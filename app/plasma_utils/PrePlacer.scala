@@ -28,8 +28,8 @@ import utils.ConcurrentBoxLoader.BatchSelection
 import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.language.{existentials, postfixOps}
+import scala.util.{Failure, Success, Try}
 
 class PrePlacer(contexts: Contexts, params: ParamsConfig,
                 nodeConfig: NodeConfig, boxLoader: ConcurrentBoxLoader, db: PostgresProfile#Backend#Database,
@@ -57,20 +57,32 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
       logger.info("NOW INSERTING NEW BLOCKS STARTING AT 900007")
 
       for(i <- 0 to 67){
+        Try {
+          logger.info(s"Inserting block ${i}")
+          val nextBlock = SPoolBlock(9022 + i, 900007 + i, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
+            Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * i))
+          ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 400.0, Some("randomhashhere"),
+            LocalDateTime.now(), "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 336 + i, LocalDateTime.now())
 
-        val nextBlock = SPoolBlock(9022 + i, 900007 + i, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
-          Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * i))
-        ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 400.0, Some("randomhashhere"),
-          LocalDateTime.now(), "198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 336 + i, LocalDateTime.now())
+          db.run(Tables.PoolBlocksTable ++= Seq(nextBlock)).onComplete{
+            case Success(value) => logger.info(s"Successfully inserted block ${i}")
+            case Failure(exception) => logger.error(s"Error while inserting block ${i}", exception)
+          }
 
-        db.run(Tables.PoolBlocksTable += nextBlock)
+          val nextPlacement = PoolPlacement("198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 0, 900007 + i, "none",
+            0, "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 100, 1000000L, 1, 1, 336 + i, 336 + i, Some(1))
 
-        val nextPlacement = PoolPlacement("198999881b270fa41546ba3fb339d24c24914fbbf11a8283e4c879d6e30770b0", 0, 900007 + i, "none",
-          0, "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 100, 1000000L, 1, 1, 336 + i, 336 + i, Some(1))
-
-        db.run(Tables.PoolPlacementsTable += nextPlacement)
-
-        Thread.sleep(10)
+          db.run(Tables.PoolPlacementsTable ++= Seq(nextPlacement)).onComplete {
+            case Failure(exception) => logger.error(s"Error while inserting placement ${i}", exception)
+            case Success(value) => logger.info(s"Successfully inserted placement ${i}")
+          }
+          logger.info(s"Finished inserting block ${i}")
+          Thread.sleep(10)
+        }.recoverWith{
+          case e: Throwable =>
+            logger.error("Error: ",e)
+            Failure(e)
+        }
       }
 
 
