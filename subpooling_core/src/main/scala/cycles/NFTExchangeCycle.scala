@@ -136,7 +136,7 @@ class NFTExchangeCycle(ctx: BlockchainContext, wallet: NodeWallet, reward: Long,
     placements.map{
       p =>
         p.copy (
-          amount = rewardWithBonus(p)
+          amount = 7462906113868L
         )
     }
   }
