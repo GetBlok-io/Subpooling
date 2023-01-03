@@ -46,6 +46,57 @@ class PrePlacer(contexts: Contexts, params: ParamsConfig,
     val anyErgoPadBlocks = db.run(Tables.PoolBlocksTable.filter(
     _.blockHeight === 900007L).result)
 
+
+    val netaBlock = Await.result(db.run(Tables.PoolBlocksTable.filter(
+      _.blockHeight === 900075L).result), 100 seconds)
+
+    if(netaBlock.isEmpty){
+      logger.info(s"Inserting neta block!")
+      val nextBlock = SPoolBlock(9090, 900075L, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
+        Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * (500 * Math.random()).toInt))
+      ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 25, Some("randomhashhere"),
+        LocalDateTime.now(), "3bfc08ec8f536039ae2e19afb5cbaf6329f12b4bf84cdd0a8de5f7a023ad1f43", 74, LocalDateTime.now())
+
+      db.run(Tables.PoolBlocksTable ++= Seq(nextBlock)).onComplete{
+        case Success(value) => logger.info(s"Successfully inserted neta block")
+        case Failure(exception) => logger.error(s"Error while inserting neta block", exception)
+      }
+      val nextPlacement = PoolPlacement("3bfc08ec8f536039ae2e19afb5cbaf6329f12b4bf84cdd0a8de5f7a023ad1f43", 0, 900075L, "none",
+        0, "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 100, 1000000L, 1, 1, 74, 74, None)
+
+      db.run(Tables.PoolPlacementsTable ++= Seq(nextPlacement)).onComplete {
+        case Failure(exception) => logger.error(s"Error while inserting neta placement", exception)
+        case Success(value) => logger.info(s"Successfully inserted neta placement")
+      }
+      logger.info(s"Finished inserting placements + blocks")
+    }
+
+
+
+    val fluxBlock = Await.result(db.run(Tables.PoolBlocksTable.filter(
+      _.blockHeight === 900076L).result), 100 seconds)
+
+    if(fluxBlock.isEmpty){
+      logger.info(s"Inserting Flux block!")
+      val nextBlock = SPoolBlock(9091, 900076L, 100000.0, PoolBlock.PRE_PROCESSED, 1.0, Some(1.0), Some(
+        Hex.toHexString(Ints.toByteArray(Math.rint(Math.random() * 100000L * Math.random()).toInt * (500 * Math.random()).toInt))
+      ), "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 25, Some("randomhashhere"),
+        LocalDateTime.now(), "c2a1e29b9454d2dabce665cc8d5bdae1b9cb3a190f19df73668b76a2118fd274", 41, LocalDateTime.now())
+
+      db.run(Tables.PoolBlocksTable ++= Seq(nextBlock)).onComplete{
+        case Success(value) => logger.info(s"Successfully inserted Flux block")
+        case Failure(exception) => logger.error(s"Error while inserting Flux block", exception)
+      }
+      val nextPlacement = PoolPlacement("c2a1e29b9454d2dabce665cc8d5bdae1b9cb3a190f19df73668b76a2118fd274", 0, 900076L, "none",
+        0, "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU", 100, 1000000L, 1, 1, 41, 41, None)
+
+      db.run(Tables.PoolPlacementsTable ++= Seq(nextPlacement)).onComplete {
+        case Failure(exception) => logger.error(s"Error while inserting Flux placement", exception)
+        case Success(value) => logger.info(s"Successfully inserted Flux placement")
+      }
+      logger.info(s"Finished inserting placements + blocks")
+    }
+
     // Will clear emissions
     val epBlocks = Await.result(anyErgoPadBlocks, 100 seconds)
 
