@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.google.common.primitives.Longs
 import configs.TasksConfig.TaskConfiguration
-import configs.{Contexts, NodeConfig, ParamsConfig, TasksConfig}
+import configs.{Contexts, ExplorerConfig, NodeConfig, ParamsConfig, TasksConfig}
 import io.getblok.subpooling_core.boxes.MetadataInputBox
 import io.getblok.subpooling_core.explorer.Models.{Output, RegisterData, TransactionData}
 import io.getblok.subpooling_core.global.{AppParameters, Helpers}
@@ -61,6 +61,7 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
   val logger: Logger = Logger("DatabaseCrossCheck")
   val taskConfig: TaskConfiguration = new TasksConfig(config).dbCrossCheckConfig
   val nodeConfig: NodeConfig        = new NodeConfig(config)
+  val expConfig = new ExplorerConfig(config)
   val ergoClient: ErgoClient = nodeConfig.getClient
   val wallet:     NodeWallet = nodeConfig.getNodeWallet
 
@@ -367,6 +368,55 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
     logger.info(s"Expected digest after command ${step.digest}")
   }
 
+//  def getNextTx(txInfo: TransactionData): Option[TransactionData] = {
+//    val spendingId = txInfo.outputs.head.spendingTxId
+//    spendingId.flatMap {
+//      spId =>
+//        val lastTx = expConfig.explorerHandler.getTransaction(spId)
+//        lastTx
+//    }
+//  }
+//
+//  def syncTx(txInfo: TransactionData) = {
+//    if(txInfo.inputs.size > 1) {
+//      val commandType = txInfo.inputs(1).address.toString
+//
+//      val commandString = commandType match {
+//        case "" =>
+//
+//      }
+//    }
+//  }
+//
+//  def getPrevTx(poolTag: String, txInfo: TransactionData): Option[TransactionData] = {
+//    val lastTx = expConfig.explorerHandler.getTransaction(txInfo.inputs.head.creationTxId)
+//    if(lastTx.isDefined) {
+//        if(lastTx.get.inputs.head.assets.headOption.exists(_.id.toString == poolTag)){
+//          lastTx
+//        }else{
+//          None
+//        }
+//    }else{
+//      None
+//    }
+//
+//  }
+//
+//  def getFirstTx(poolTag: String): Option[TransactionData] = {
+//    val boxes = expConfig.explorerHandler.boxesByTokenId(ErgoId.create(poolTag))
+//    if(boxes.isDefined){
+//      val initTxId = boxes.get.head.txId
+//      val initTx = expConfig.explorerHandler.getTransaction(initTx)
+//      var prevTx = getPrevTx(poolTag, initTx.get)
+//      while(prevTx.isDefined){
+//        prevTx = getPrevTx(poolTag, prevTx.get)
+//      }
+//      prevTx
+//    }else{
+//      throw new Exception("Could not find boxes!!!")
+//    }
+//  }
+
   def syncDualState(balanceState: BalanceState[DualBalance], poolTag: String) = {
 
     logger.info(s"Balance state has initial digest ${balanceState.map.toString()}")
@@ -386,42 +436,8 @@ class DbCrossCheck @Inject()(system: ActorSystem, config: Configuration,
             historySteps.foreach{
               step =>
                 logger.info("Now parsing steps")
-                if(step.step != -1 && step.gEpoch != 129) {
                   applyDualStep(balanceState, step)
-                }else if(step.step == -1 && step.gEpoch == 44){
-                  logger.info("Applying missing INSERT step for gEpoch 44")
-                  val fakeStep = step.copy(
-                    box = "22f0ce7dd345a48703a5de623dd08ce6727dc6bf433389c906c300d4e25d2c35",
-                    tx = "bfe49dc83c75827eea610ab571f6d5ced96e2249bdf9c12a012a139b15c3500f",
-                    commandBox = "43b780e401c4e6b905416455ac9e531ee1fd9db4fc3dcc9b142c020ac2806b83",
-                    command = "INSERT",
-                    digest = "645e1dab64469261fde5441c71dd5d7ed317e0020c17f0db5e40cb16524e2ce409"
-                  )
-                  applyDualStep(balanceState, fakeStep)
-                }else if(step.step == -1 && step.gEpoch == 128) {
-                  logger.info("Applying missing UPDATE step for gEpoch 128")
-                  val fakeStep = step.copy(
-                    box = "9a85edf8c4c52cbf2a82d61ca538fab4ca29bf4046a23428d93f650a8036c551",
-                    tx = "73dcefa04f2ea2da6d69164d4bae07525ddd13c72a99eff9f2ebd5f9ccb935a0",
-                    commandBox = "f3a78d5573c7433dc19e26c40e820ee64b620cca77fa4f544cec72229f665074",
-                    command = "UPDATE",
-                    digest = "223d31f9bd18bea120d4a9d2c0dab51779200e4245bff72a73ad7d3c3a2d53a80a"
-                  )
-                  logger.info("Applying missing PAYOUT step for gEpoch 128")
-                  applyDualStep(balanceState, fakeStep)
-                  val fakeStepTwo = step.copy(
-                    box = "34f5509bf09955465698415e491e63906c930a69e035060a0fe8cc8a8113e1d0",
-                    tx = "c50358796d10793c178a0e52af3bc911b0f57f69cd6b36e9fb958e48e835e515",
-                    commandBox = "44dffdbf6b7ab05656684bbaebe52d1517547f5fb38e98b6ac256203a432f361",
-                    command = "PAYOUT",
-                    digest = "c3ae77a965817e3db01dd5f62862894ff5cdbc820df9ddb297881cdeb5333f7d0a"
-                  )
-                  applyDualStep(balanceState, fakeStepTwo)
-                }else if(step.gEpoch == 129){
-                  logger.info("Skipping duplicates at gEpoch 120")
-                }else{
-                  logger.info(s"Skipping ${step.command} transform for gEpoch ${step.gEpoch}")
-                }
+
             }
 
         }
