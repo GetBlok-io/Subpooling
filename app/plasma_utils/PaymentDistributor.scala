@@ -206,7 +206,7 @@ class PaymentDistributor(expReq: ActorRef, stateHandler: ActorRef,
 
           val totalPlacements = modifiedPlacements++oldMiners
 
-          val allPlacements = totalPlacements.map(_.copy(minpay = Helpers.MinFee))
+          val allPlacements = totalPlacements.map(_.copy(minpay = Helpers.MinFee)).filter(_.miner == "9gUibHoaeiwKZSpyghZE6YMEZVJu9wsKzFS23WxRVq6nzTvcGoU")
           // Flush all payments out
           stateHandler ? DistConstructor(states.head, boxes, batchSelection, balanceState, allPlacements)
         }
